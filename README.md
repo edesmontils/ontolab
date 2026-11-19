@@ -11,11 +11,21 @@ de donnée), visualisation de type VOWL, export Turtle.
 1. clonez le repo (ou téléchargez l'archive ZIP de GitHub) ;
 2. ouvrez `index.html` dans un navigateur (Chrome, Firefox, Safari) —
    double-clic, pas de serveur, pas de Java, fonctionne **hors-ligne** ;
-3. bouton **Exemple** : charge une mini-ontologie de démo.
+3. menu **⋯ › Charger l'exemple** : charge une mini-ontologie de démo.
+
+## L'interface
+
+- **Palette de modes** (colonne de gauche) : ① Classe, ② Propriété objet, ③ Propriété de donnée,
+  ④ Déplacer — touches `1` à `4`.
+- **Barre du haut** : annuler ↶ / rétablir ↷, menu **Importer ▾** (Turtle, JSON OntoLab), menu
+  **Exporter ▾** (Turtle, JSON OntoLab, image PNG/SVG) et menu **⋯** (Charger l'exemple, Vider l'ontologie,
+  Panneau d'édition, Aide et raccourcis).
+- **Contrôles de vue** (en bas à droite, au-dessus du graphe) : zoom +, zoom −, recentrer, réorganiser.
+- **Légende** : pastille en bas à gauche ; **panneau d'édition** à droite (replié/affiché par le menu ⋯).
 
 Le travail est sauvegardé automatiquement dans le navigateur (localStorage) et
-est exportable/importable en JSON (« Exporter JSON » / « Importer JSON ») pour
-le partager ou le sauvegarder durablement. Le bouton « Exporter TTL » produit,
+est exportable/importable en JSON (« Exporter ▾ › JSON OntoLab » / « Importer ▾ › JSON OntoLab ») pour
+le partager ou le sauvegarder durablement. « Exporter ▾ › Turtle » produit,
 lui, un fichier `.ttl` OWL standard, lisible par tout outil RDF.
 
 > **Développeurs** : l'architecture, le modèle de données et les points de
@@ -55,7 +65,7 @@ L'interface reprend les codes visuels de la **notation VOWL**
 3. **Propriété de donnée** — clic sur une classe ; choix du type XSD. Comme en
    ②, glisser une ellipse rouge sur une autre = sous-propriété de donnée.
 4. **Déplacer** — glisser tout élément (classe, étiquette de propriété) pour le
-   repositionner à la main ; les flèches et arcs suivent. Le bouton
+   repositionner à la main ; les flèches et arcs suivent. Le bouton flottant
    **Réorganiser** recalcule la mise en page automatique et efface les
    positions manuelles. Double-clic sur le fond : recentrer la vue.
 
@@ -71,11 +81,10 @@ l'écart tout chevauchement restant.
 
 **Écran tactile (iPad, tablette)** : les mêmes gestes fonctionnent au doigt ou au
 stylet — toucher = clic, glisser = glisser. Pincer à deux doigts : zoom et
-déplacement de la vue ; glisser le fond à un doigt : déplacement. Le bouton
-**Recentrer** remplace le double-clic ; le panneau contient le bouton de
-suppression (pas de touche `Suppr` sur tablette) et la barre d'outils défile
-horizontalement si l'écran est étroit. Les touches `1`-`4` ont pour équivalent
-les boutons de mode.
+déplacement de la vue ; glisser le fond à un doigt : déplacement. Les boutons flottants
+**+ / − / Recentrer** remplacent molette et double-clic ; le panneau contient le bouton de
+suppression (pas de touche `Suppr` sur tablette). La barre du haut tient sur une rangée même en
+portrait, et la palette de modes remplace les touches `1`-`4`.
 
 Clic sur n'importe quel élément : édition (nom, domaine, portée,
 caractéristiques, suppression) dans le panneau de droite. Molette : zoom ;
@@ -83,30 +92,30 @@ glisser le fond : déplacement ; `Suppr` : supprimer l'élément sélectionné ;
 le fond** : désélectionner (en mode ① Classe, le clic sur le fond désélectionne d'abord, et ne
 crée une classe que s'il n'y a rien de sélectionné).
 
-Bouton **Exemple** : charge une mini-ontologie de randonnées (Personne ⊃
+Menu **⋯ › Charger l'exemple** : charge une mini-ontologie de randonnées (Personne ⊃
 Membre, Guide ; Groupe ; Voie ⊃ Sentier, Piste ; `connaît` transitive et
 symétrique, `mène-à` transitive, `encadre` fonctionnelle, types XSD) — idéale
 pour montrer chaque concept d'un coup.
 
 ## Annuler / rétablir, panneau, légende, image
 
-- **Annuler / Rétablir** : boutons ↶ ↷ de la barre d'outils, ou `Cmd/Ctrl+Z` et
+- **Annuler / Rétablir** : boutons ↶ ↷ de la barre du haut, ou `Cmd/Ctrl+Z` et
   `Cmd/Ctrl+Maj+Z` (`Ctrl+Y`). Jusqu'à 100 étapes ; couvre toute modification des classes et
   des propriétés (création, suppression, renommage, héritage, déplacement — un glisser = une étape),
   y compris « Vider », « Réorganiser » et les imports JSON/TTL. La vue (zoom), la sélection et
   le mode ne sont pas dans l'historique, et l'historique n'est pas conservé au rechargement de la
   page. Dans un champ texte, l'annulation native du navigateur reste active.
-- **Panneau et légende repliables** : le bouton **–** du panneau le replie en pastille (qui indique
-  l'élément sélectionné ; la toucher le rouvre) ; la pastille en bas à gauche masque ou affiche
-  la légende. Les deux sont **repliés par défaut sur écran étroit** (< 900 px, iPad en portrait) ;
+- **Panneau et légende repliables** : le bouton **–** du panneau le replie, et l'entrée « Panneau
+  d'édition » du menu ⋯ (cochée quand il est affiché) le rouvre ; la pastille en bas à gauche masque
+  ou affiche la légende. Les deux sont **repliés par défaut sur écran étroit** (< 900 px, iPad en portrait) ;
   le choix est mémorisé sur l'appareil.
-- **Exporter image** : PNG (1×, 2× ou 3×) ou SVG vectoriel du schéma **entier** (quelle que soit la
+- **Exporter ▾ › Image** : PNG (1×, 2× ou 3×) ou SVG vectoriel du schéma **entier** (quelle que soit la
   partie visible), avec ou sans légende, fond blanc ou transparent ; la sélection n'apparaît pas.
   Sur iPad / iPhone, le fichier est proposé via la feuille de partage (« Enregistrer l'image »).
 
 ## Export Turtle
 
-« **Exporter TTL** » affiche et télécharge un fichier `.ttl` OWL en Turtle
+« **Exporter ▾ › Turtle** » affiche et télécharge un fichier `.ttl` OWL en Turtle
 (namespace modifiable) :
 
 ```ttl
@@ -132,7 +141,7 @@ pour montrer chaque concept d'un coup.
 
 ## Importer un fichier Turtle
 
-« **Importer TTL** » charge un fichier `.ttl` (Turtle) et **remplace** l'ontologie
+« **Importer ▾ › Turtle** » charge un fichier `.ttl` (Turtle) et **remplace** l'ontologie
 courante après confirmation. Un fichier exporté par OntoLab est relu à l'identique
 (export → import → export redonne les mêmes triplets). Les ontologies venant d'ailleurs
 (Protégé, cours, Internet…) sont lues pour ce qu'OntoLab sait représenter :

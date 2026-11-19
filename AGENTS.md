@@ -34,7 +34,8 @@ Le JS est organisé en 3 blocs commentés :
 2. **partie 2** — mise en page (`computeLayout()`, `computeProps()`,
    `relax()`, `refinalizeProps()`) et rendu SVG (`render()` et `draw*`) ;
 3. **partie 3** — interactions (modes, drag, zoom/pan, clavier), panneau
-   latéral (`updatePanel()`), câblage toolbar, démarrage.
+   latéral (`updatePanel()`), câblage de la barre d'outils (palette `#rail`, menus `showMenu()`,
+   contrôles de vue `#viewctl`), démarrage.
 
 ## Modèle de données (persisté)
 
@@ -83,7 +84,8 @@ Le JS est organisé en 3 blocs commentés :
   parents. Dessin : `drawSubArcs()` (classes), `drawSubProps()` (propriétés), une
   flèche par parent.
 - Molette = zoom (autour du curseur), glisser le fond = pan, double-clic fond
-  = recentrer (`initView()`), bouton « Recentrer » pour le tactile.
+  = recentrer (`initView()`), boutons flottants + / − / recentrer / réorganiser (`#viewctl`,
+  `zoomBy()`, `reorganize()`) pour le tactile.
 - **Pointer Events** (pas de `mouse*`/`touch*`) : souris, doigt et stylet passent par
   le même code. `touches` (Map) suit les pointeurs posés ; 2 pointeurs = pincement
   (`pinchStart/pinchMove`) et annulent tout glisser en cours (`cancelGesture`).
@@ -147,6 +149,20 @@ Le TTL exporté doit rester chargable par **Jena** (`arq --data`, `sparql
 --desc`) et convertissable par **`../owl2vowl.jar`** (VOWL JSON) — c'est le
 lien avec le reste du cours ; un export cassé est un incident pédagogique.
 
+## Barre d'outils (disposition « B »)
+
+- **Palette `#rail`** (gauche, 88 px = `RAIL_W` : `initView()`/`zoomBy()` centrent la vue sur la zone libre
+  à droite) : 4 boutons `data-mode`, libellés longs, icônes SVG en ligne (**pas de police d'icônes** :
+  l'outil doit rester autonome hors-ligne). `setMode()` pilote `.active` et `aria-pressed`.
+- **Barre du haut** : `#b-undo`/`#b-redo`, puis `#b-imp`, `#b-exp`, `#b-more` qui ouvrent des **menus**
+  via `showMenu(bouton, entrées)` (entrées `{label, run, hint?, danger?, check?()}` ou `'-'`) : un seul menu
+  ouvert, fermé par Échap, par le choix d'une entrée ou par un tap à côté (le `pointerdown` de capture
+  l'absorbe pour qu'il ne crée pas de classe). Toute nouvelle action de fichier va dans l'un de ces menus.
+- **`#viewctl`** (bas-droite) : zoom, recentrer, réorganiser ; le panneau (`#panel`) limite sa hauteur
+  (`max-height`) pour ne pas passer dessous. Légende : pastille `#legend-pill` (bas-gauche, à droite de la palette).
+- Z-index : graphe 2 < légende… (légende 1, derrière) ; panneau 5 ; pastille/contrôles 6 ; palette 9 ;
+  barre du haut 10 ; menus 40 ; dialogues 50.
+
 ## Historique, préférences d'affichage, export image
 
 - **Historique (annuler/rétablir)** : intégré à `save()` — `trackHistory()` compare `snapOf()`
@@ -157,8 +173,8 @@ lien avec le reste du cours ; un export cassé est un incident pédagogique.
   `HIST_MAX`=100 et `HIST_CHARS`. Les imports (`state=sanitizeState(...)` puis `save()`) sont annulables.
 - **Préférences d'affichage** : objet `ui` ({panel, legend}) dans `localStorage` clé `ontolab-ui`
   (hors `state`, donc hors exports) ; défaut = replié si `innerWidth < 900`. `updatePanel()` gère le
-  panneau déplié (+ bouton `#pf-collapse`) ou la pastille `#panel-pill` (`selLabel()`) ; le corps du
-  panneau est `renderPanelBody()` (ne pas y rappeler `updatePanel()`). La légende (z-index 1) est derrière
+  panneau déplié (+ bouton `#pf-collapse`) ou masqué (rouvert par l'entrée « Panneau d'édition » du menu ⋯,
+  il n'y a plus de pastille de panneau) ; le corps du panneau est `renderPanelBody()` (ne pas y rappeler `updatePanel()`). La légende (z-index 1) est derrière
   le graphe (2) : ses contrôles sont la pastille `#legend-pill` (z-index 6), pas des éléments internes.
 - **Export image** : `exportImage()` → `buildExportSVG({legend,bg})` (re-rendu sans sélection, sérialisation
   `XMLSerializer` des 4 couches + `<defs>` des marqueurs, boîte `exportBBox()`, légende redessinée par

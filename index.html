@@ -10,9 +10,20 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 #toolbar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;gap:10px;padding:0 14px;background:#fff;border-bottom:1px solid #d8e0ec;z-index:10;flex-wrap:nowrap;}
 #toolbar h1{font-size:16px;margin:0 6px 0 0;font-weight:700;color:var(--blueS);white-space:nowrap;}
 #toolbar h1 .sub{font-size:11px;color:#7b8aa5;font-weight:400;}
-.modes{display:flex;border:1px solid #c9d4e6;border-radius:8px;overflow:hidden;}
-.modes button{border:0;background:#fff;padding:7px 11px;font-size:12.5px;cursor:pointer;color:#41506b;}
-.modes button.active{background:var(--blueS);color:#fff;}
+#rail{position:fixed;left:0;top:52px;bottom:0;width:88px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;padding:8px 6px;background:#fff;border-right:1px solid #d8e0ec;z-index:9;}
+#rail button{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;border:1px solid transparent;border-radius:10px;background:#fff;padding:10px 2px 8px;font:inherit;font-size:11.5px;line-height:1.15;color:#41506b;cursor:pointer;text-align:center;}
+#rail button:hover{background:#eef3fa;}
+#rail button.active{background:#e8f1fb;border-color:var(--blueS);color:var(--blueS);font-weight:600;}
+#rail kbd{position:absolute;top:3px;right:6px;font:10px system-ui,sans-serif;color:#9aa8c0;}
+#viewctl{position:fixed;right:12px;bottom:44px;display:flex;flex-direction:column;gap:6px;z-index:6;}
+#viewctl .btn{width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;font-size:20px;line-height:1;box-shadow:0 2px 8px rgba(30,50,90,.12);}
+.menu{position:fixed;z-index:40;min-width:230px;max-width:86vw;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:6px 0;box-shadow:0 8px 24px rgba(30,50,90,.18);}
+.menu hr{border:0;border-top:1px solid #e6ecf5;margin:5px 0;}
+.menu .mi{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;border:0;background:none;padding:9px 14px;font:inherit;font-size:13.5px;color:#1c2333;cursor:pointer;text-align:left;}
+.menu .mi:hover{background:#eef3fa;}
+.menu .mi.danger{color:#b3261e;}
+.menu .mk{width:14px;color:var(--blueS);}
+.menu small{margin-left:auto;padding-left:14px;color:#8a97ad;font-size:11.5px;}
 .spacer{flex:1;}
 .btn{border:1px solid #c9d4e6;background:#fff;border-radius:8px;padding:7px 11px;font-size:12.5px;cursor:pointer;color:#2c3a55;white-space:nowrap;}
 .btn:hover{background:#eef3fa;}
@@ -24,7 +35,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 .btn:disabled:hover{background:#fff;}
 #canvas{position:fixed;inset:0;width:100%;height:100%;z-index:2;} /* le graphe passe au-dessus de la légende (z-index 1) */
 #canvas.panning{cursor:grabbing;}
-#panel{position:fixed;top:64px;right:12px;width:272px;max-height:calc(100% - 120px);overflow:auto;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:14px;z-index:5;box-shadow:0 2px 10px rgba(30,50,90,.08);}
+#panel{position:fixed;top:64px;right:12px;width:272px;max-height:calc(100% - 290px);overflow:auto;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:14px;z-index:5;box-shadow:0 2px 10px rgba(30,50,90,.08);}
 #panel h3{padding-right:30px;margin:0 0 10px;font-size:14px;color:var(--blueS);}
 .fld{display:block;margin:0 0 10px;font-size:12px;color:#516079;}
 .fld span{display:block;margin-bottom:3px;}
@@ -34,12 +45,11 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 #panel .btn{width:100%;margin-top:8px;}
 .pill{position:fixed;z-index:6;border:1px solid #c9d4e6;background:#fff;border-radius:18px;padding:7px 13px;font-size:12.5px;color:#2c3a55;box-shadow:0 2px 10px rgba(30,50,90,.12);cursor:pointer;max-width:70vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .pill:hover{background:#eef3fa;}
-#panel-pill{top:64px;right:12px;}
-#legend-pill{left:12px;bottom:12px;}
+#legend-pill{left:100px;bottom:12px;}
 .pcollapse{position:absolute;top:8px;right:8px;width:28px;height:28px;border:1px solid #c9d4e6;background:#fff;border-radius:8px;font-size:16px;line-height:1;color:#41506b;cursor:pointer;padding:0;}
 .pcollapse:hover{background:#eef3fa;}
 .hint{font-size:12px;color:#7b8aa5;margin:10px 0 0;line-height:1.5;}
-#legend{position:fixed;left:12px;bottom:54px;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:10px 12px;font-size:11.5px;color:#516079;z-index:1;line-height:1.8;box-shadow:0 2px 10px rgba(30,50,90,.08);max-width:330px;}
+#legend{position:fixed;left:100px;bottom:54px;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:10px 12px;font-size:11.5px;color:#516079;z-index:1;line-height:1.8;box-shadow:0 2px 10px rgba(30,50,90,.08);max-width:330px;}
 .chip{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px;}
 #status{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#2c3a55;color:#fff;padding:7px 14px;border-radius:20px;font-size:13px;z-index:20;opacity:0;transition:opacity .25s;pointer-events:none;max-width:70vw;text-align:center;}
 #status.show{opacity:1;}
@@ -64,14 +74,16 @@ svg text{pointer-events:none;user-select:none;}
 .plist .none{margin:0;font-size:12px;color:#7b8aa5;}
 @media (pointer:coarse){
   .pill{padding:10px 16px;font-size:14px;}
-  #panel-pill{top:70px;}
   .pcollapse{width:36px;height:36px;font-size:20px;}
-  .modes button{padding:11px 14px;font-size:14px;}
+  #rail{top:58px;width:94px;}
+  #rail button{padding:12px 2px 10px;font-size:12.5px;}
+  #viewctl .btn{width:44px;height:44px;}
+  .menu .mi{padding:13px 16px;font-size:15px;}
   .btn{padding:10px 14px;font-size:14px;}
   .fld input,.fld select{font-size:16px;padding:9px 10px;} /* évite le zoom automatique d'iOS au focus */
   .fld.check input{width:22px;height:22px;}
   #toolbar{height:58px;}
-  #panel{top:70px;}
+  #panel{top:70px;max-height:calc(100% - 340px);}
 }
 @media (max-width:900px){
   #panel{width:230px;}
@@ -84,24 +96,24 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <body>
 <div id="toolbar">
   <h1>OntoLab <span class="sub">constructeur d'ontologies · Web Sémantique</span></h1>
-  <div class="modes">
-    <button data-mode="class" class="active">① Classe</button>
-    <button data-mode="obj">② Propriété objet</button>
-    <button data-mode="data">③ Propriété de donnée</button>
-    <button data-mode="move">④ Déplacer</button>
-  </div>
   <button class="btn" id="b-undo" aria-label="Annuler" disabled>↶<span class="lbl"> Annuler</span></button>
   <button class="btn" id="b-redo" aria-label="Rétablir" disabled>↷<span class="lbl"> Rétablir</span></button>
   <div class="spacer"></div>
-  <button class="btn" id="b-example">Exemple</button>
-  <button class="btn" id="b-clear">Vider</button>
-  <button class="btn" id="b-import-ttl" title="Remplace l'ontologie courante par le contenu d'un fichier Turtle">Importer TTL</button>
-  <button class="btn" id="b-import">Importer JSON</button>
-  <button class="btn" id="b-json">Exporter JSON</button>
-  <button class="btn" id="b-layout">Réorganiser</button>
-  <button class="btn" id="b-center" title="Recentrer la vue (équivaut au double-clic sur le fond)">Recentrer</button>
-  <button class="btn primary" id="b-ttl">Exporter TTL</button>
-  <button class="btn" id="b-img" title="Exporte le schéma en image (PNG ou SVG)">Exporter image</button>
+  <button class="btn" id="b-imp" aria-haspopup="menu" aria-expanded="false">Importer ▾</button>
+  <button class="btn primary" id="b-exp" aria-haspopup="menu" aria-expanded="false">Exporter ▾</button>
+  <button class="btn" id="b-more" aria-haspopup="menu" aria-expanded="false" aria-label="Plus d'actions" title="Plus d'actions">⋯</button>
+</div>
+<nav id="rail" aria-label="Outils de construction">
+  <button data-mode="class" class="active" title="Classe (touche 1)"><kbd>1</kbd><svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true"><ellipse cx="17" cy="12" rx="14" ry="9" fill="#AEDBFC" stroke="#2C5F9E" stroke-width="2"/></svg><span>Classe</span></button>
+  <button data-mode="obj" title="Propriété objet (touche 2)"><kbd>2</kbd><svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true"><ellipse cx="17" cy="12" rx="14" ry="9" fill="#D9E9A5" stroke="#5B7C29" stroke-width="2"/><path d="M9 12h13m-4-3.5l4 3.5-4 3.5" fill="none" stroke="#5B7C29" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Propriété objet</span></button>
+  <button data-mode="data" title="Propriété de donnée (touche 3)"><kbd>3</kbd><svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true"><ellipse cx="17" cy="12" rx="14" ry="9" fill="#F6CECE" stroke="#8C2E2E" stroke-width="2"/></svg><span>Propriété de donnée</span></button>
+  <button data-mode="move" title="Déplacer (touche 4)"><kbd>4</kbd><svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true"><path d="M17 2v20M7 12h20M17 2l-3 3m3-3l3 3M17 22l-3-3m3 3l3-3M7 12l3-3m-3 3l3 3M27 12l-3-3m3 3l-3 3" fill="none" stroke="#41506b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Déplacer</span></button>
+</nav>
+<div id="viewctl" role="group" aria-label="Contrôles de la vue">
+  <button class="btn" id="v-zin" aria-label="Zoom avant" title="Zoom avant">+</button>
+  <button class="btn" id="v-zout" aria-label="Zoom arrière" title="Zoom arrière">−</button>
+  <button class="btn" id="v-fit" aria-label="Recentrer" title="Recentrer la vue (double-clic sur le fond)"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="5"/><path d="M10 1.5v4M10 14.5v4M1.5 10h4M14.5 10h4"/></svg></button>
+  <button class="btn" id="v-layout" aria-label="Réorganiser" title="Réorganiser : mise en page automatique (efface les positions manuelles)"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="1.5" width="6" height="5" rx="1"/><rect x="1.5" y="13.5" width="6" height="5" rx="1"/><rect x="12.5" y="13.5" width="6" height="5" rx="1"/><path d="M10 6.5v3.5M4.5 13.5V10h11v3.5"/></svg></button>
 </div>
 <svg id="canvas">
   <defs>
@@ -116,7 +128,6 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 </svg>
 <div id="panel"></div>
 <button class="pill" id="legend-pill" aria-expanded="true">Masquer la légende</button>
-<button class="pill" id="panel-pill" style="display:none">ℹ︎ Aide</button>
 <div id="legend">
   <div><span class="chip" style="background:var(--blue);border:2px solid var(--blueS)"></span>Classe — hiérarchie = <b>rdfs:subClassOf</b></div>
   <div><span class="chip" style="background:var(--green);border:2px solid var(--greenS)"></span>Propriété objet — flèche : domaine → portée</div>
@@ -989,7 +1000,13 @@ let drag=null, pan=null, renderQueued=false;
 
 function applyView(){ world.setAttribute('transform','translate('+state.view.x+','+state.view.y+') scale('+state.view.k+')'); }
 function toWorld(e){ const r=svg.getBoundingClientRect(); return {x:(e.clientX-r.left-state.view.x)/state.view.k, y:(e.clientY-r.top-state.view.y)/state.view.k}; }
-function initView(){ const r=svg.getBoundingClientRect(); state.view={x:r.width/2,y:r.height/2+10,k:1}; applyView(); }
+const RAIL_W=88; // largeur de la palette de modes (le centre de la vue est celui de la zone libre)
+function initView(){ const r=svg.getBoundingClientRect(); state.view={x:RAIL_W+(r.width-RAIL_W)/2,y:r.height/2+10,k:1}; applyView(); }
+function zoomBy(f){
+  const r=svg.getBoundingClientRect(), mx=RAIL_W+(r.width-RAIL_W)/2, my=r.height/2;
+  const k2=Math.min(3,Math.max(0.2,state.view.k*f)), g=k2/state.view.k;
+  state.view.x=mx-(mx-state.view.x)*g; state.view.y=my-(my-state.view.y)*g; state.view.k=k2; applyView(); save();
+}
 
 function classSize(name){ return {rx:Math.max(44,16+name.length*3.6), ry:26}; }
 function short(name,rx){ const max=Math.max(4,Math.floor((2*rx-14)/6.8)); return name.length<=max?name:name.slice(0,max-1)+'…'; }
@@ -1563,7 +1580,7 @@ svg.addEventListener('wheel',e=>{
 
 function setMode(m){
   state.mode=m;
-  document.querySelectorAll('.modes button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  document.querySelectorAll('#rail button').forEach(b=>{ b.classList.toggle('active',b.dataset.mode===m); b.setAttribute('aria-pressed',String(b.dataset.mode===m)); });
   save();
   if(m==='class') status('Mode Classe : cliquez sur le fond pour créer une classe (si un élément est sélectionné, un premier clic le désélectionne) ; glissez-en une sur une autre pour lui ajouter une super-classe (plusieurs possibles) ; glissez sur le fond pour retirer ses super-classes.');
   if(m==='obj') status('Mode Propriété objet : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une ellipse verte pour la modifier ; glissez-la sur une autre ellipse verte pour en faire une sous-propriété (plusieurs parents possibles).');
@@ -1582,14 +1599,10 @@ function applyLegendUI(){
   $('#legend').style.display=ui.legend?'':'none';
   const b=$('#legend-pill'); b.textContent=ui.legend?'Masquer la légende':'ⓘ Légende'; b.setAttribute('aria-expanded',String(ui.legend));
 }
-function selLabel(){
-  const s=state.sel, x=s&&itemOf(s.kind,s.id); if(!x) return 'ℹ︎ Aide';
-  return '✎ '+{class:'Classe',obj:'Propriété objet',data:'Propriété de donnée'}[s.kind]+' « '+x.name+' »';
-}
-function updatePanel(){
-  const p=$('#panel'), pill=$('#panel-pill');
-  if(!ui.panel){ p.style.display='none'; pill.style.display=''; pill.textContent=selLabel(); return; }
-  pill.style.display='none'; p.style.display='';
+function updatePanel(){ // le panneau se rouvre par le menu « ⋯ » (entrée « Panneau d'édition »)
+  const p=$('#panel');
+  if(!ui.panel){ p.style.display='none'; return; }
+  p.style.display='';
   renderPanelBody();
   p.insertAdjacentHTML('afterbegin','<button id="pf-collapse" class="pcollapse" title="Replier le panneau" aria-label="Replier le panneau">–</button>');
   $('#pf-collapse').onclick=()=>{ ui.panel=false; saveUI(); updatePanel(); };
@@ -1672,6 +1685,7 @@ function renderPanelBody(){
 
 /* ---------- clavier ---------- */
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&menuEl){ closeMenu(); return; }
   if(document.querySelector('.ovl')) return; // boîte de dialogue ouverte : pas de raccourcis
   const tag=e.target&&e.target.tagName;
   if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return; // (l'annulation native des champs texte reste utilisable)
@@ -1689,29 +1703,68 @@ document.addEventListener('keydown',e=>{
   if(e.key==='4') setMode('move');
 });
 
-/* ---------- toolbar ---------- */
-document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
-$('#b-example').onclick=()=>loadExample();
-$('#b-clear').onclick=()=>clearAll();
+/* ---------- barre d'outils : palette de modes, menus, contrôles de vue ---------- */
+document.querySelectorAll('#rail button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 $('#f-ttl').addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) handleTTLFile(f); });
 $('#f-json').addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) handleJSONFile(f); });
-$('#b-import-ttl').onclick=()=>importTTL();
-$('#b-import').onclick=()=>importJSON();
-$('#b-json').onclick=()=>exportJSON();
-$('#b-ttl').onclick=()=>exportTTL();
-$('#b-img').onclick=()=>exportImage();
 $('#legend-pill').onclick=()=>{ ui.legend=!ui.legend; saveUI(); applyLegendUI(); };
-$('#panel-pill').onclick=()=>{ ui.panel=true; saveUI(); updatePanel(); };
 $('#b-undo').onclick=()=>undo();
 $('#b-redo').onclick=()=>redo();
-$('#b-center').onclick=()=>initView();
-$('#b-layout').onclick=()=>{
+function reorganize(){
   state.classes.forEach(c=>{delete c.mx;delete c.my;delete c.man;});
   state.objProps.forEach(p=>{delete p.mx;delete p.my;});
   state.dataProps.forEach(p=>{delete p.mx;delete p.my;});
   save(); render();
   status('Mise en page automatique relancée — les positions manuelles ont été effacées.');
-};
+}
+$('#v-zin').onclick=()=>zoomBy(1.25);
+$('#v-zout').onclick=()=>zoomBy(0.8);
+$('#v-fit').onclick=()=>initView();
+$('#v-layout').onclick=()=>reorganize();
+
+/* Menus déroulants (un seul ouvert à la fois ; fermés par Échap, par un tap à côté, ou par le choix d'une entrée).
+   Entrée = {label, run, hint?, danger?, check?()} ou '-' (séparateur). */
+let menuEl=null, menuBtn=null;
+function closeMenu(){
+  if(menuEl){ menuEl.remove(); menuEl=null; }
+  if(menuBtn){ menuBtn.setAttribute('aria-expanded','false'); menuBtn=null; }
+}
+function showMenu(btn,items){
+  const same=menuBtn===btn; closeMenu(); if(same) return;
+  const m=document.createElement('div'); m.className='menu'; m.setAttribute('role','menu');
+  items.forEach(it=>{
+    if(it==='-'){ m.appendChild(document.createElement('hr')); return; }
+    const d=document.createElement('button'); d.type='button'; d.className='mi'+(it.danger?' danger':''); d.setAttribute('role','menuitem');
+    d.innerHTML='<span class="mk">'+(it.check&&it.check()?'✓':'')+'</span><span>'+esc(it.label)+'</span>'+(it.hint?'<small>'+esc(it.hint)+'</small>':'');
+    d.onclick=()=>{ closeMenu(); it.run(); };
+    m.appendChild(d);
+  });
+  document.body.appendChild(m);
+  const r=btn.getBoundingClientRect();
+  m.style.top=(r.bottom+6)+'px'; m.style.right=Math.max(8,innerWidth-r.right)+'px';
+  btn.setAttribute('aria-expanded','true'); menuEl=m; menuBtn=btn;
+}
+document.addEventListener('pointerdown',e=>{ // tap à côté : ferme le menu sans déclencher l'action du fond (pas de classe créée)
+  if(menuEl&&!menuEl.contains(e.target)&&!(menuBtn&&menuBtn.contains(e.target))){ closeMenu(); e.stopPropagation(); e.preventDefault(); }
+},true);
+window.addEventListener('resize',closeMenu);
+function showHelp(){
+  infoBox('Modes : 1 Classe · 2 Propriété objet · 3 Propriété de donnée · 4 Déplacer\nAnnuler / rétablir : Cmd/Ctrl+Z, Cmd/Ctrl+Maj+Z (ou Ctrl+Y)\nSuppr : supprimer l\'élément sélectionné · Échap ou clic sur le fond : désélectionner\nMolette ou pincement : zoom · glisser le fond : déplacer la vue · double-clic sur le fond : recentrer\nGlisser une classe (ou une propriété) sur une autre : héritage ; sur le fond : retirer les parents','Aide et raccourcis');
+}
+$('#b-imp').onclick=()=>showMenu($('#b-imp'),[
+  {label:'Turtle (.ttl)…',run:importTTL},
+  {label:'JSON OntoLab…',hint:'sauvegarde',run:importJSON}]);
+$('#b-exp').onclick=()=>showMenu($('#b-exp'),[
+  {label:'Turtle (.ttl)',run:exportTTL},
+  {label:'JSON OntoLab',hint:'sauvegarde',run:exportJSON},
+  {label:'Image (PNG, SVG)…',run:exportImage}]);
+$('#b-more').onclick=()=>showMenu($('#b-more'),[
+  {label:'Charger l\'exemple',run:loadExample},
+  {label:'Vider l\'ontologie',danger:true,run:clearAll},
+  '-',
+  {label:'Panneau d\'édition',check:()=>ui.panel,run:()=>{ ui.panel=!ui.panel; saveUI(); updatePanel(); }},
+  '-',
+  {label:'Aide et raccourcis',run:showHelp}]);
 svg.addEventListener('dblclick',e=>{ if(e.target===svg||e.target===world) initView(); });
 
 /* ---------- démarrage ---------- */
