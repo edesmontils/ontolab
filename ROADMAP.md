@@ -19,11 +19,12 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 > SVG/PNG — voir `README.md` et `AGENTS.md`. Restent A4 et A5.
 
 ### A4. Caractéristiques OWL supplémentaires — S
-- `owl:InverseFunctionalProperty`, `AsymmetricProperty`, `ReflexiveProperty`, `IrreflexiveProperty`
-  pour les propriétés objet ; `owl:FunctionalProperty` pour les propriétés de donnée.
-- **Impact** : cases à cocher dans le panneau et dans `createObjProp`, `toTTL`, `ontologyFromTriples`
-  (qui les signale aujourd'hui comme « non représentables »). Pas de symbole VOWL standard pour
-  toutes : prévoir un petit badge ou une mention dans l'infobulle.
+- *Fait* : `owl:InverseFunctionalProperty` (propriétés objet : case à cocher, bordure en points, Turtle, import).
+- *Reste* : `AsymmetricProperty`, `ReflexiveProperty`, `IrreflexiveProperty` pour les propriétés objet ;
+  `owl:FunctionalProperty` pour les propriétés de donnée.
+- **Impact** : même chemin que pour la fonctionnelle inverse — cases à cocher dans le panneau et dans
+  `createObjProp`, `toTTL`, `ontologyFromTriples` (qui les signale aujourd'hui comme « non représentables »),
+  `dashOf()`. Pas de symbole VOWL standard : mention dans l'infobulle ou petit badge (la bordure n'a plus de style libre).
 
 ### A5. Vérification de cohérence (« Vérifier ») — M
 - **Pourquoi** : pédagogique — repérer les défauts d'une ontologie d'étudiant.

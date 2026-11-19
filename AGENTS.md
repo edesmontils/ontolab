@@ -44,7 +44,9 @@ Le JS est organisé en 3 blocs commentés :
   - `classes[]` : `{id, name, parents: [id]}` (héritage multiple) + positions
     manuelles optionnelles `{mx, my, man}` ;
   - `objProps[]` : `{id, name, domain, range, transitive, symmetric,
-    functional, inverseOf: id|null, parents: [id]}` + `{mx, my}` ;
+    functional, inverseFunctional, inverseOf: id|null, parents: [id]}` + `{mx, my}` ;
+    (`inverseFunctional` = `owl:InverseFunctionalProperty`, absent des anciens exports = faux ; objets seulement,
+    jamais sur une propriété de donnée ; style de bordure par `dashOf()` : tirets / points / tirets-points)
   - `dataProps[]` : `{id, name, domain, type, parents: [id]}` (type = IRI XSD)
     + `{mx, my}` ; `parents` = `rdfs:subPropertyOf` (même type de propriété) ;
   - `nextId`, `ns` (namespace, défaut `http://example.org/onto#`),

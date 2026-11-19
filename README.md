@@ -44,7 +44,8 @@ L'interface reprend les codes visuels de la **notation VOWL**
 | Ellipse rouge | propriété de donnée (type XSD sous l'étiquette) |
 | Petite boucle verte sur une classe | `owl:TransitiveProperty` |
 | Flèches aux deux extrémités | `owl:SymmetricProperty` |
-| Bordure verte pointillée | `owl:FunctionalProperty` |
+| Bordure verte en tirets | `owl:FunctionalProperty` |
+| Bordure verte en points | `owl:InverseFunctionalProperty` (tirets-points : les deux) |
 | Symboles `⇄` sur deux propriétés | paire `owl:inverseOf` |
 
 ## Les modes (touches 1 / 2 / 3 / 4)
@@ -56,7 +57,7 @@ L'interface reprend les codes visuels de la **notation VOWL**
    pastilles (× pour en retirer un) avec un menu pour en ajouter.
 2. **Propriété objet** — glisser d'une classe (domaine) vers une classe
    (portée) ; les caractéristiques OWL se cochent au moment de la création ou
-   dans le panneau (transitive, symétrique, fonctionnelle, paire inverse).
+   dans le panneau (transitive, symétrique, fonctionnelle, **fonctionnelle inverse**, paire inverse).
    **Héritage de propriété** (`rdfs:subPropertyOf`, multiple lui aussi) : glisser une
    ellipse verte sur une autre ellipse verte, ou menu du panneau ; lâcher sur le
    fond pour retirer tous les parents.
@@ -153,7 +154,7 @@ courante après confirmation. Un fichier exporté par OntoLab est relu à l'iden
 - **repris** : classes (`owl:Class`, `rdfs:Class`), `rdfs:subClassOf` (plusieurs parents),
   propriétés objet et de donnée (déduites aussi d'un domaine/d'une portée en RDFS pur),
   `rdfs:domain`, `rdfs:range`, `rdfs:subPropertyOf` (plusieurs parents, même type),
-  `owl:inverseOf`, propriétés transitives, symétriques, fonctionnelles ; le namespace
+  `owl:inverseOf`, propriétés transitives, symétriques, fonctionnelles, fonctionnelles inverses ; le namespace
   principal du fichier devient celui de l'ontologie ;
 - **adapté** : types XSD non gérés ramenés au plus proche (`xsd:int` → `xsd:integer`,
   `xsd:float` → `xsd:double`, `rdfs:Literal` → `xsd:string`) ; propriété sans domaine ou
