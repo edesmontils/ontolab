@@ -185,13 +185,12 @@ toute ontologie ou MCD de votre choix convient)
 
 ## Perfectionnements à l'étude
 
-- Ajuster les paramètres de la mise en page (longueurs de ressort, forces,
-  nombre de départs, marge de relaxation) sur les cas chargés — ex. ontologies Rando/Mondial complètes.
-- Repoussement des étiquettes de propriétés entre elles (déjà géré par la
-  relaxation, à valider visuellement).
-- `disjointUnionOf`, individus (`owl:NamedIndividual`), restrictions
-  (`someValuesFrom`/cardinalités) dans l'éditeur.
-- Export PNG/SVG de la visualisation pour les supports de TD.
+La liste détaillée et ordonnée des fonctions envisagées est dans
+**[`ROADMAP.md`](ROADMAP.md)** (rien n'y est encore implanté) : annuler/rétablir, étiquettes et
+commentaires, disjonction et équivalence de classes, restrictions et cardinalités, individus,
+export image et export VOWL JSON, fusion à l'import, navigation dans les grandes ontologies,
+tests automatisés… Autre piste immédiate : ajuster les paramètres de la mise en page sur des
+ontologies complètes (ex. Rando/Mondial).
 
 ## Limites (assumées, pédagogie > complétude)
 

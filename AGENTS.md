@@ -179,3 +179,7 @@ Construire + visualiser + exporter. Hors périmètre (voir `README.md` §
 « Perfectionnements à l'étude » et « Limites ») : `disjointUnionOf`,
 individus, restrictions OWL, export image, import RDF/XML ou fusion d'ontologies. Ne pas élargir le
 périmètre sans demande explicite.
+
+**`ROADMAP.md`** recense les évolutions envisagées (fiches avec intérêt, modèle de données, impact
+sur le code, effort). Ce sont des idées retenues *pour plus tard* : ne rien en implanter sans demande
+explicite ; en implanter une = la retirer du ROADMAP et mettre à jour `README.md` / `AGENTS.md`.
