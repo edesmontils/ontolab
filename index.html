@@ -103,6 +103,11 @@ function sanitizeState(s){
   out.ns=typeof s.ns==='string'&&s.ns?s.ns:'http://example.org/onto#';
   if(!['class','obj','data','move'].includes(out.mode)) out.mode='class';
   out.view=(s.view&&isFinite(s.view.x)&&isFinite(s.view.y)&&isFinite(s.view.k))?s.view:{x:null,y:null,k:1};
+  // ids toujours numériques (répare les états enregistrés avec des ids en chaînes)
+  const num=v=>(v==null||v==='')?null:+v;
+  out.classes.forEach(c=>{ c.id=+c.id; c.parent=num(c.parent); });
+  out.objProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); p.range=num(p.range); p.inverseOf=num(p.inverseOf); });
+  out.dataProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); });
   out.sel=null;
   return out;
 }
@@ -151,6 +156,7 @@ function isAncestorOf(candidate,other){ // candidate est-elle une ancêtre de ot
   return false;
 }
 function setParent(id,parentId){
+  id=+id; parentId=(parentId==null||parentId==='')?null:+parentId; // ids numériques (le DOM et les <select> fournissent des chaînes)
   if(parentId===id||isAncestorOf(id,parentId)){ status('Impossible : cela créerait un cycle de sous-classes.',1); return; }
   const c=classById(id); c.parent=parentId||null;
   state.sel={kind:'class',id}; save(); render();
@@ -210,6 +216,7 @@ function addChildClass(parentId){
   const inp=$('#pf-name'); if(inp){ inp.focus(); inp.select(); }
 }
 function createObjProp(domain,range){
+  domain=+domain; range=+range;
   dialog('Nouvelle propriété objet',
     [{key:'name',label:'Nom de la propriété',value:''},
      {key:'transitive',label:'Transitive (owl:TransitiveProperty)',type:'check'},
@@ -223,6 +230,7 @@ function createObjProp(domain,range){
   });
 }
 function newDataProp(domain){
+  domain=+domain;
   dialog('Nouvelle propriété de donnée',
     [{key:'name',label:'Nom de la propriété',value:''},
      {key:'type',label:'Type XSD de la valeur',type:'select',options:XSD.map(t=>({v:t,t})),value:'xsd:string'}]
@@ -798,7 +806,7 @@ function updatePanel(){
     $('#pf-sym').onchange=e=>{ p2.symmetric=e.target.checked; save(); render(); };
     $('#pf-func').onchange=e=>{ p2.functional=e.target.checked; save(); render(); };
     $('#pf-inv').onchange=e=>{
-      const v=e.target.value||null;
+      const v=e.target.value?+e.target.value:null;
       if(v){
         if(p2.inverseOf&&p2.inverseOf!==v){ const o=objById(p2.inverseOf); if(o) o.inverseOf=null; }
         const q=objById(v); q.inverseOf=p2.id; p2.inverseOf=v;
