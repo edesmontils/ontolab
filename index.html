@@ -47,6 +47,10 @@ svg text{pointer-events:none;user-select:none;}
 #toolbar{overflow-x:auto;scrollbar-width:none;}
 #toolbar::-webkit-scrollbar{display:none;}
 #toolbar>*{flex-shrink:0;}
+.plist{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 7px;}
+.plist .chip-p{display:inline-flex;align-items:center;margin:0;background:#eef3fa;border:1px solid #c9d4e6;border-radius:12px;padding:2px 3px 2px 9px;font-size:12px;color:#1c2333;}
+.plist .chip-p button{border:0;background:none;cursor:pointer;color:#b3261e;font-size:15px;line-height:1;padding:0 5px;}
+.plist .none{margin:0;font-size:12px;color:#7b8aa5;}
 @media (pointer:coarse){
   .modes button{padding:11px 14px;font-size:14px;}
   .btn{padding:10px 14px;font-size:14px;}
@@ -127,10 +131,10 @@ function sanitizeState(s){
   out.view=(s.view&&isFinite(s.view.x)&&isFinite(s.view.y)&&isFinite(s.view.k))?s.view:{x:null,y:null,k:1};
   // ids toujours numériques (répare les états enregistrés avec des ids en chaînes)
   const num=v=>(v==null||v==='')?null:+v;
-  out.classes.forEach(c=>{ c.id=+c.id; c.parent=num(c.parent); });
-  out.objProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); p.range=num(p.range); p.inverseOf=num(p.inverseOf); p.parent=num(p.parent); });
-  out.dataProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); p.parent=num(p.parent); });
-  cleanPropParents(out);
+  out.classes.forEach(c=>{ c.id=+c.id; });
+  out.objProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); p.range=num(p.range); p.inverseOf=num(p.inverseOf); });
+  out.dataProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); });
+  cleanParents(out); // migre l'ancien champ `parent` (héritage simple) vers `parents` (héritage multiple)
   out.sel=null;
   return out;
 }
@@ -171,19 +175,6 @@ function setCommonName(kind,id,name){
   save(); render(); return true;
 }
 function freeName(base){ let n=base,i=2; while(nameTaken(n)) n=base+' '+ (i++); return n; }
-
-/* ---------- cycles de sous-classes ---------- */
-function isAncestorOf(candidate,other){ // candidate est-elle une ancêtre de other ?
-  let cur=classById(other);
-  while(cur&&cur.parent){ if(cur.parent===candidate) return true; cur=classById(cur.parent); }
-  return false;
-}
-function setParent(id,parentId){
-  id=+id; parentId=(parentId==null||parentId==='')?null:+parentId; // ids numériques (le DOM et les <select> fournissent des chaînes)
-  if(parentId===id||isAncestorOf(id,parentId)){ status('Impossible : cela créerait un cycle de sous-classes.',1); return; }
-  const c=classById(id); c.parent=parentId||null;
-  state.sel={kind:'class',id}; save(); render();
-}
 
 /* ---------- boîte de dialogue générique ---------- */
 function dialog(title,fields,msg){
@@ -230,12 +221,12 @@ function newClassAt(){
   dialog('Nouvelle classe',[{key:'name',label:'Nom de la classe',value:''}]).then(v=>{
     if(!v) return;
     if(nameTaken(v.name)){ status('Le nom « '+v.name+' » est déjà utilisé.',1); return; }
-    const c={id:state.nextId++,name:v.name,parent:null};
+    const c={id:state.nextId++,name:v.name,parents:[]};
     state.classes.push(c); state.sel={kind:'class',id:c.id}; save(); render();
   });
 }
 function addChildClass(parentId){
-  const c={id:state.nextId++,name:freeName('Sous-classe'),parent:parentId};
+  const c={id:state.nextId++,name:freeName('Sous-classe'),parents:[parentId]};
   state.classes.push(c); state.sel={kind:'class',id:c.id}; save(); render();
   const inp=$('#pf-name'); if(inp){ inp.focus(); inp.select(); }
 }
@@ -268,44 +259,79 @@ function newDataProp(domain){
 function cleanInverses(){
   state.objProps.forEach(p=>{ const q=p.inverseOf&&objById(p.inverseOf); if(!q||q.inverseOf!==p.id) p.inverseOf=null; });
 }
-/* ---------- sous-propriétés (rdfs:subPropertyOf) : champ `parent` des propriétés objet et de donnée ---------- */
-const propById=(kind,id)=>(kind==='obj'?objById:dataById)(id);
-function isPropAncestor(kind,candidate,other){ // candidate est-elle une ancêtre de other ?
-  let cur=propById(kind,other), n=0;
-  while(cur&&cur.parent!=null&&n++<1000){ if(cur.parent===candidate) return true; cur=propById(kind,cur.parent); }
+/* ---------- héritage multiple : champ `parents` (liste d'ids) des classes et des propriétés ----------
+   class -> rdfs:subClassOf ; obj / data -> rdfs:subPropertyOf (une propriété n'hérite que d'une propriété du même type) */
+const KINDS={class:'classes',obj:'objProps',data:'dataProps'};
+const SUBWORD={class:'sous-classes',obj:'sous-propriétés',data:'sous-propriétés'};
+const itemOf=(kind,id)=>state[KINDS[kind]].find(x=>x.id===id);
+const parentsOf=x=>(x&&x.parents)||[];
+function isAncestor(kind,candidate,other){ // candidate est-elle une ancêtre de other (par au moins un chemin) ?
+  const seen=new Set(), stack=[...parentsOf(itemOf(kind,other))];
+  while(stack.length){
+    const id=stack.pop(); if(id===candidate) return true;
+    if(seen.has(id)) continue; seen.add(id); stack.push(...parentsOf(itemOf(kind,id)));
+  }
   return false;
 }
-function cleanPropParents(st){ // parent inexistant, auto-référence ou cycle -> null
+function addParent(kind,id,pid){
+  id=+id; pid=+pid; const x=itemOf(kind,id), q=itemOf(kind,pid); if(!x||!q) return;
+  if(pid===id||isAncestor(kind,id,pid)){ status('Impossible : cela créerait un cycle de '+SUBWORD[kind]+'.',1); return; }
+  x.parents=x.parents||[];
+  if(x.parents.includes(pid)){ status('« '+x.name+' » hérite déjà de « '+q.name+' ».',1); return; }
+  x.parents.push(pid); state.sel={kind,id}; save(); render();
+}
+function removeParent(kind,id,pid){
+  const x=itemOf(kind,+id); if(!x) return;
+  x.parents=parentsOf(x).filter(p=>p!==+pid); state.sel={kind,id:+id}; save(); render();
+}
+function clearParents(kind,id){
+  const x=itemOf(kind,+id); if(!x||!parentsOf(x).length) return;
+  x.parents=[]; state.sel={kind,id:+id}; save(); render();
+}
+/* Normalise `parents` : migre l'ancien `parent` (héritage simple), retire parents inexistants, doublons et
+   auto-références, puis supprime l'arête qui referme un cycle. */
+function cleanParents(st){
   st=st||state;
-  for(const arr of [st.objProps,st.dataProps]){
-    const by=new Map(arr.map(p=>[p.id,p]));
-    arr.forEach(p=>{ if(p.parent!=null&&(!by.has(p.parent)||p.parent===p.id)) p.parent=null; });
-    arr.forEach(p=>{ const seen=new Set([p.id]); let cur=p;
-      while(cur&&cur.parent!=null){ if(seen.has(cur.parent)){ cur.parent=null; break; } seen.add(cur.parent); cur=by.get(cur.parent); } });
+  for(const kind of Object.keys(KINDS)){
+    const arr=st[KINDS[kind]], by=new Map(arr.map(x=>[x.id,x]));
+    arr.forEach(x=>{
+      let ps=Array.isArray(x.parents)?x.parents:[];
+      if('parent' in x){ if(x.parent!=null&&x.parent!=='') ps=[...ps,x.parent]; delete x.parent; }
+      x.parents=[...new Set(ps.map(Number))].filter(p=>by.has(p)&&p!==x.id);
+    });
+    const mark=new Map(); // 1 = en cours de visite, 2 = terminé
+    const visit=x=>{
+      mark.set(x.id,1);
+      x.parents=x.parents.filter(pid=>{ const m=mark.get(pid); if(m===1) return false; if(!m) visit(by.get(pid)); return true; });
+      mark.set(x.id,2);
+    };
+    arr.forEach(x=>{ if(!mark.get(x.id)) visit(x); });
   }
 }
-function setPropParent(kind,id,parentId){
-  id=+id; parentId=(parentId==null||parentId==='')?null:+parentId;
-  if(parentId===id||(parentId!=null&&isPropAncestor(kind,id,parentId))){ status('Impossible : cela créerait un cycle de sous-propriétés.',1); return; }
-  propById(kind,id).parent=parentId; state.sel={kind,id}; save(); render();
+/* Bloc du panneau : parents actuels (pastilles retirables) + menu d'ajout (hors soi-même, descendants et parents déjà présents). */
+function parentsBlock(kind,x,label){
+  const chips=parentsOf(x).map(pid=>{ const q=itemOf(kind,pid); return q?'<span class="chip-p">'+esc(q.name)+'<button data-rm="'+pid+'" title="Retirer ce parent">×</button></span>':''; }).join('')
+    ||'<span class="none">— (aucun)</span>';
+  const opts=state[KINDS[kind]].filter(q=>q.id!==x.id&&!parentsOf(x).includes(q.id)&&!isAncestor(kind,x.id,q.id))
+    .map(q=>'<option value="'+q.id+'">'+esc(q.name)+'</option>').join('');
+  return '<div class="fld"><span>'+label+'</span><div class="plist">'+chips+'</div>'
+    +(opts?'<select id="pf-addparent"><option value="">+ Ajouter un parent…</option>'+opts+'</select>':'')+'</div>';
 }
-function propParentOptions(kind,p){ // toutes les propriétés du même type, sauf elle-même et ses descendantes
-  const arr=kind==='obj'?state.objProps:state.dataProps;
-  return arr.filter(q=>q.id!==p.id&&!isPropAncestor(kind,p.id,q.id))
-    .map(q=>'<option value="'+q.id+'"'+(q.id===p.parent?' selected':'')+'>'+esc(q.name)+'</option>').join('');
+function wireParents(kind,x){
+  document.querySelectorAll('#panel [data-rm]').forEach(b=>b.onclick=()=>removeParent(kind,x.id,b.dataset.rm));
+  const sel=$('#pf-addparent'); if(sel) sel.onchange=e=>{ if(e.target.value) addParent(kind,x.id,e.target.value); };
 }
 function deleteClass(id){
   const c=classById(id);
   const nObj=state.objProps.filter(p=>p.domain===id||p.range===id).length;
   const nData=state.dataProps.filter(p=>p.domain===id).length;
-  const extra=(nObj||nData)?'\n'+nObj+' propriété(s) objet et '+nData+' propriété(s) donnée(s) qui lui sont liées seront supprimées.\nLes sous-classes deviendront des classes indépendantes.':'';
+  const extra='\nLes sous-classes perdront cette super-classe.'+((nObj||nData)?'\n'+nObj+' propriété(s) objet et '+nData+' propriété(s) donnée(s) qui lui sont liées seront supprimées.':'');
   confirmBox('Supprimer la classe « '+c.name+' » ?'+extra,'Supprimer').then(ok=>{
     if(!ok) return;
     state.classes=state.classes.filter(x=>x.id!==id);
-    state.classes.forEach(x=>{ if(x.parent===id) x.parent=null; });
     state.objProps=state.objProps.filter(p=>p.domain!==id&&p.range!==id);
     state.dataProps=state.dataProps.filter(p=>p.domain!==id);
-    cleanInverses(); cleanPropParents(); state.sel=null; save(); render();
+    cleanInverses(); cleanParents(); state.sel=null; save(); render();
   });
 }
 function deleteProp(kind,id){
@@ -314,7 +340,7 @@ function deleteProp(kind,id){
     if(!ok) return;
     if(kind==='obj'){ const q=p.inverseOf&&objById(p.inverseOf); if(q) q.inverseOf=null; state.objProps=state.objProps.filter(x=>x.id!==id); }
     else state.dataProps=state.dataProps.filter(x=>x.id!==id);
-    cleanPropParents(); state.sel=null; save(); render();
+    cleanParents(); state.sel=null; save(); render();
   });
 }
 
@@ -322,12 +348,12 @@ function deleteProp(kind,id){
 function loadExample(){
   state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nextId=1;
   const id={};
-  const add=n=>{ const i=state.nextId++; state.classes.push({id:i,name:n,parent:null}); id[n]=i; return i; };
+  const add=n=>{ const i=state.nextId++; state.classes.push({id:i,name:n,parents:[]}); id[n]=i; return i; };
   add('Personne'); add('Groupe'); add('Voie');
-  add('Membre');  state.classes[3].parent=id['Personne'];
-  add('Guide');   state.classes[4].parent=id['Personne'];
-  add('Sentier'); state.classes[5].parent=id['Voie'];
-  add('Piste');   state.classes[6].parent=id['Voie'];
+  add('Membre');  state.classes[3].parents=[id['Personne']];
+  add('Guide');   state.classes[4].parents=[id['Personne']];
+  add('Sentier'); state.classes[5].parents=[id['Voie']];
+  add('Piste');   state.classes[6].parents=[id['Voie']];
   const P=(n,d,r,x)=>state.objProps.push(Object.assign({id:state.nextId++,name:n,domain:id[d],range:id[r],inverseOf:null},x||{}));
   P('connaît','Personne','Personne',{transitive:true,symmetric:true});
   P('appartient-à','Membre','Groupe',{});
@@ -383,14 +409,21 @@ function toTTL(ns){
   L.push('<'+ns.replace(/[#/]?$/,'')+'> rdf:type owl:Ontology .');
   L.push('');
   const byId=new Map(state.classes.map(c=>[c.id,c]));
-  const order=[];
-  const visit=id=>{ order.push(id); state.classes.filter(c=>c.parent===id).forEach(c=>visit(c.id)); };
-  state.classes.filter(c=>!c.parent||!byId.has(c.parent)).forEach(c=>visit(c.id));
+  // ordre hiérarchique : une classe n'est émise qu'après toutes ses super-classes
+  const order=[], done=new Set();
+  const visit=id=>{
+    if(done.has(id)) return;
+    if(parentsOf(byId.get(id)).some(p=>!done.has(p))) return; // sera émise quand sa dernière super-classe le sera
+    done.add(id); order.push(id);
+    state.classes.filter(c=>parentsOf(c).includes(id)).forEach(c=>visit(c.id));
+  };
+  state.classes.filter(c=>!parentsOf(c).length).forEach(c=>visit(c.id));
+  state.classes.forEach(c=>{ if(!done.has(c.id)){ done.add(c.id); order.push(c.id); } }); // sécurité (cycle résiduel)
   for(const id of order){
     const c=byId.get(id); if(!c) continue;
-    const par=c.parent&&byId.get(c.parent);
-    L.push(par ? N(c.name)+' rdf:type owl:Class ;\n    rdfs:subClassOf '+N(par.name)+' .'
-               : N(c.name)+' rdf:type owl:Class .');
+    const pars=parentsOf(c).map(pid=>byId.get(pid)).filter(Boolean);
+    L.push(pars.length ? N(c.name)+' rdf:type owl:Class ;\n    rdfs:subClassOf '+pars.map(q=>N(q.name)).join(', ')+' .'
+                       : N(c.name)+' rdf:type owl:Class .');
   }
   if(state.classes.length) L.push('');
   for(const p of state.objProps){
@@ -401,7 +434,7 @@ function toTTL(ns){
     if(p.symmetric) types.push('owl:SymmetricProperty');
     if(p.functional) types.push('owl:FunctionalProperty');
     const preds=['rdfs:domain '+N(d.name),'rdfs:range '+N(r.name)];
-    const par=p.parent!=null&&objById(p.parent); if(par) preds.push('rdfs:subPropertyOf '+N(par.name));
+    const pars=parentsOf(p).map(objById).filter(Boolean); if(pars.length) preds.push('rdfs:subPropertyOf '+pars.map(q=>N(q.name)).join(', '));
     const q=p.inverseOf&&objById(p.inverseOf); if(q) preds.push('owl:inverseOf '+N(q.name));
     L.push(N(p.name)+' a '+types.join(', ')+' ;\n    '+preds.join(' ;\n    ')+' .');
   }
@@ -409,7 +442,7 @@ function toTTL(ns){
   for(const p of state.dataProps){
     const d=classById(p.domain); if(!d) continue;
     const preds=['rdfs:domain '+N(d.name),'rdfs:range '+p.type];
-    const par=p.parent!=null&&dataById(p.parent); if(par) preds.push('rdfs:subPropertyOf '+N(par.name));
+    const pars=parentsOf(p).map(dataById).filter(Boolean); if(pars.length) preds.push('rdfs:subPropertyOf '+pars.map(q=>N(q.name)).join(', '));
     L.push(N(p.name)+' a owl:DatatypeProperty ;\n    '+preds.join(' ;\n    ')+' .');
   }
   return L.join('\n')+'\n';
@@ -458,7 +491,7 @@ function dataCountOf(id){ return state.dataProps.filter(p=>p.domain===id).length
 function selfCountOf(id){ return state.objProps.filter(p=>p.domain===id&&p.range===id).length; }
 function computeLayout(){
   const cls=state.classes, pos=new Map(); if(!cls.length) return pos;
-  const key=JSON.stringify([cls.map(c=>[c.id,c.name,c.parent]),state.objProps.map(p=>[p.domain,p.range]),state.dataProps.map(p=>p.domain)]);
+  const key=JSON.stringify([cls.map(c=>[c.id,c.name,parentsOf(c)]),state.objProps.map(p=>[p.domain,p.range]),state.dataProps.map(p=>p.domain)]);
   let base;
   if(layoutCache.key===key) base=layoutCache.pos;
   else{ base=forceLayout(); layoutCache={key,pos:base}; }
@@ -476,7 +509,7 @@ function forceLayout(){
   const find=a=>{ while(uf.get(a)!==a){ uf.set(a,uf.get(uf.get(a))); a=uf.get(a); } return a; };
   const union=(a,b)=>{ uf.set(find(a),find(b)); };
   const links=[], pairs=new Map();
-  for(const c of cls) if(c.parent!=null&&byId.has(c.parent)){ links.push({a:c.id,b:c.parent,sub:true,n:1}); union(c.id,c.parent); }
+  for(const c of cls) for(const pid of parentsOf(c)) if(byId.has(pid)){ links.push({a:c.id,b:pid,sub:true,n:1}); union(c.id,pid); }
   for(const p of state.objProps){
     if(!byId.has(p.domain)||!byId.has(p.range)||p.domain===p.range) continue;
     const k=Math.min(p.domain,p.range)+'|'+Math.max(p.domain,p.range);
@@ -485,9 +518,10 @@ function forceLayout(){
   }
   // ordre DFS de la hiérarchie : voisins proches dans la disposition initiale
   const kids=new Map(cls.map(c=>[c.id,[]]));
-  cls.forEach(c=>{ if(c.parent!=null&&byId.has(c.parent)) kids.get(c.parent).push(c.id); });
-  const order=[]; const dfs=id=>{ order.push(id); kids.get(id).forEach(dfs); };
-  cls.filter(c=>c.parent==null||!byId.has(c.parent)).forEach(c=>dfs(c.id));
+  cls.forEach(c=>parentsOf(c).forEach(pid=>{ if(byId.has(pid)) kids.get(pid).push(c.id); }));
+  const order=[], seenO=new Set(); const dfs=id=>{ if(seenO.has(id)) return; seenO.add(id); order.push(id); kids.get(id).forEach(dfs); };
+  cls.filter(c=>!parentsOf(c).length).forEach(c=>dfs(c.id));
+  cls.forEach(c=>dfs(c.id));
   const comps=new Map();
   order.forEach(id=>{ const r=find(id); if(!comps.has(r)) comps.set(r,[]); comps.get(r).push(id); });
   const boxes=[];
@@ -603,8 +637,8 @@ function computeProps(pos){
   const occ=new Map(); pos.forEach((p,id)=>occ.set(id,[]));
   const dir=(a,b)=>Math.atan2(b.y-a.y,b.x-a.x);
   for(const c of state.classes){ // directions déjà occupées par les liens de hiérarchie
-    const a=pos.get(c.id), b=c.parent!=null&&pos.get(c.parent); if(!a||!b) continue;
-    occ.get(c.id).push(dir(a,b)); occ.get(c.parent).push(dir(b,a));
+    const a=pos.get(c.id); if(!a) continue;
+    for(const pid of parentsOf(c)){ const b=pos.get(pid); if(!b) continue; occ.get(c.id).push(dir(a,b)); occ.get(pid).push(dir(b,a)); }
   }
   const groups=new Map(), selfs=new Map();
   state.objProps.forEach(p=>{
@@ -627,7 +661,7 @@ function computeProps(pos){
   });
   // obstacles : segments d'arêtes (hiérarchie, propriétés objet passant par leur étiquette) et ellipses déjà posées
   const segs=[]; const placed=[];
-  for(const c of state.classes){ const a=pos.get(c.id), b=c.parent!=null&&pos.get(c.parent); if(a&&b) segs.push([a,b]); }
+  for(const c of state.classes) for(const pid of parentsOf(c)){ const a=pos.get(c.id), b=pos.get(pid); if(a&&b) segs.push([a,b]); }
   obj.forEach((q,pid)=>{ const p=objById(pid); segs.push([pos.get(p.domain),q],[q,pos.get(p.range)]); placed.push(q); });
   const overlap=(a,b,margin)=>{
     const d=Math.hypot(a.x-b.x,a.y-b.y)||1e-3, ang=Math.atan2(b.y-a.y,b.x-a.x);
@@ -759,9 +793,8 @@ function selIs(kind,id){ return state.sel&&state.sel.kind===kind&&state.sel.id==
 
 /* rdfs:subClassOf : flèche à pointe creuse de la sous-classe vers sa super-classe (notation VOWL). */
 function drawSubArcs(pos){
-  for(const c of state.classes){
-    if(c.parent==null) continue;
-    const a=pos.get(c.id), b=pos.get(c.parent); if(!a||!b) continue;
+  for(const c of state.classes) for(const pid of parentsOf(c)){
+    const a=pos.get(c.id), b=pos.get(pid); if(!a||!b) continue;
     const s=edgePoint(a,b), t=edgePoint(b,a);
     el('line',{x1:s.x,y1:s.y,x2:t.x,y2:t.y,stroke:C.clsS,'stroke-width':selIs('class',c.id)?3:1.8,'marker-end':'url(#m-sub)',opacity:0.9},layerArcs);
   }
@@ -770,9 +803,8 @@ function drawSubArcs(pos){
 /* rdfs:subPropertyOf : ligne pointillée à pointe creuse, de la sous-propriété vers sa propriété parente. */
 function drawSubProps(objP,dataP){
   const one=(list,P,stroke,marker,kind)=>{
-    for(const p of list){
-      if(p.parent==null) continue;
-      const a=P.get(p.id), b=P.get(p.parent); if(!a||!b) continue;
+    for(const p of list) for(const pid of parentsOf(p)){
+      const a=P.get(p.id), b=P.get(pid); if(!a||!b) continue;
       const s=edgePoint(a,b), t=edgePoint(b,a);
       el('line',{x1:s.x,y1:s.y,x2:t.x,y2:t.y,stroke,'stroke-width':selIs(kind,p.id)?2.8:1.6,'stroke-dasharray':'5 3','marker-end':'url(#'+marker+')',opacity:0.9},layerArcs);
     }
@@ -816,7 +848,7 @@ function drawData(pos,pp){
     el('ellipse',{cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.data,stroke:sel?C.sel:C.dataS,'stroke-width':sel?3:1.6},g);
     const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#3d1414'},g); t.textContent=short(p.name,q.rx);
     const t2=el('text',{x:q.x,y:q.y+q.ry+11,'text-anchor':'middle','font-size':9,fill:C.dataS},g); t2.textContent=p.type.replace('xsd:','');
-    const tt=el('title',{},g); tt.textContent=p.name+' : propriété de donnée de '+c.name+' ('+p.type+')'+(p.parent!=null&&dataById(p.parent)?' [sous-propriété de '+dataById(p.parent).name+']':'');
+    const tt=el('title',{},g); tt.textContent=p.name+' : propriété de donnée de '+c.name+' ('+p.type+')'+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(dataById(i)||{}).name).join(', ')+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'data',p.id));
   }
 }
@@ -824,12 +856,12 @@ function drawData(pos,pp){
 function drawClasses(pos){
   for(const c of state.classes){
     const p=pos.get(c.id); if(!p) continue;
-    const par=c.parent&&classById(c.parent);
+    const pars=parentsOf(c).map(classById).filter(Boolean);
     const g=el('g',{class:'node','data-id':c.id,'data-kind':'class',cursor:'pointer'},layerNodes);
     const sel=selIs('class',c.id);
     el('ellipse',{cx:p.x,cy:p.y,rx:p.rx,ry:p.ry,fill:C.cls,stroke:sel?C.sel:C.clsS,'stroke-width':sel?3.4:2},g);
     const t=el('text',{x:p.x,y:p.y+4.5,'text-anchor':'middle','font-size':13,'font-weight':600,fill:'#10233f'},g); t.textContent=short(c.name,p.rx);
-    const tt=el('title',{},g); tt.textContent=c.name+(par?' (sous-classe de '+par.name+')':' (classe racine)');
+    const tt=el('title',{},g); tt.textContent=c.name+(pars.length?' (sous-classe de '+pars.map(q=>q.name).join(', ')+')':' (classe racine)');
     g.addEventListener('pointerdown',e=>nodeDown(e,'class',c.id));
   }
 }
@@ -847,17 +879,17 @@ function drawObjProps(pp){
     const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#26330d'},g); t.textContent=label;
     const tt=el('title',{},g);
     tt.textContent=p.name+' : objet, '+ (classById(p.domain)||{}).name +' → '+ (classById(p.range)||{}).name
-      +(p.transitive?' [transitive]':'')+(p.symmetric?' [symétrique]':'')+(p.functional?' [fonctionnelle]':'')+(inv?' [inverse de '+inv.name+']':'')+(p.parent!=null&&objById(p.parent)?' [sous-propriété de '+objById(p.parent).name+']':'');
+      +(p.transitive?' [transitive]':'')+(p.symmetric?' [symétrique]':'')+(p.functional?' [fonctionnelle]':'')+(inv?' [inverse de '+inv.name+']':'')+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(objById(i)||{}).name).join(', ')+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'obj',p.id));
   }
 }
 
 function updateStats(){
   const nC=state.classes.length, nO=state.objProps.length, nD=state.dataProps.length;
-  let t=nC+state.classes.filter(c=>c.parent).length+nO*3+nD*3
+  let t=nC+state.classes.reduce((n,c)=>n+parentsOf(c).length,0)+nO*3+nD*3
     +state.objProps.filter(p=>p.transitive||p.symmetric||p.functional).length
     +state.objProps.filter(p=>p.inverseOf).length
-    +state.objProps.filter(p=>p.parent!=null).length+state.dataProps.filter(p=>p.parent!=null).length;
+    +state.objProps.reduce((n,p)=>n+parentsOf(p).length,0)+state.dataProps.reduce((n,p)=>n+parentsOf(p).length,0);
   $('#stats').textContent=nC+' classes · '+nO+' prop. objet · '+nD+' prop. donnée · ≈ '+t+' triples';
 }
 
@@ -977,8 +1009,8 @@ function pointerEnd(e){
       const el2=document.elementFromPoint(e.clientX,e.clientY);
       const g=el2&&el2.closest?el2.closest('[data-id]'):null;
       const kind=g?g.getAttribute('data-kind'):null, id=g?g.getAttribute('data-id'):null;
-      if(kind===d.pk&&id&&+id!==d.id) setPropParent(d.pk,d.id,id);
-      else if(kind===null) setPropParent(d.pk,d.id,null); // lâché sur le fond : on détache
+      if(kind===d.pk&&id&&+id!==d.id) addParent(d.pk,d.id,id); // ajoute une super-propriété
+      else if(kind===null) clearParents(d.pk,d.id); // lâché sur le fond : retire toutes les super-propriétés
       else status('Déposez sur une autre propriété du même type (ou sur le fond pour détacher).',1);
       return;
     }
@@ -992,8 +1024,8 @@ function pointerEnd(e){
     const g=el2&&el2.closest?el2.closest('[data-id]'):null;
     const kind=g?g.getAttribute('data-kind'):null, id=g?g.getAttribute('data-id'):null;
     if(state.mode==='class'){
-      if(kind==='class'&&id&&id!==d.id) setParent(d.id,id);
-      else if(kind===null) setParent(d.id,null); // détacher seulement si lâché sur le fond
+      if(kind==='class'&&id&&+id!==d.id) addParent('class',d.id,id); // ajoute une super-classe (héritage multiple)
+      else if(kind===null) clearParents('class',d.id); // lâché sur le fond : retire toutes les super-classes
     } else if(state.mode==='obj'){
       if(kind==='class'&&id) createObjProp(d.id,id);
       else status('Glissez d\'une classe (domaine) jusqu\'à une classe (portée).',1);
@@ -1015,24 +1047,20 @@ function setMode(m){
   state.mode=m;
   document.querySelectorAll('.modes button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
   save();
-  if(m==='class') status('Mode Classe : cliquez sur le fond pour créer une classe ; glissez-en une sur une autre pour en faire une sous-classe ; glissez sur le fond pour la détacher.');
-  if(m==='obj') status('Mode Propriété objet : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une ellipse verte pour la modifier ; glissez-la sur une autre ellipse verte pour créer une sous-propriété.');
-  if(m==='data') status('Mode Propriété de donnée : cliquez sur une classe pour lui ajouter une propriété de donnée. Cliquez sur une ellipse rouge pour la modifier ; glissez-la sur une autre ellipse rouge pour créer une sous-propriété.');
+  if(m==='class') status('Mode Classe : cliquez sur le fond pour créer une classe ; glissez-en une sur une autre pour lui ajouter une super-classe (plusieurs possibles) ; glissez sur le fond pour retirer ses super-classes.');
+  if(m==='obj') status('Mode Propriété objet : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une ellipse verte pour la modifier ; glissez-la sur une autre ellipse verte pour en faire une sous-propriété (plusieurs parents possibles).');
+  if(m==='data') status('Mode Propriété de donnée : cliquez sur une classe pour lui ajouter une propriété de donnée. Cliquez sur une ellipse rouge pour la modifier ; glissez-la sur une autre ellipse rouge pour en faire une sous-propriété (plusieurs parents possibles).');
   if(m==='move') status('Mode Déplacer : glissez une classe ou une étiquette de propriété pour la repositionner ; glissez le fond pour déplacer la vue. « Réorganiser » recalcule la mise en page automatique.');
   svg.classList.toggle('move',m==='move');
 }
 
 /* ---------- panneau latéral ---------- */
-function classOptions(selId,exclude){ // selId = option présélectionnée, exclude = Set d'ids à masquer
-  return state.classes.filter(c=>!exclude.has(c.id))
-    .map(c=>'<option value="'+c.id+'"'+(c.id===selId?' selected':'')+'>'+esc(c.name)+'</option>').join('');
-}
 function updatePanel(){
   const p=$('#panel'), s=state.sel;
   if(!s){
     p.innerHTML='<h3>OntoLab</h3>'
       +'<p class="hint" style="margin-top:0">Construisez une ontologie RDFS/OWL en trois temps :</p>'
-      +'<p class="hint"><b>① Classe</b> — cliquez sur le fond pour créer ; glissez une classe sur une autre pour <b>subClassOf</b>.</p>'
+      +'<p class="hint"><b>① Classe</b> — cliquez sur le fond pour créer ; glissez une classe sur une autre pour lui ajouter une super-classe (<b>subClassOf</b>, héritage multiple possible).</p>'
       +'<p class="hint"><b>② Propriété objet</b> — glissez d\'une classe vers une autre (domaine → portée) ; cochez transitive / symétrique / fonctionnelle, définissez une paire inverse. Glissez une ellipse verte sur une autre pour créer une <b>sous-propriété</b>.</p>'
       +'<p class="hint"><b>③ Propriété de donnée</b> — cliquez sur une classe ; choisissez le type XSD. Glissez une ellipse rouge sur une autre pour une sous-propriété.</p>'
       +'<p class="hint"><b>④ Déplacer</b> — glissez tout élément (classe, étiquette de propriété) pour le repositionner à la main ; le bouton <b>Réorganiser</b> recalcule la mise en page automatique.</p>'
@@ -1043,18 +1071,15 @@ function updatePanel(){
   let h='';
   if(s.kind==='class'){
     const c=classById(s.id); if(!c){ state.sel=null; return updatePanel(); }
-    const desc=new Set();
-    (function walk(id){ state.classes.forEach(ch=>{ if(ch.parent===id){ desc.add(ch.id); walk(ch.id); } }); })(c.id);
-    desc.add(c.id); // une classe ne peut pas être sa propre super-classe
     h='<h3>Classe</h3>'
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(c.name)+'" spellcheck="false"></label>'
-      +'<label class="fld"><span>Sous-classe de</span><select id="pf-parent"><option value="">— (aucune, classe racine)</option>'+classOptions(c.parent,desc)+'</select></label>'
+      +parentsBlock('class',c,'Sous-classe de (rdfs:subClassOf) — plusieurs possibles')
       +'<button class="btn" id="pf-addchild">+ Ajouter une sous-classe</button>'
       +'<button class="btn danger" id="pf-del">Supprimer la classe</button>'
-      +'<p class="hint">Astuce : glissez une classe sur une autre pour créer le subClassOf ; glissez sur le fond pour la détacher.</p>';
+      +'<p class="hint">Astuce : glissez une classe sur une autre pour lui ajouter une super-classe (autant que voulu) ; glissez sur le fond pour les retirer toutes.</p>';
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('class',c.id,e.target.value);
-    $('#pf-parent').onchange=e=>setParent(c.id,e.target.value||null);
+    wireParents('class',c);
     $('#pf-addchild').onclick=()=>addChildClass(c.id);
     $('#pf-del').onclick=()=>deleteClass(c.id);
   } else if(s.kind==='obj'){
@@ -1070,11 +1095,11 @@ function updatePanel(){
       +'<label class="fld check"><span>Fonctionnelle</span><input type="checkbox" id="pf-func"'+(p2.functional?' checked':'')+'></label>'
       +'<label class="fld"><span>Propriété inverse (owl:inverseOf)</span><select id="pf-inv"><option value="">— (aucune)</option>'
         +cands.map(x=>'<option value="'+x.id+'"'+(x.id===p2.inverseOf?' selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select></label>'
-      +'<label class="fld"><span>Sous-propriété de (rdfs:subPropertyOf)</span><select id="pf-pparent"><option value="">— (aucune)</option>'+propParentOptions('obj',p2)+'</select></label>'
+      +parentsBlock('obj',p2,'Sous-propriété de (rdfs:subPropertyOf)')
       +'<button class="btn danger" id="pf-del">Supprimer la propriété</button>';
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('obj',p2.id,e.target.value);
-    $('#pf-pparent').onchange=e=>setPropParent('obj',p2.id,e.target.value||null);
+    wireParents('obj',p2);
     $('#pf-domain').onchange=e=>{ p2.domain=+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
     $('#pf-range').onchange=e=>{ p2.range=+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
     $('#pf-trans').onchange=e=>{ p2.transitive=e.target.checked; save(); render(); };
@@ -1095,11 +1120,11 @@ function updatePanel(){
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p3.name)+'" spellcheck="false"></label>'
       +'<label class="fld"><span>Domaine (rdfs:domain)</span><select id="pf-domain">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p3.domain?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
       +'<label class="fld"><span>Type XSD (rdfs:range)</span><select id="pf-type">'+XSD.map(t=>'<option value="'+t+'"'+(t===p3.type?' selected':'')+'>'+t+'</option>').join('')+'</select></label>'
-      +'<label class="fld"><span>Sous-propriété de (rdfs:subPropertyOf)</span><select id="pf-pparent"><option value="">— (aucune)</option>'+propParentOptions('data',p3)+'</select></label>'
+      +parentsBlock('data',p3,'Sous-propriété de (rdfs:subPropertyOf)')
       +'<button class="btn danger" id="pf-del">Supprimer la propriété</button>';
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('data',p3.id,e.target.value);
-    $('#pf-pparent').onchange=e=>setPropParent('data',p3.id,e.target.value||null);
+    wireParents('data',p3);
     $('#pf-domain').onchange=e=>{ p3.domain=+e.target.value; save(); render(); };
     $('#pf-type').onchange=e=>{ p3.type=e.target.value; save(); render(); };
     $('#pf-del').onclick=()=>deleteProp('data',p3.id);

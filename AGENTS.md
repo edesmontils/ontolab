@@ -40,17 +40,18 @@ Le JS est organisé en 3 blocs commentés :
 
 - Sauvegarde automatique dans `localStorage`, clé **`ontolab-v1`**.
 - Schéma de `state` :
-  - `classes[]` : `{id, name, parent: id|null}` + positions manuelles
-    optionnelles `{mx, my, man}` ;
+  - `classes[]` : `{id, name, parents: [id]}` (héritage multiple) + positions
+    manuelles optionnelles `{mx, my, man}` ;
   - `objProps[]` : `{id, name, domain, range, transitive, symmetric,
-    functional, inverseOf: id|null, parent: id|null}` + `{mx, my}` ;
-  - `dataProps[]` : `{id, name, domain, type, parent: id|null}` (type = IRI XSD)
-    + `{mx, my}` ; `parent` = `rdfs:subPropertyOf` (même type de propriété) ;
+    functional, inverseOf: id|null, parents: [id]}` + `{mx, my}` ;
+  - `dataProps[]` : `{id, name, domain, type, parents: [id]}` (type = IRI XSD)
+    + `{mx, my}` ; `parents` = `rdfs:subPropertyOf` (même type de propriété) ;
   - `nextId`, `ns` (namespace, défaut `http://example.org/onto#`),
     `sel`, `mode` (`class|obj|data|move`), `view` (`{x,y,k}`).
-- **En cas d'évolution incompatible du schéma : changer la clé** `ontolab-v1`
-  (ex. `ontolab-v2`) plutôt que de migrer — l'outil est pédagogique, pas
-  un produit de gestion.
+- Évolution du schéma : de préférence **changer la clé** `ontolab-v1` (ex.
+  `ontolab-v2`) plutôt que migrer. Exception faite pour l'héritage : l'ancien
+  champ `parent` (héritage simple) est migré vers `parents` par `cleanParents()`
+  (appelée par `sanitizeState`, donc au chargement et à l'import JSON).
 - Noms d'éléments **uniques** entre classes et propriétés (`nameTaken()`) ;
   un nom est utilisé tel quel comme nom local d'IRI (accents autorisés) ;
   `localName()` remplace tout caractère hors lettre/chiffre/`_`/`-`/`.` par `_`
@@ -69,13 +70,16 @@ Le JS est organisé en 3 blocs commentés :
 - Clic sur un élément (hors mode ④) = sélection + édition dans le panneau
   droit. `Suppr` = supprimer l'élément sélectionné (cascade : une classe
   emporte ses propriétés liées, ses sous-classes redeviennent racines).
-- **Protection des cycles** : `isAncestorOf()` refuse tout `subClassOf`
-  créant un cycle ; le panneau exclut les descendants de la liste. Idem pour
-  `subPropertyOf` : `isPropAncestor()`, `setPropParent()`, `propParentOptions()` ;
-  `cleanPropParents()` (appelée après suppression et dans `sanitizeState`)
-  annule les parents inexistants ou cycliques.
-- Mode ② / ③ : glisser une propriété du même type sur une autre = `subPropertyOf`
-  (drag de type `prop`), sur le fond = détacher ; dessin par `drawSubProps()`.
+- **Héritage multiple** (classes, propriétés objet, propriétés de donnée) : un seul code
+  générique indexé par `kind` ∈ `class|obj|data` (`KINDS`) : `addParent()`,
+  `removeParent()`, `clearParents()`, `isAncestor()` (refus des cycles, y compris
+  par plusieurs chemins), `parentsBlock()`/`wireParents()` pour le panneau (pastilles +
+  menu d'ajout). `cleanParents()` retire parents inexistants, doublons, auto-références
+  et rompt les cycles (DFS) ; appelée après toute suppression et dans `sanitizeState`.
+- Glisser une classe sur une autre (mode ①) ou une propriété sur une autre du même type
+  (modes ② / ③, drag de type `prop`) **ajoute** un parent ; sur le fond : retire tous les
+  parents. Dessin : `drawSubArcs()` (classes), `drawSubProps()` (propriétés), une
+  flèche par parent.
 - Molette = zoom (autour du curseur), glisser le fond = pan, double-clic fond
   = recentrer (`initView()`), bouton « Recentrer » pour le tactile.
 - **Pointer Events** (pas de `mouse*`/`touch*`) : souris, doigt et stylet passent par
@@ -126,12 +130,13 @@ boucles) ; vérifier l'absence de chevauchement et de croisements inutiles.
 `toTTL()` génère du Turtle/OWL **valide et ordonné** :
 - préfixes `:`, `rdf:`, `rdfs:`, `owl:`, `xsd:` + déclaration
   `owl:Ontology` ;
-- classes en **ordre hiérarchique** (racines d'abord, puis DFS) pour que
-  chaque `rdfs:subClassOf` pointe vers une classe déjà déclarée ;
+- classes en **ordre hiérarchique** (une classe n'est émise qu'après toutes ses
+  super-classes) pour que chaque `rdfs:subClassOf` (liste d'objets `:A, :B` si
+  plusieurs parents) pointe vers des classes déjà déclarées ;
 - caractéristiques en listage : `a owl:ObjectProperty, owl:TransitiveProperty, …` ;
 - `owl:inverseOf` émis des deux côtés de la paire ;
 - `rdfs:range` XSD pour les propriétés de donnée ;
-- `rdfs:subPropertyOf` pour les sous-propriétés ; les prédicats sont assemblés en
+- `rdfs:subPropertyOf :A, :B` pour les sous-propriétés ; les prédicats sont assemblés en
   liste jointe par ` ;` (un oubli de `;` rendait le TTL invalide avec `owl:inverseOf`).
 
 Le TTL exporté doit rester chargable par **Jena** (`arq --data`, `sparql
