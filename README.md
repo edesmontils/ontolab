@@ -29,6 +29,7 @@ L'interface reprend les codes visuels de la **notation VOWL**
 |--------|---------------|
 | Ellipse bleue | classe |
 | Flèche à pointe creuse | `rdfs:subClassOf` : de la sous-classe vers sa super-classe |
+| Ligne pointillée à pointe creuse (verte / rouge) | `rdfs:subPropertyOf` : de la sous-propriété vers sa propriété parente (objet / donnée) |
 | Ellipse verte | propriété objet — flèche : domaine → portée |
 | Ellipse rouge | propriété de donnée (type XSD sous l'étiquette) |
 | Petite boucle verte sur une classe | `owl:TransitiveProperty` |
@@ -43,9 +44,13 @@ L'interface reprend les codes visuels de la **notation VOWL**
 2. **Propriété objet** — glisser d'une classe (domaine) vers une classe
    (portée) ; les caractéristiques OWL se cochent au moment de la création ou
    dans le panneau (transitive, symétrique, fonctionnelle, paire inverse).
+   **Héritage de propriété** (`rdfs:subPropertyOf`) : glisser une ellipse verte
+   sur une autre ellipse verte, ou menu « Sous-propriété de » du panneau ; lâcher
+   sur le fond pour détacher.
    Déposer sur soi-même crée une propriété de la classe vers elle-même
    (ex. `connaît : Personne → Personne`).
-3. **Propriété de donnée** — clic sur une classe ; choix du type XSD.
+3. **Propriété de donnée** — clic sur une classe ; choix du type XSD. Comme en
+   ②, glisser une ellipse rouge sur une autre = sous-propriété de donnée.
 4. **Déplacer** — glisser tout élément (classe, étiquette de propriété) pour le
    repositionner à la main ; les flèches et arcs suivent. Le bouton
    **Réorganiser** recalcule la mise en page automatique et efface les
@@ -160,6 +165,8 @@ toute ontologie ou MCD de votre choix convient)
 
 ## Limites (assumées, pédagogie > complétude)
 
+- Une seule super-propriété par propriété (comme pour les classes, un seul parent), et
+  uniquement entre propriétés du même type (objet/objet, donnée/donnée).
 - Une seule super-classe par classe (un parent), comme le permet la lecture
   rapide d'un diagramme VOWL ; les ontologies avec plusieurs parents
   (disjonction de super-classes) ne sont pas modélisables ici.

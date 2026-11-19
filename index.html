@@ -87,6 +87,8 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
     <marker id="m-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5B7C29"/></marker>
     <marker id="m-arr-start" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5B7C29"/></marker>
     <marker id="m-sub" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto"><path d="M1,1 L11,6 L1,11 z" fill="#fff" stroke="#2C5F9E" stroke-width="1.4"/></marker>
+    <marker id="m-subo" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M1,1 L11,6 L1,11 z" fill="#fff" stroke="#5B7C29" stroke-width="1.4"/></marker>
+    <marker id="m-subd" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M1,1 L11,6 L1,11 z" fill="#fff" stroke="#8C2E2E" stroke-width="1.4"/></marker>
     <marker id="m-arr-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8C2E2E"/></marker>
   </defs>
   <g id="world"></g>
@@ -97,6 +99,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
   <div><span class="chip" style="background:var(--green);border:2px solid var(--greenS)"></span>Propriété objet — flèche : domaine → portée</div>
   <div><span class="chip" style="background:var(--red);border:2px solid var(--redS)"></span>Propriété de donnée (XSD)</div>
   <div>Bordure pointillée : <b>fonctionnelle</b> · petite boucle verte : <b>transitive</b></div>
+  <div>Ligne pointillée à pointe creuse : <b>rdfs:subPropertyOf</b> (sous-propriété → parente)</div>
   <div>Doubles flèches : <b>symétrique</b> · symboles <b>⇄</b> : paire de propriétés <b>inverse</b></div>
 </div>
 <div id="status"></div>
@@ -125,8 +128,9 @@ function sanitizeState(s){
   // ids toujours numériques (répare les états enregistrés avec des ids en chaînes)
   const num=v=>(v==null||v==='')?null:+v;
   out.classes.forEach(c=>{ c.id=+c.id; c.parent=num(c.parent); });
-  out.objProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); p.range=num(p.range); p.inverseOf=num(p.inverseOf); });
-  out.dataProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); });
+  out.objProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); p.range=num(p.range); p.inverseOf=num(p.inverseOf); p.parent=num(p.parent); });
+  out.dataProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); p.parent=num(p.parent); });
+  cleanPropParents(out);
   out.sel=null;
   return out;
 }
@@ -264,6 +268,32 @@ function newDataProp(domain){
 function cleanInverses(){
   state.objProps.forEach(p=>{ const q=p.inverseOf&&objById(p.inverseOf); if(!q||q.inverseOf!==p.id) p.inverseOf=null; });
 }
+/* ---------- sous-propriétés (rdfs:subPropertyOf) : champ `parent` des propriétés objet et de donnée ---------- */
+const propById=(kind,id)=>(kind==='obj'?objById:dataById)(id);
+function isPropAncestor(kind,candidate,other){ // candidate est-elle une ancêtre de other ?
+  let cur=propById(kind,other), n=0;
+  while(cur&&cur.parent!=null&&n++<1000){ if(cur.parent===candidate) return true; cur=propById(kind,cur.parent); }
+  return false;
+}
+function cleanPropParents(st){ // parent inexistant, auto-référence ou cycle -> null
+  st=st||state;
+  for(const arr of [st.objProps,st.dataProps]){
+    const by=new Map(arr.map(p=>[p.id,p]));
+    arr.forEach(p=>{ if(p.parent!=null&&(!by.has(p.parent)||p.parent===p.id)) p.parent=null; });
+    arr.forEach(p=>{ const seen=new Set([p.id]); let cur=p;
+      while(cur&&cur.parent!=null){ if(seen.has(cur.parent)){ cur.parent=null; break; } seen.add(cur.parent); cur=by.get(cur.parent); } });
+  }
+}
+function setPropParent(kind,id,parentId){
+  id=+id; parentId=(parentId==null||parentId==='')?null:+parentId;
+  if(parentId===id||(parentId!=null&&isPropAncestor(kind,id,parentId))){ status('Impossible : cela créerait un cycle de sous-propriétés.',1); return; }
+  propById(kind,id).parent=parentId; state.sel={kind,id}; save(); render();
+}
+function propParentOptions(kind,p){ // toutes les propriétés du même type, sauf elle-même et ses descendantes
+  const arr=kind==='obj'?state.objProps:state.dataProps;
+  return arr.filter(q=>q.id!==p.id&&!isPropAncestor(kind,p.id,q.id))
+    .map(q=>'<option value="'+q.id+'"'+(q.id===p.parent?' selected':'')+'>'+esc(q.name)+'</option>').join('');
+}
 function deleteClass(id){
   const c=classById(id);
   const nObj=state.objProps.filter(p=>p.domain===id||p.range===id).length;
@@ -275,7 +305,7 @@ function deleteClass(id){
     state.classes.forEach(x=>{ if(x.parent===id) x.parent=null; });
     state.objProps=state.objProps.filter(p=>p.domain!==id&&p.range!==id);
     state.dataProps=state.dataProps.filter(p=>p.domain!==id);
-    cleanInverses(); state.sel=null; save(); render();
+    cleanInverses(); cleanPropParents(); state.sel=null; save(); render();
   });
 }
 function deleteProp(kind,id){
@@ -284,7 +314,7 @@ function deleteProp(kind,id){
     if(!ok) return;
     if(kind==='obj'){ const q=p.inverseOf&&objById(p.inverseOf); if(q) q.inverseOf=null; state.objProps=state.objProps.filter(x=>x.id!==id); }
     else state.dataProps=state.dataProps.filter(x=>x.id!==id);
-    state.sel=null; save(); render();
+    cleanPropParents(); state.sel=null; save(); render();
   });
 }
 
@@ -370,15 +400,17 @@ function toTTL(ns){
     if(p.transitive) types.push('owl:TransitiveProperty');
     if(p.symmetric) types.push('owl:SymmetricProperty');
     if(p.functional) types.push('owl:FunctionalProperty');
-    let s=N(p.name)+' a '+types.join(', ')+' ;\n    rdfs:domain '+N(d.name)+' ;\n    rdfs:range '+N(r.name);
-    const q=p.inverseOf&&objById(p.inverseOf);
-    if(q) s+='\n    owl:inverseOf '+N(q.name);
-    L.push(s+' .');
+    const preds=['rdfs:domain '+N(d.name),'rdfs:range '+N(r.name)];
+    const par=p.parent!=null&&objById(p.parent); if(par) preds.push('rdfs:subPropertyOf '+N(par.name));
+    const q=p.inverseOf&&objById(p.inverseOf); if(q) preds.push('owl:inverseOf '+N(q.name));
+    L.push(N(p.name)+' a '+types.join(', ')+' ;\n    '+preds.join(' ;\n    ')+' .');
   }
   if(state.objProps.length) L.push('');
   for(const p of state.dataProps){
     const d=classById(p.domain); if(!d) continue;
-    L.push(N(p.name)+' a owl:DatatypeProperty ;\n    rdfs:domain '+N(d.name)+' ;\n    rdfs:range '+p.type+' .');
+    const preds=['rdfs:domain '+N(d.name),'rdfs:range '+p.type];
+    const par=p.parent!=null&&dataById(p.parent); if(par) preds.push('rdfs:subPropertyOf '+N(par.name));
+    L.push(N(p.name)+' a owl:DatatypeProperty ;\n    '+preds.join(' ;\n    ')+' .');
   }
   return L.join('\n')+'\n';
 }
@@ -715,6 +747,7 @@ function render(){
   relax(lastPos,pp.obj,pp.data);
   refinalizeProps(lastPos,pp.obj,pp.data);
   drawSubArcs(lastPos);
+  drawSubProps(pp.obj,pp.data);
   drawObjArcs(lastPos,pp.obj);
   drawData(lastPos,pp.data);
   drawClasses(lastPos);
@@ -732,6 +765,19 @@ function drawSubArcs(pos){
     const s=edgePoint(a,b), t=edgePoint(b,a);
     el('line',{x1:s.x,y1:s.y,x2:t.x,y2:t.y,stroke:C.clsS,'stroke-width':selIs('class',c.id)?3:1.8,'marker-end':'url(#m-sub)',opacity:0.9},layerArcs);
   }
+}
+
+/* rdfs:subPropertyOf : ligne pointillée à pointe creuse, de la sous-propriété vers sa propriété parente. */
+function drawSubProps(objP,dataP){
+  const one=(list,P,stroke,marker,kind)=>{
+    for(const p of list){
+      if(p.parent==null) continue;
+      const a=P.get(p.id), b=P.get(p.parent); if(!a||!b) continue;
+      const s=edgePoint(a,b), t=edgePoint(b,a);
+      el('line',{x1:s.x,y1:s.y,x2:t.x,y2:t.y,stroke,'stroke-width':selIs(kind,p.id)?2.8:1.6,'stroke-dasharray':'5 3','marker-end':'url(#'+marker+')',opacity:0.9},layerArcs);
+    }
+  };
+  one(state.objProps,objP,C.objS,'m-subo','obj'); one(state.dataProps,dataP,C.dataS,'m-subd','data');
 }
 
 function drawObjArcs(pos,pp){
@@ -765,12 +811,12 @@ function drawData(pos,pp){
     const c=pos.get(p.domain); if(!c) continue;
     const te=edgePoint(q,q.start); // la flèche s'arrête sur le bord de l'ellipse rouge
     el('line',{x1:q.start.x,y1:q.start.y,x2:te.x,y2:te.y,stroke:C.dataS,'stroke-width':1.6,'marker-end':'url(#m-arr-red)',opacity:0.85},layerData);
-    const g=el('g',{'data-id':p.id,'data-kind':'data',cursor:'pointer'},layerData);
+    const g=el('g',{class:'node','data-id':p.id,'data-kind':'data',cursor:'pointer'},layerData);
     const sel=selIs('data',p.id);
     el('ellipse',{cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.data,stroke:sel?C.sel:C.dataS,'stroke-width':sel?3:1.6},g);
     const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#3d1414'},g); t.textContent=short(p.name,q.rx);
     const t2=el('text',{x:q.x,y:q.y+q.ry+11,'text-anchor':'middle','font-size':9,fill:C.dataS},g); t2.textContent=p.type.replace('xsd:','');
-    const tt=el('title',{},g); tt.textContent=p.name+' : propriété de donnée de '+c.name+' ('+p.type+')';
+    const tt=el('title',{},g); tt.textContent=p.name+' : propriété de donnée de '+c.name+' ('+p.type+')'+(p.parent!=null&&dataById(p.parent)?' [sous-propriété de '+dataById(p.parent).name+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'data',p.id));
   }
 }
@@ -791,7 +837,7 @@ function drawClasses(pos){
 function drawObjProps(pp){
   for(const p of state.objProps){
     const q=pp.get(p.id); if(!q) continue;
-    const g=el('g',{'data-id':p.id,'data-kind':'obj',cursor:'pointer'},layerProps);
+    const g=el('g',{class:'node','data-id':p.id,'data-kind':'obj',cursor:'pointer'},layerProps);
     const sel=selIs('obj',p.id);
     const ea={cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.obj,stroke:sel?C.sel:C.objS,'stroke-width':sel?3:1.8};
     if(p.functional) ea['stroke-dasharray']='5 3';
@@ -801,7 +847,7 @@ function drawObjProps(pp){
     const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#26330d'},g); t.textContent=label;
     const tt=el('title',{},g);
     tt.textContent=p.name+' : objet, '+ (classById(p.domain)||{}).name +' → '+ (classById(p.range)||{}).name
-      +(p.transitive?' [transitive]':'')+(p.symmetric?' [symétrique]':'')+(p.functional?' [fonctionnelle]':'')+(inv?' [inverse de '+inv.name+']':'');
+      +(p.transitive?' [transitive]':'')+(p.symmetric?' [symétrique]':'')+(p.functional?' [fonctionnelle]':'')+(inv?' [inverse de '+inv.name+']':'')+(p.parent!=null&&objById(p.parent)?' [sous-propriété de '+objById(p.parent).name+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'obj',p.id));
   }
 }
@@ -810,16 +856,17 @@ function updateStats(){
   const nC=state.classes.length, nO=state.objProps.length, nD=state.dataProps.length;
   let t=nC+state.classes.filter(c=>c.parent).length+nO*3+nD*3
     +state.objProps.filter(p=>p.transitive||p.symmetric||p.functional).length
-    +state.objProps.filter(p=>p.inverseOf).length;
+    +state.objProps.filter(p=>p.inverseOf).length
+    +state.objProps.filter(p=>p.parent!=null).length+state.dataProps.filter(p=>p.parent!=null).length;
   $('#stats').textContent=nC+' classes · '+nO+' prop. objet · '+nD+' prop. donnée · ≈ '+t+' triples';
 }
 
 function setHover(id,on){
-  const g=layerNodes&&layerNodes.querySelector('g[data-id="'+id+'"]');
+  const g=world.querySelector('g.node[data-id="'+id+'"]');
   if(g) g.setAttribute('data-hover',on?'1':'0');
 }
 function updateGhost(w){
-  const p=lastPos.get(drag.id); if(!p) return;
+  const p=(drag.kind==='prop'?(drag.pk==='obj'?lastObjPos:lastDataPos):lastPos).get(drag.id); if(!p) return;
   ghostEl.setAttribute('x1',p.x); ghostEl.setAttribute('y1',p.y);
   ghostEl.setAttribute('x2',w.x); ghostEl.setAttribute('y2',w.y);
   ghostEl.setAttribute('visibility','visible');
@@ -858,6 +905,11 @@ function nodeDown(e,kind,id){
     return;
   }
   if(kind==='obj'||kind==='data'){
+    if(state.mode===kind){ // mode ② / ③ : glisser vers une autre propriété du même type = subPropertyOf
+      const w=toWorld(e);
+      drag={kind:'prop',pk:kind,id,sx:w.x,sy:w.y,moved:false,hover:null,thr:thrOf(e)};
+      return;
+    }
     if(!(state.sel&&state.sel.kind===kind&&state.sel.id===id)){ state.sel={kind,id}; save(); render(); }
     return;
   }
@@ -895,13 +947,13 @@ window.addEventListener('pointermove',e=>{
     }
     return;
   }
-  if(drag&&drag.kind==='node'){
+  if(drag&&(drag.kind==='node'||drag.kind==='prop')){
     const w=toWorld(e);
     if(Math.hypot(w.x-drag.sx,w.y-drag.sy)>drag.thr/state.view.k) drag.moved=true;
     if(drag.moved){
       updateGhost(w);
       const el2=document.elementFromPoint(e.clientX,e.clientY);
-      const g=el2&&el2.closest?el2.closest('[data-kind="class"]'):null;
+      const g=el2&&el2.closest?el2.closest('[data-kind="'+(drag.kind==='prop'?drag.pk:'class')+'"]'):null;
       const tid=g?g.getAttribute('data-id'):null;
       if(tid!==drag.hover){ if(drag.hover) setHover(drag.hover,false); drag.hover=tid; if(tid) setHover(tid,true); }
     }
@@ -920,6 +972,16 @@ function pointerEnd(e){
   if(drag){
     const d=drag; drag=null; clearDragVisual();
     if(d.kind==='move'){ save(); if(!d.moved){ state.sel={kind:d.nodeKind,id:d.id}; render(); } return; }
+    if(d.kind==='prop'){
+      if(!d.moved){ state.sel={kind:d.pk,id:d.id}; save(); render(); return; }
+      const el2=document.elementFromPoint(e.clientX,e.clientY);
+      const g=el2&&el2.closest?el2.closest('[data-id]'):null;
+      const kind=g?g.getAttribute('data-kind'):null, id=g?g.getAttribute('data-id'):null;
+      if(kind===d.pk&&id&&+id!==d.id) setPropParent(d.pk,d.id,id);
+      else if(kind===null) setPropParent(d.pk,d.id,null); // lâché sur le fond : on détache
+      else status('Déposez sur une autre propriété du même type (ou sur le fond pour détacher).',1);
+      return;
+    }
     if(d.kind!=='node') return;
     if(state.mode==='data'){
       if(!d.moved) newDataProp(d.id);
@@ -954,8 +1016,8 @@ function setMode(m){
   document.querySelectorAll('.modes button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
   save();
   if(m==='class') status('Mode Classe : cliquez sur le fond pour créer une classe ; glissez-en une sur une autre pour en faire une sous-classe ; glissez sur le fond pour la détacher.');
-  if(m==='obj') status('Mode Propriété objet : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une ellipse verte pour la modifier.');
-  if(m==='data') status('Mode Propriété de donnée : cliquez sur une classe pour lui ajouter une propriété de donnée. Cliquez sur une ellipse rouge pour la modifier.');
+  if(m==='obj') status('Mode Propriété objet : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une ellipse verte pour la modifier ; glissez-la sur une autre ellipse verte pour créer une sous-propriété.');
+  if(m==='data') status('Mode Propriété de donnée : cliquez sur une classe pour lui ajouter une propriété de donnée. Cliquez sur une ellipse rouge pour la modifier ; glissez-la sur une autre ellipse rouge pour créer une sous-propriété.');
   if(m==='move') status('Mode Déplacer : glissez une classe ou une étiquette de propriété pour la repositionner ; glissez le fond pour déplacer la vue. « Réorganiser » recalcule la mise en page automatique.');
   svg.classList.toggle('move',m==='move');
 }
@@ -971,8 +1033,8 @@ function updatePanel(){
     p.innerHTML='<h3>OntoLab</h3>'
       +'<p class="hint" style="margin-top:0">Construisez une ontologie RDFS/OWL en trois temps :</p>'
       +'<p class="hint"><b>① Classe</b> — cliquez sur le fond pour créer ; glissez une classe sur une autre pour <b>subClassOf</b>.</p>'
-      +'<p class="hint"><b>② Propriété objet</b> — glissez d\'une classe vers une autre (domaine → portée) ; cochez transitive / symétrique / fonctionnelle, définissez une paire inverse.</p>'
-      +'<p class="hint"><b>③ Propriété de donnée</b> — cliquez sur une classe ; choisissez le type XSD.</p>'
+      +'<p class="hint"><b>② Propriété objet</b> — glissez d\'une classe vers une autre (domaine → portée) ; cochez transitive / symétrique / fonctionnelle, définissez une paire inverse. Glissez une ellipse verte sur une autre pour créer une <b>sous-propriété</b>.</p>'
+      +'<p class="hint"><b>③ Propriété de donnée</b> — cliquez sur une classe ; choisissez le type XSD. Glissez une ellipse rouge sur une autre pour une sous-propriété.</p>'
       +'<p class="hint"><b>④ Déplacer</b> — glissez tout élément (classe, étiquette de propriété) pour le repositionner à la main ; le bouton <b>Réorganiser</b> recalcule la mise en page automatique.</p>'
       +'<p class="hint">Raccourcis : <b>1/2/3/4</b> modes, <b>Suppr</b> élément sélectionné, <b>Échap</b> désélection. Molette : zoom, glisser le fond : déplacer la vue, double-clic sur le fond : recentrer.</p>'
       +'<p class="hint">La sauvegarde est automatique (navigateur). « Exporter TTL » produit le fichier <b>.ttl</b> prêt à charger dans Jena/Fuseki.</p>';
@@ -1008,9 +1070,11 @@ function updatePanel(){
       +'<label class="fld check"><span>Fonctionnelle</span><input type="checkbox" id="pf-func"'+(p2.functional?' checked':'')+'></label>'
       +'<label class="fld"><span>Propriété inverse (owl:inverseOf)</span><select id="pf-inv"><option value="">— (aucune)</option>'
         +cands.map(x=>'<option value="'+x.id+'"'+(x.id===p2.inverseOf?' selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select></label>'
+      +'<label class="fld"><span>Sous-propriété de (rdfs:subPropertyOf)</span><select id="pf-pparent"><option value="">— (aucune)</option>'+propParentOptions('obj',p2)+'</select></label>'
       +'<button class="btn danger" id="pf-del">Supprimer la propriété</button>';
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('obj',p2.id,e.target.value);
+    $('#pf-pparent').onchange=e=>setPropParent('obj',p2.id,e.target.value||null);
     $('#pf-domain').onchange=e=>{ p2.domain=+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
     $('#pf-range').onchange=e=>{ p2.range=+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
     $('#pf-trans').onchange=e=>{ p2.transitive=e.target.checked; save(); render(); };
@@ -1031,9 +1095,11 @@ function updatePanel(){
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p3.name)+'" spellcheck="false"></label>'
       +'<label class="fld"><span>Domaine (rdfs:domain)</span><select id="pf-domain">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p3.domain?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
       +'<label class="fld"><span>Type XSD (rdfs:range)</span><select id="pf-type">'+XSD.map(t=>'<option value="'+t+'"'+(t===p3.type?' selected':'')+'>'+t+'</option>').join('')+'</select></label>'
+      +'<label class="fld"><span>Sous-propriété de (rdfs:subPropertyOf)</span><select id="pf-pparent"><option value="">— (aucune)</option>'+propParentOptions('data',p3)+'</select></label>'
       +'<button class="btn danger" id="pf-del">Supprimer la propriété</button>';
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('data',p3.id,e.target.value);
+    $('#pf-pparent').onchange=e=>setPropParent('data',p3.id,e.target.value||null);
     $('#pf-domain').onchange=e=>{ p3.domain=+e.target.value; save(); render(); };
     $('#pf-type').onchange=e=>{ p3.type=e.target.value; save(); render(); };
     $('#pf-del').onclick=()=>deleteProp('data',p3.id);

@@ -43,8 +43,9 @@ Le JS est organisé en 3 blocs commentés :
   - `classes[]` : `{id, name, parent: id|null}` + positions manuelles
     optionnelles `{mx, my, man}` ;
   - `objProps[]` : `{id, name, domain, range, transitive, symmetric,
-    functional, inverseOf: id|null}` + `{mx, my}` ;
-  - `dataProps[]` : `{id, name, domain, type}` (type = IRI XSD) + `{mx, my}` ;
+    functional, inverseOf: id|null, parent: id|null}` + `{mx, my}` ;
+  - `dataProps[]` : `{id, name, domain, type, parent: id|null}` (type = IRI XSD)
+    + `{mx, my}` ; `parent` = `rdfs:subPropertyOf` (même type de propriété) ;
   - `nextId`, `ns` (namespace, défaut `http://example.org/onto#`),
     `sel`, `mode` (`class|obj|data|move`), `view` (`{x,y,k}`).
 - **En cas d'évolution incompatible du schéma : changer la clé** `ontolab-v1`
@@ -69,7 +70,12 @@ Le JS est organisé en 3 blocs commentés :
   droit. `Suppr` = supprimer l'élément sélectionné (cascade : une classe
   emporte ses propriétés liées, ses sous-classes redeviennent racines).
 - **Protection des cycles** : `isAncestorOf()` refuse tout `subClassOf`
-  créant un cycle ; le panneau exclut les descendants de la liste.
+  créant un cycle ; le panneau exclut les descendants de la liste. Idem pour
+  `subPropertyOf` : `isPropAncestor()`, `setPropParent()`, `propParentOptions()` ;
+  `cleanPropParents()` (appelée après suppression et dans `sanitizeState`)
+  annule les parents inexistants ou cycliques.
+- Mode ② / ③ : glisser une propriété du même type sur une autre = `subPropertyOf`
+  (drag de type `prop`), sur le fond = détacher ; dessin par `drawSubProps()`.
 - Molette = zoom (autour du curseur), glisser le fond = pan, double-clic fond
   = recentrer (`initView()`), bouton « Recentrer » pour le tactile.
 - **Pointer Events** (pas de `mouse*`/`touch*`) : souris, doigt et stylet passent par
@@ -124,7 +130,9 @@ boucles) ; vérifier l'absence de chevauchement et de croisements inutiles.
   chaque `rdfs:subClassOf` pointe vers une classe déjà déclarée ;
 - caractéristiques en listage : `a owl:ObjectProperty, owl:TransitiveProperty, …` ;
 - `owl:inverseOf` émis des deux côtés de la paire ;
-- `rdfs:range` XSD pour les propriétés de donnée.
+- `rdfs:range` XSD pour les propriétés de donnée ;
+- `rdfs:subPropertyOf` pour les sous-propriétés ; les prédicats sont assemblés en
+  liste jointe par ` ;` (un oubli de `;` rendait le TTL invalide avec `owl:inverseOf`).
 
 Le TTL exporté doit rester chargable par **Jena** (`arq --data`, `sparql
 --desc`) et convertissable par **`../owl2vowl.jar`** (VOWL JSON) — c'est le
