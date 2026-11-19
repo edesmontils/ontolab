@@ -132,6 +132,8 @@ courante après confirmation. Un fichier exporté par OntoLab est relu à l'iden
   cardinalités…), classes anonymes (`unionOf`, `intersectionOf`), `equivalentClass`,
   `disjointWith`, annotations (`rdfs:label`, `rdfs:comment`…), imports.
 
+Sur **iPad / iPhone**, tous les fichiers sont proposés dans le sélecteur (pas de filtre sur
+`.ttl`, que iOS ne reconnaît pas) : choisissez simplement votre fichier dans l'app Fichiers.
 Le fichier doit être en **Turtle** : le RDF/XML est refusé avec un message (convertissez-le,
 par exemple avec Protégé, `riot --output=turtle` de Jena ou rdflib). Les erreurs de syntaxe
 sont signalées avec leur numéro de ligne.
