@@ -79,7 +79,7 @@ les boutons de mode.
 
 Clic sur n'importe quel élément : édition (nom, domaine, portée,
 caractéristiques, suppression) dans le panneau de droite. Molette : zoom ;
-glisser le fond : déplacement ; `Suppr` : supprimer l'élément sélectionné ; `Échap` ou **clic sur
+glisser le fond : déplacement ; `Suppr` : supprimer l'élément sélectionné ; `Cmd/Ctrl+Z` : annuler ; `Échap` ou **clic sur
 le fond** : désélectionner (en mode ① Classe, le clic sur le fond désélectionne d'abord, et ne
 crée une classe que s'il n'y a rien de sélectionné).
 
@@ -87,6 +87,22 @@ Bouton **Exemple** : charge une mini-ontologie de randonnées (Personne ⊃
 Membre, Guide ; Groupe ; Voie ⊃ Sentier, Piste ; `connaît` transitive et
 symétrique, `mène-à` transitive, `encadre` fonctionnelle, types XSD) — idéale
 pour montrer chaque concept d'un coup.
+
+## Annuler / rétablir, panneau, légende, image
+
+- **Annuler / Rétablir** : boutons ↶ ↷ de la barre d'outils, ou `Cmd/Ctrl+Z` et
+  `Cmd/Ctrl+Maj+Z` (`Ctrl+Y`). Jusqu'à 100 étapes ; couvre toute modification des classes et
+  des propriétés (création, suppression, renommage, héritage, déplacement — un glisser = une étape),
+  y compris « Vider », « Réorganiser » et les imports JSON/TTL. La vue (zoom), la sélection et
+  le mode ne sont pas dans l'historique, et l'historique n'est pas conservé au rechargement de la
+  page. Dans un champ texte, l'annulation native du navigateur reste active.
+- **Panneau et légende repliables** : le bouton **–** du panneau le replie en pastille (qui indique
+  l'élément sélectionné ; la toucher le rouvre) ; la pastille en bas à gauche masque ou affiche
+  la légende. Les deux sont **repliés par défaut sur écran étroit** (< 900 px, iPad en portrait) ;
+  le choix est mémorisé sur l'appareil.
+- **Exporter image** : PNG (1×, 2× ou 3×) ou SVG vectoriel du schéma **entier** (quelle que soit la
+  partie visible), avec ou sans légende, fond blanc ou transparent ; la sélection n'apparaît pas.
+  Sur iPad / iPhone, le fichier est proposé via la feuille de partage (« Enregistrer l'image »).
 
 ## Export Turtle
 

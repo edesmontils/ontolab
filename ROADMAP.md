@@ -9,34 +9,14 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 > et besoins d'un outil de TD. La liste des fonctions réelles de l'éditeur de WebVOWL n'a pas été
 > vérifiée en détail (documentation introuvable) : à compléter après essai de l'outil.
 
-Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste).
+Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà).
 
 ---
 
 ## Phase A — Confort d'édition (fondations)
 
-### A1. Annuler / Rétablir — M
-- **Pourquoi** : une suppression de classe emporte ses propriétés ; une erreur de glisser-déposer
-  est coûteuse, surtout au doigt. Le plus gros manque ressenti dans un éditeur.
-- **Comment** : pile de photographies de `state` (JSON, sans `view`/`sel`) prises dans une fonction
-  unique `commit()` appelée avant chaque modification ; limite (ex. 100). `Cmd/Ctrl+Z`,
-  `Cmd/Ctrl+Maj+Z`, deux boutons dans la barre d'outils (indispensables sur iPad).
-- **Impact** : toutes les fonctions qui font `save(); render();` après une modification
-  (`addParent`, `setCommonName`, `deleteClass`, créations, déplacements en mode ④ : un seul commit
-  par glisser, pas un par mouvement). Importer JSON/TTL et « Vider » doivent être annulables.
-
-### A2. Panneau et légende repliables — S
-- **Pourquoi** : sur iPad le panneau latéral recouvre une partie du schéma (déjà masqué : la légende
-  sous 900 px de large).
-- **Comment** : bouton ✕ / « i » pour replier le panneau en pastille ; mémorisation dans
-  `localStorage` ; la sélection d'un élément le rouvre.
-
-### A3. Export d'image SVG / PNG — M
-- **Pourquoi** : supports de TD, rapports (déjà dans « Perfectionnements à l'étude »).
-- **Comment** : sérialiser `#world` avec ses styles en ligne (fond blanc, légende optionnelle) ;
-  PNG via `canvas` ; sur iOS passer par `navigator.share({files})` ou ouvrir l'image
-  (le téléchargement direct est capricieux sur Safari iOS, cf. `download()`).
-- **Attention** : polices système, marqueurs `<marker>`, cadrage automatique sur le contenu.
+> Déjà réalisés (v1.x) : **A1** annuler/rétablir, **A2** panneau et légende repliables, **A3** export image
+> SVG/PNG — voir `README.md` et `AGENTS.md`. Restent A4 et A5.
 
 ### A4. Caractéristiques OWL supplémentaires — S
 - `owl:InverseFunctionalProperty`, `AsymmetricProperty`, `ReflexiveProperty`, `IrreflexiveProperty`
@@ -195,6 +175,9 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
   testés sur un appareil. À confirmer.
 - **Gros schémas** : mise en page testée jusqu'à 60 classes (~250 ms) ; au-delà, vérifier les
   performances (simulation à forces O(n²) × 4 départs).
+- **Partage d'image sur iPad** : `navigator.share({files})` (feuille de partage) est utilisé sur écran tactile, mais n'a
+  pas été testé sur un appareil réel ; repli : téléchargement classique.
+- **Historique** : non conservé au rechargement de la page ; `ns` (namespace) n'en fait pas partie.
 - **Étiquettes** : avec beaucoup de propriétés de donnée sur une même classe, une légende de type
   peut être partiellement masquée par une flèche voisine.
 - **Une seule valeur de domaine/portée** par propriété ; **types XSD** limités à la liste de

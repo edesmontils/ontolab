@@ -18,18 +18,28 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 .btn:hover{background:#eef3fa;}
 .btn.primary{background:var(--blueS);color:#fff;border-color:var(--blueS);}
 .btn.danger{color:#b3261e;border-color:#e5b8b5;}
+.btn:disabled{opacity:.4;cursor:default;}
+.lbl{display:none;}
+@media (min-width:1280px){ .lbl{display:inline;} }
+.btn:disabled:hover{background:#fff;}
 #canvas{position:fixed;inset:0;width:100%;height:100%;z-index:2;} /* le graphe passe au-dessus de la légende (z-index 1) */
 #canvas.panning{cursor:grabbing;}
 #panel{position:fixed;top:64px;right:12px;width:272px;max-height:calc(100% - 120px);overflow:auto;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:14px;z-index:5;box-shadow:0 2px 10px rgba(30,50,90,.08);}
-#panel h3{margin:0 0 10px;font-size:14px;color:var(--blueS);}
+#panel h3{padding-right:30px;margin:0 0 10px;font-size:14px;color:var(--blueS);}
 .fld{display:block;margin:0 0 10px;font-size:12px;color:#516079;}
 .fld span{display:block;margin-bottom:3px;}
 .fld input,.fld select{width:100%;box-sizing:border-box;border:1px solid #c9d4e6;border-radius:7px;padding:6px 8px;font-size:13px;color:#1c2333;}
 .fld.check{display:flex;gap:8px;align-items:center;margin:7px 0;}
 .fld.check span{margin:0;flex:1;font-size:13px;color:#1c2333;}
 #panel .btn{width:100%;margin-top:8px;}
+.pill{position:fixed;z-index:6;border:1px solid #c9d4e6;background:#fff;border-radius:18px;padding:7px 13px;font-size:12.5px;color:#2c3a55;box-shadow:0 2px 10px rgba(30,50,90,.12);cursor:pointer;max-width:70vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pill:hover{background:#eef3fa;}
+#panel-pill{top:64px;right:12px;}
+#legend-pill{left:12px;bottom:12px;}
+.pcollapse{position:absolute;top:8px;right:8px;width:28px;height:28px;border:1px solid #c9d4e6;background:#fff;border-radius:8px;font-size:16px;line-height:1;color:#41506b;cursor:pointer;padding:0;}
+.pcollapse:hover{background:#eef3fa;}
 .hint{font-size:12px;color:#7b8aa5;margin:10px 0 0;line-height:1.5;}
-#legend{position:fixed;left:12px;bottom:12px;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:10px 12px;font-size:11.5px;color:#516079;z-index:1;line-height:1.8;box-shadow:0 2px 10px rgba(30,50,90,.08);max-width:330px;}
+#legend{position:fixed;left:12px;bottom:54px;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:10px 12px;font-size:11.5px;color:#516079;z-index:1;line-height:1.8;box-shadow:0 2px 10px rgba(30,50,90,.08);max-width:330px;}
 .chip{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px;}
 #status{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#2c3a55;color:#fff;padding:7px 14px;border-radius:20px;font-size:13px;z-index:20;opacity:0;transition:opacity .25s;pointer-events:none;max-width:70vw;text-align:center;}
 #status.show{opacity:1;}
@@ -53,6 +63,9 @@ svg text{pointer-events:none;user-select:none;}
 .plist .chip-p button{border:0;background:none;cursor:pointer;color:#b3261e;font-size:15px;line-height:1;padding:0 5px;}
 .plist .none{margin:0;font-size:12px;color:#7b8aa5;}
 @media (pointer:coarse){
+  .pill{padding:10px 16px;font-size:14px;}
+  #panel-pill{top:70px;}
+  .pcollapse{width:36px;height:36px;font-size:20px;}
   .modes button{padding:11px 14px;font-size:14px;}
   .btn{padding:10px 14px;font-size:14px;}
   .fld input,.fld select{font-size:16px;padding:9px 10px;} /* évite le zoom automatique d'iOS au focus */
@@ -61,7 +74,6 @@ svg text{pointer-events:none;user-select:none;}
   #panel{top:70px;}
 }
 @media (max-width:900px){
-  #legend{display:none;}
   #panel{width:230px;}
   #toolbar h1 .sub{display:none;}
 }
@@ -78,6 +90,8 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
     <button data-mode="data">③ Propriété de donnée</button>
     <button data-mode="move">④ Déplacer</button>
   </div>
+  <button class="btn" id="b-undo" aria-label="Annuler" disabled>↶<span class="lbl"> Annuler</span></button>
+  <button class="btn" id="b-redo" aria-label="Rétablir" disabled>↷<span class="lbl"> Rétablir</span></button>
   <div class="spacer"></div>
   <button class="btn" id="b-example">Exemple</button>
   <button class="btn" id="b-clear">Vider</button>
@@ -87,6 +101,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
   <button class="btn" id="b-layout">Réorganiser</button>
   <button class="btn" id="b-center" title="Recentrer la vue (équivaut au double-clic sur le fond)">Recentrer</button>
   <button class="btn primary" id="b-ttl">Exporter TTL</button>
+  <button class="btn" id="b-img" title="Exporte le schéma en image (PNG ou SVG)">Exporter image</button>
 </div>
 <svg id="canvas">
   <defs>
@@ -100,6 +115,8 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
   <g id="world"></g>
 </svg>
 <div id="panel"></div>
+<button class="pill" id="legend-pill" aria-expanded="true">Masquer la légende</button>
+<button class="pill" id="panel-pill" style="display:none">ℹ︎ Aide</button>
 <div id="legend">
   <div><span class="chip" style="background:var(--blue);border:2px solid var(--blueS)"></span>Classe — hiérarchie = <b>rdfs:subClassOf</b></div>
   <div><span class="chip" style="background:var(--green);border:2px solid var(--greenS)"></span>Propriété objet — flèche : domaine → portée</div>
@@ -121,7 +138,44 @@ const XSD=['xsd:string','xsd:integer','xsd:double','xsd:decimal','xsd:boolean','
 
 let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:'http://example.org/onto#',sel:null,mode:'class',view:{x:null,y:null,k:1}};
 
-function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} }
+/* ---------- historique (annuler / rétablir) ----------
+   Chaque save() compare les données (classes, propriétés, nextId : ni la vue, ni la sélection, ni le mode) à la dernière
+   photographie ; si elles ont changé, l'ancienne est empilée et la pile « rétablir » vidée. Aucune fonction de modification
+   n'a donc à connaître l'historique ; un glisser en mode ④ ne produit qu'une entrée (save() n'est appelé qu'à la fin). */
+const HIST_MAX=100, HIST_CHARS=6e6;
+const hist={undo:[],redo:[],last:null,chars:0};
+const snapOf=()=>JSON.stringify([state.classes,state.objProps,state.dataProps,state.nextId]);
+function trackHistory(){
+  const s=snapOf();
+  if(hist.last===null){ hist.last=s; return; }
+  if(s===hist.last) return;
+  hist.undo.push(hist.last); hist.chars+=hist.last.length; hist.redo=[]; hist.last=s;
+  while(hist.undo.length>HIST_MAX||hist.chars>HIST_CHARS) hist.chars-=hist.undo.shift().length;
+  updateHistButtons();
+}
+function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} trackHistory(); }
+function restoreSnap(snap){
+  [state.classes,state.objProps,state.dataProps,state.nextId]=JSON.parse(snap);
+  hist.last=snap;
+  if(state.sel&&!itemOf(state.sel.kind,state.sel.id)) state.sel=null; // l'élément sélectionné peut ne plus exister
+  save(); render(); updateHistButtons();
+}
+function undo(){
+  if(!hist.undo.length){ status('Rien à annuler.'); return; }
+  hist.redo.push(hist.last); const snap=hist.undo.pop(); hist.chars-=snap.length;
+  restoreSnap(snap); status('Annulé.');
+}
+function redo(){
+  if(!hist.redo.length){ status('Rien à rétablir.'); return; }
+  hist.undo.push(hist.last); hist.chars+=hist.last.length;
+  restoreSnap(hist.redo.pop()); status('Rétabli.');
+}
+function updateHistButtons(){
+  const u=$('#b-undo'), r=$('#b-redo'); if(!u||!r) return;
+  u.disabled=!hist.undo.length; r.disabled=!hist.redo.length;
+  u.title='Annuler'+(hist.undo.length?' ('+hist.undo.length+')':'')+' — Cmd/Ctrl+Z';
+  r.title='Rétablir'+(hist.redo.length?' ('+hist.redo.length+')':'')+' — Cmd/Ctrl+Maj+Z';
+}
 /* Fusionne un état externe (localStorage ou JSON importé) avec les valeurs par défaut,
    en garantissant que les tableaux et le mode sont valides. */
 function sanitizeState(s){
@@ -486,6 +540,118 @@ function exportTTL(){
   cpB.onclick=()=>{ navigator.clipboard.writeText(pre.textContent).then(()=>cpB.textContent='Copié ✓',()=>status('Copie impossible — sélectionnez le texte manuellement.',1)); };
   ov.addEventListener('pointerdown',e=>{ if(e.target===ov) ov.remove(); });
 }
+/* ---------- export image (SVG / PNG) ---------- */
+const EXPORT_FONT="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif";
+
+/* Boîte englobante du graphe (hors ligne fantôme), en coordonnées du monde. */
+function exportBBox(){
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const g of [layerArcs,layerData,layerNodes,layerProps]){
+    if(!g||!g.childNodes.length) continue;
+    const b=g.getBBox(); if(!b.width&&!b.height) continue;
+    x0=Math.min(x0,b.x); y0=Math.min(y0,b.y); x1=Math.max(x1,b.x+b.width); y1=Math.max(y1,b.y+b.height);
+  }
+  return x0>x1?null:{x:x0,y:y0,w:x1-x0,h:y1-y0};
+}
+
+/* Légende dessinée en SVG (le DOM de la légende n'est pas exportable tel quel). Retourne {svg,w,h} à l'origine (0,0). */
+function exportLegend(){
+  const rows=[
+    ['cls','Classe'],
+    ['sub','rdfs:subClassOf : sous-classe → super-classe'],
+    ['obj','Propriété objet (flèche : domaine → portée)'],
+    ['data','Propriété de donnée (type XSD sous l\'étiquette)'],
+    ['subp','rdfs:subPropertyOf : sous-propriété → propriété parente'],
+    ['func','Bordure pointillée : propriété fonctionnelle']];
+  const note='Boucle verte : transitive · doubles flèches : symétrique · ⇄ : paire de propriétés inverses';
+  const icon=k=>({
+    cls:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.cls+'" stroke="'+C.clsS+'" stroke-width="2"/>',
+    sub:'<line x1="2" y1="10" x2="38" y2="10" stroke="'+C.clsS+'" stroke-width="1.8" marker-end="url(#m-sub)"/>',
+    obj:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.obj+'" stroke="'+C.objS+'" stroke-width="1.8"/>',
+    data:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.data+'" stroke="'+C.dataS+'" stroke-width="1.6"/>',
+    subp:'<line x1="2" y1="10" x2="38" y2="10" stroke="'+C.objS+'" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#m-subo)"/>',
+    func:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.obj+'" stroke="'+C.objS+'" stroke-width="1.8" stroke-dasharray="5 3"/>'})[k];
+  const longest=Math.max(note.length,...rows.map(r=>r[1].length));
+  const w=Math.round(Math.max(360,58+longest*6.1+16)), h=34+rows.length*24+34;
+  let s='<rect x="0.5" y="0.5" width="'+(w-1)+'" height="'+(h-1)+'" rx="10" fill="#fff" stroke="#d8e0ec"/>'
+       +'<text x="14" y="22" font-size="13" font-weight="700" fill="#2C5F9E">Légende</text>';
+  rows.forEach((r,i)=>{ const y=34+i*24;
+    s+='<g transform="translate(12,'+y+')">'+icon(r[0])+'</g><text x="60" y="'+(y+14)+'" font-size="12" fill="#34415a">'+esc(r[1])+'</text>'; });
+  s+='<text x="14" y="'+(h-14)+'" font-size="11" fill="#516079">'+esc(note)+'</text>';
+  return {svg:s,w,h};
+}
+
+/* Construit le SVG autonome du schéma entier (sans sélection ni ligne fantôme). Retourne {svg,w,h}, ou null s'il est vide. */
+function buildExportSVG(opts){
+  const sel=state.sel; state.sel=null; render(); // pas de surbrillance orange dans l'image
+  const bb=exportBBox();
+  let body='';
+  if(bb){ const xs=new XMLSerializer(); for(const g of [layerArcs,layerData,layerNodes,layerProps]) body+=xs.serializeToString(g); }
+  state.sel=sel; render();
+  if(!bb) return null;
+  const pad=28, gw=bb.w+2*pad, gh=bb.h+2*pad;
+  const lg=opts.legend?exportLegend():null;
+  const W=Math.max(gw,lg?lg.w+2*pad:0), H=gh+(lg?lg.h+pad:0);
+  const x0=bb.x-pad-(W-gw)/2, y0=bb.y-pad;
+  const defs=new XMLSerializer().serializeToString($('#canvas defs'));
+  let s='<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+x0+' '+y0+' '+W+' '+H+'" width="'+Math.round(W)+'" height="'+Math.round(H)+'" font-family="'+EXPORT_FONT+'">'
+       +defs+(opts.bg?'<rect x="'+x0+'" y="'+y0+'" width="'+W+'" height="'+H+'" fill="#ffffff"/>':'')+'<g>'+body+'</g>';
+  if(lg) s+='<g transform="translate('+(x0+(W-lg.w)/2)+','+(y0+gh)+')">'+lg.svg+'</g>';
+  s+='</svg>';
+  return {svg:s,w:Math.round(W),h:Math.round(H)};
+}
+
+function svgToPng(svgText,w,h,scale,bg){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w*scale)); c.height=Math.max(1,Math.round(h*scale));
+      const ctx=c.getContext('2d'); if(bg){ ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); }
+      ctx.drawImage(img,0,0,c.width,c.height);
+      c.toBlob(b=>b?res(b):rej(new Error('conversion en PNG impossible')),'image/png');
+    };
+    img.onerror=()=>rej(new Error('image SVG illisible par le navigateur'));
+    img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgText);
+  });
+}
+
+/* Remet le fichier à l'utilisateur : feuille de partage sur tablette/téléphone (Safari iOS gère mal le téléchargement
+   direct d'une image), téléchargement classique ailleurs. */
+async function deliverFile(blob,name){
+  try{
+    const file=new File([blob],name,{type:blob.type});
+    if(matchMedia('(pointer:coarse)').matches&&navigator.canShare&&navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file],title:name}); return 'partage'; }
+      catch(e){ if(e&&e.name==='AbortError') return 'annulé'; }
+    }
+  }catch(e){}
+  download(blob,name); return 'téléchargement';
+}
+
+async function exportImage(){
+  if(!state.classes.length&&!state.objProps.length&&!state.dataProps.length){ status('Rien à exporter : l\'ontologie est vide.',1); return; }
+  const v=await dialog('Exporter une image',[
+    {key:'format',label:'Format',type:'select',options:[{v:'png',t:'PNG (image)'},{v:'svg',t:'SVG (vectoriel)'}],value:'png'},
+    {key:'scale',label:'Résolution du PNG',type:'select',options:[{v:'1',t:'1× (écran)'},{v:'2',t:'2× (impression, diaporama)'},{v:'3',t:'3× (haute résolution)'}],value:'2'},
+    {key:'legend',label:'Inclure la légende',type:'check',value:true},
+    {key:'bg',label:'Fond blanc (sinon transparent)',type:'check',value:true}],
+    'Le schéma entier est exporté, quelle que soit la partie visible à l\'écran. La sélection n\'apparaît pas.');
+  if(!v) return;
+  try{
+    const out=buildExportSVG({legend:v.legend,bg:v.bg});
+    if(!out){ status('Rien à exporter.',1); return; }
+    const base=((state.ns.split('/').pop()||'ontologie').replace(/[#?]/g,'')||'ontologie');
+    let blob, name;
+    if(v.format==='svg'){ blob=new Blob([out.svg],{type:'image/svg+xml'}); name=base+'.svg'; }
+    else{
+      const scale=Math.min(+v.scale||2,Math.sqrt(16e6/(out.w*out.h))); // plafond ~16 Mpx (limite des canvas sur iOS)
+      blob=await svgToPng(out.svg,out.w,out.h,scale,v.bg); name=base+'.png';
+    }
+    const how=await deliverFile(blob,name);
+    if(how!=='annulé') status('Image « '+name+' » ('+Math.round(blob.size/1024)+' ko) : '+(how==='partage'?'feuille de partage ouverte.':'téléchargée.'));
+  }catch(e){ console.error(e); infoBox('Export de l\'image impossible : '+e.message,'Export image'); }
+}
+
 /* ---------- import Turtle ---------- */
 const RDFN='http://www.w3.org/1999/02/22-rdf-syntax-ns#', RDFSN='http://www.w3.org/2000/01/rdf-schema#',
       OWLN='http://www.w3.org/2002/07/owl#', XSDN='http://www.w3.org/2001/XMLSchema#';
@@ -1407,7 +1573,28 @@ function setMode(m){
 }
 
 /* ---------- panneau latéral ---------- */
+/* Préférences d'affichage (par appareil, hors export) : panneau et légende repliables. Par défaut repliés sur écran étroit. */
+const UI_KEY='ontolab-ui';
+const ui={panel:innerWidth>=900,legend:innerWidth>=900};
+function loadUI(){ try{ const u=JSON.parse(localStorage.getItem(UI_KEY)||'null'); if(u){ if(typeof u.panel==='boolean') ui.panel=u.panel; if(typeof u.legend==='boolean') ui.legend=u.legend; } }catch(e){} }
+function saveUI(){ try{ localStorage.setItem(UI_KEY,JSON.stringify(ui)); }catch(e){} }
+function applyLegendUI(){
+  $('#legend').style.display=ui.legend?'':'none';
+  const b=$('#legend-pill'); b.textContent=ui.legend?'Masquer la légende':'ⓘ Légende'; b.setAttribute('aria-expanded',String(ui.legend));
+}
+function selLabel(){
+  const s=state.sel, x=s&&itemOf(s.kind,s.id); if(!x) return 'ℹ︎ Aide';
+  return '✎ '+{class:'Classe',obj:'Propriété objet',data:'Propriété de donnée'}[s.kind]+' « '+x.name+' »';
+}
 function updatePanel(){
+  const p=$('#panel'), pill=$('#panel-pill');
+  if(!ui.panel){ p.style.display='none'; pill.style.display=''; pill.textContent=selLabel(); return; }
+  pill.style.display='none'; p.style.display='';
+  renderPanelBody();
+  p.insertAdjacentHTML('afterbegin','<button id="pf-collapse" class="pcollapse" title="Replier le panneau" aria-label="Replier le panneau">–</button>');
+  $('#pf-collapse').onclick=()=>{ ui.panel=false; saveUI(); updatePanel(); };
+}
+function renderPanelBody(){
   const p=$('#panel'), s=state.sel;
   if(!s){
     p.innerHTML='<h3>OntoLab</h3>'
@@ -1422,7 +1609,7 @@ function updatePanel(){
   }
   let h='';
   if(s.kind==='class'){
-    const c=classById(s.id); if(!c){ state.sel=null; return updatePanel(); }
+    const c=classById(s.id); if(!c){ state.sel=null; return renderPanelBody(); }
     h='<h3>Classe</h3>'
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(c.name)+'" spellcheck="false"></label>'
       +parentsBlock('class',c,'Sous-classe de (rdfs:subClassOf) — plusieurs possibles')
@@ -1435,7 +1622,7 @@ function updatePanel(){
     $('#pf-addchild').onclick=()=>addChildClass(c.id);
     $('#pf-del').onclick=()=>deleteClass(c.id);
   } else if(s.kind==='obj'){
-    const p2=objById(s.id); if(!p2){ state.sel=null; return updatePanel(); }
+    const p2=objById(s.id); if(!p2){ state.sel=null; return renderPanelBody(); }
     const cands=state.objProps.filter(x=>x.id!==p2.id&&x.domain===p2.range&&x.range===p2.domain);
     if(p2.inverseOf&&!cands.some(x=>x.id===p2.inverseOf)){ const q=objById(p2.inverseOf); if(q) q.inverseOf=null; p2.inverseOf=null; }
     h='<h3>Propriété objet</h3>'
@@ -1467,7 +1654,7 @@ function updatePanel(){
     };
     $('#pf-del').onclick=()=>deleteProp('obj',p2.id);
   } else if(s.kind==='data'){
-    const p3=dataById(s.id); if(!p3){ state.sel=null; return updatePanel(); }
+    const p3=dataById(s.id); if(!p3){ state.sel=null; return renderPanelBody(); }
     h='<h3>Propriété de donnée</h3>'
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p3.name)+'" spellcheck="false"></label>'
       +'<label class="fld"><span>Domaine (rdfs:domain)</span><select id="pf-domain">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p3.domain?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
@@ -1487,7 +1674,9 @@ function updatePanel(){
 document.addEventListener('keydown',e=>{
   if(document.querySelector('.ovl')) return; // boîte de dialogue ouverte : pas de raccourcis
   const tag=e.target&&e.target.tagName;
-  if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return;
+  if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return; // (l'annulation native des champs texte reste utilisable)
+  if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==='z'||e.key==='Z')){ e.preventDefault(); if(e.shiftKey) redo(); else undo(); return; }
+  if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==='y'||e.key==='Y')){ e.preventDefault(); redo(); return; }
   if((e.key==='Delete'||e.key==='Backspace')&&state.sel){
     e.preventDefault(); const s=state.sel;
     if(s.kind==='class') deleteClass(s.id);
@@ -1510,6 +1699,11 @@ $('#b-import-ttl').onclick=()=>importTTL();
 $('#b-import').onclick=()=>importJSON();
 $('#b-json').onclick=()=>exportJSON();
 $('#b-ttl').onclick=()=>exportTTL();
+$('#b-img').onclick=()=>exportImage();
+$('#legend-pill').onclick=()=>{ ui.legend=!ui.legend; saveUI(); applyLegendUI(); };
+$('#panel-pill').onclick=()=>{ ui.panel=true; saveUI(); updatePanel(); };
+$('#b-undo').onclick=()=>undo();
+$('#b-redo').onclick=()=>redo();
 $('#b-center').onclick=()=>initView();
 $('#b-layout').onclick=()=>{
   state.classes.forEach(c=>{delete c.mx;delete c.my;delete c.man;});
@@ -1521,7 +1715,7 @@ $('#b-layout').onclick=()=>{
 svg.addEventListener('dblclick',e=>{ if(e.target===svg||e.target===world) initView(); });
 
 /* ---------- démarrage ---------- */
-load();
+loadUI(); applyLegendUI(); load(); trackHistory(); updateHistButtons(); // photographie de départ de l'historique
 if(state.view.x==null) initView();
 render();
 setMode(state.mode||'class');

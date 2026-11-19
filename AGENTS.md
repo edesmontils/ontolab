@@ -147,6 +147,25 @@ Le TTL exporté doit rester chargable par **Jena** (`arq --data`, `sparql
 --desc`) et convertissable par **`../owl2vowl.jar`** (VOWL JSON) — c'est le
 lien avec le reste du cours ; un export cassé est un incident pédagogique.
 
+## Historique, préférences d'affichage, export image
+
+- **Historique (annuler/rétablir)** : intégré à `save()` — `trackHistory()` compare `snapOf()`
+  (classes, objProps, dataProps, nextId ; **pas** la vue, la sélection, le mode ni `ns`) à la dernière
+  photographie et empile l'ancienne si elle a changé. **Toute modification doit donc appeler `save()`**
+  (déjà le cas) et **ne pas l'appeler à chaque micro-étape** d'un geste (mode ④ : `save()` seulement au
+  `pointerup`, pour une seule entrée). `restoreSnap()` réécrit les données, `undo()`/`redo()`, plafonds
+  `HIST_MAX`=100 et `HIST_CHARS`. Les imports (`state=sanitizeState(...)` puis `save()`) sont annulables.
+- **Préférences d'affichage** : objet `ui` ({panel, legend}) dans `localStorage` clé `ontolab-ui`
+  (hors `state`, donc hors exports) ; défaut = replié si `innerWidth < 900`. `updatePanel()` gère le
+  panneau déplié (+ bouton `#pf-collapse`) ou la pastille `#panel-pill` (`selLabel()`) ; le corps du
+  panneau est `renderPanelBody()` (ne pas y rappeler `updatePanel()`). La légende (z-index 1) est derrière
+  le graphe (2) : ses contrôles sont la pastille `#legend-pill` (z-index 6), pas des éléments internes.
+- **Export image** : `exportImage()` → `buildExportSVG({legend,bg})` (re-rendu sans sélection, sérialisation
+  `XMLSerializer` des 4 couches + `<defs>` des marqueurs, boîte `exportBBox()`, légende redessinée par
+  `exportLegend()`) → SVG, ou `svgToPng()` (canvas, plafond 16 Mpx) → `deliverFile()` (feuille de
+  partage `navigator.share` sur écran tactile, sinon `download()`). Si on ajoute un élément graphique, vérifier
+  qu'il est dans une des 4 couches et ne dépend pas du CSS de la page (attributs de présentation en ligne).
+
 ## Fichiers (import JSON / TTL) : à garder tel quel pour iPad
 
 `#f-json` et `#f-ttl` sont des `<input type=file>` **permanents dans le DOM** (visuellement cachés,
