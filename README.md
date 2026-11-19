@@ -27,7 +27,8 @@ L'interface reprend les codes visuels de la **notation VOWL**
 
 | Visuel | Signification |
 |--------|---------------|
-| Ellipse bleue | classe — l'anneau = profondeur de la hiérarchie `rdfs:subClassOf` |
+| Ellipse bleue | classe |
+| Flèche à pointe creuse | `rdfs:subClassOf` : de la sous-classe vers sa super-classe |
 | Ellipse verte | propriété objet — flèche : domaine → portée |
 | Ellipse rouge | propriété de donnée (type XSD sous l'étiquette) |
 | Petite boucle verte sur une classe | `owl:TransitiveProperty` |
@@ -50,12 +51,15 @@ L'interface reprend les codes visuels de la **notation VOWL**
    **Réorganiser** recalcule la mise en page automatique et efface les
    positions manuelles. Double-clic sur le fond : recentrer la vue.
 
-La mise en page automatique est en trois temps : secteurs angulaires
-proportionnels à la largeur de chaque sous-arborescence (les noms longs
-réclament plus d'espace), rayons d'anneaux dimensionnés pour contenir cette
-largeur totale, puis une passe de relaxation qui pousse à l'écart tout
-chevauchement restant (classes, étiquettes de propriétés) en préservant la
-structure radiale.
+La mise en page automatique fonctionne par composante connexe (classes reliées
+par `subClassOf` ou par une propriété objet) : simulation à forces (ressorts le
+long des liens, repoussement des ellipses, sous-classes placées sous leur
+super-classe), plusieurs départs déterministes dont on garde celui qui a le moins
+de croisements d'arêtes, puis empaquetage des composantes en rangées. Les
+étiquettes de propriétés objet sont posées sur leur arête (la courbe passe par
+leur centre) ; boucles et propriétés de donnée prennent les directions les plus
+dégagées autour de leur classe ; une dernière passe de relaxation pousse à
+l'écart tout chevauchement restant.
 
 Clic sur n'importe quel élément : édition (nom, domaine, portée,
 caractéristiques, suppression) dans le panneau de droite. Molette : zoom ;
@@ -137,8 +141,8 @@ toute ontologie ou MCD de votre choix convient)
 
 ## Perfectionnements à l'étude
 
-- Ajuster les paramètres de la relaxation (marge, itérations, force
-  d'ancrage) sur les cas chargés — ex. ontologies Rando/Mondial complètes.
+- Ajuster les paramètres de la mise en page (longueurs de ressort, forces,
+  nombre de départs, marge de relaxation) sur les cas chargés — ex. ontologies Rando/Mondial complètes.
 - Repoussement des étiquettes de propriétés entre elles (déjà géré par la
   relaxation, à valider visuellement).
 - `disjointUnionOf`, individus (`owl:NamedIndividual`), restrictions
@@ -153,7 +157,7 @@ toute ontologie ou MCD de votre choix convient)
   (disjonction de super-classes) ne sont pas modélisables ici.
 - Pas d'individus (`owl:NamedIndividual`), pas de `disjointUnionOf`,
   pas de restrictions (`someValuesFrom`/`onlyValuesFrom`) ni de cardinaux.
-- La mise en page automatique est par anneaux concentriques ; le placement
+- La mise en page automatique est à forces (cf. ci-dessus) ; le placement
   manuel (mode ④) est conservé tant qu'on ne relance pas « Réorganiser ».
 - Les noms sont utilisés comme noms locaux d'IRI (accents autorisés) ; tout
   caractère autre que lettre, chiffre, `_`, `-` ou `.` est remplacé par `_`,

@@ -77,30 +77,34 @@ Le JS est organisé en 3 blocs commentés :
 ## Mise en page (le point le plus fragile)
 
 `render()` = `computeLayout()` → `computeProps()` → `relax()` →
-`refinalizeProps()` → `draw*`.
+`refinalizeProps()` → `draw*` (`drawSubArcs`, `drawObjArcs`, `drawData`, …).
 
-1. **`computeLayout()`** — anneaux concentriques type VOWL :
-   - secteur angulaire de chaque nœud ∝ **poids** de sa sous-arborescence
-     (`wOf()` = somme des largeurs des feuilles, `GAP=36` entre feuilles) ;
-   - rayon des anneaux ∝ largeur totale des feuilles (`rBase =
-     1.18·totalW/2π`) + dégagement parent/enfant par profondeur ;
-   - multiple racines : chaque racine occupe un secteur du cercle de rayon 170.
-2. **`computeProps()`** — étiquettes vertes au milieu du domaine→portée
-   (repoussées de 15 % du centre, décalage perpendiculaire si plusieurs
-   propriétés sur le même couple) ; étiquettes rouges radialement vers
-   l'extérieur, écartées de 0,55 rad par propriété.
-3. **`relax()`** — 150 itérations max : pousse à l'écart les paires
-   d'ellipses qui se chevauchent (test exact le long de l'axe des centres,
-   marge 10 px), avec coefficients asymétriques (une étiquette cède 90 % face
-   à une classe), ancrage doux des classes vers leur position radiale (8 %/itér)
-   et **positions manuelles immuables**.
-4. **`refinalizeProps()`** — recalcule les points d'attache des courbes sur
-   les bords des ellipses après relaxation.
+1. **`computeLayout()`** — déterministe, mis en cache (`layoutCache`, clé =
+   noms/parents/liens/nb de props de donnée) pour que le mode ④ ne relance pas la
+   simulation à chaque mouvement ; puis positions manuelles `mx/my` appliquées.
+   `forceLayout()` :
+   - composantes connexes (union-find sur `subClassOf` + propriétés objet) ;
+   - par composante, `simulate(v)` : départ circulaire (décalé/miroir selon `v`),
+     ressorts (`L` : sub ≥125, obj ≥190), repoussement anisotrope des ellipses
+     (`minD = ra+rb+40`), gravité 0,006, contrainte « sous-classe sous sa
+     super-classe » ; 4 départs, on garde le meilleur `score()` (croisements ×1000
+     + longueur + pénalité de hiérarchie) ;
+   - boîtes englobantes avec marge pour étiquettes, empaquetage en rangées.
+2. **`computeProps()`** — étiquettes vertes au milieu domaine–portée (décalage
+   perpendiculaire si plusieurs propriétés sur la même paire non orientée) ;
+   boucles et props de donnée placées par `freeAngle()` (angle le plus éloigné des
+   liens et étiquettes déjà présents autour de la classe).
+3. **`relax()`** — 150 itérations max : écarte les ellipses qui se chevauchent
+   (marge 10 px, coefficients asymétriques, positions manuelles immuables).
+4. **`refinalizeProps()`** — points d'attache sur les bords après relaxation ;
+   boucle = deux points du bord de part et d'autre de l'étiquette. Les courbes
+   objet ont pour point de contrôle `2·étiquette − (début+fin)/2` : elles passent
+   par le centre de l'étiquette.
 
-Ajustements possibles : `GAP`, les facteurs `1.18` / `0.08` / `10` (marge),
-les coefficients de `relax()`, `SPACING` implicite via `ringR`. Toujours
-re-tester visuellement avec l'exemple chargé (`loadExample()`) **et** une
-ontologie chargée (bouton Exemple puis densifier).
+Ajustements possibles : constantes de `simulate()`, `extra` des boîtes englobantes,
+nombre de départs (`tries`). Toujours re-tester visuellement avec l'exemple
+(`loadExample()`) **et** une ontologie dense (20-60 classes, propriétés croisées,
+boucles) ; vérifier l'absence de chevauchement et de croisements inutiles.
 
 ## Export Turtle (à maintenir valide)
 
