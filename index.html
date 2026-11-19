@@ -68,6 +68,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
   <defs>
     <marker id="m-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5B7C29"/></marker>
     <marker id="m-arr-start" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5B7C29"/></marker>
+    <marker id="m-sub" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto"><path d="M1,1 L11,6 L1,11 z" fill="#fff" stroke="#2C5F9E" stroke-width="1.4"/></marker>
     <marker id="m-arr-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8C2E2E"/></marker>
   </defs>
   <g id="world"></g>
@@ -552,6 +553,7 @@ function render(){
   lastObjPos=pp.obj; lastDataPos=pp.data;
   relax(lastPos,pp.obj,pp.data);
   refinalizeProps(lastPos,pp.obj,pp.data);
+  drawSubArcs(lastPos);
   drawObjArcs(lastPos,pp.obj);
   drawData(lastPos,pp.data);
   drawClasses(lastPos);
@@ -560,6 +562,16 @@ function render(){
 }
 
 function selIs(kind,id){ return state.sel&&state.sel.kind===kind&&state.sel.id===id; }
+
+/* rdfs:subClassOf : flèche à pointe creuse de la sous-classe vers sa super-classe (notation VOWL). */
+function drawSubArcs(pos){
+  for(const c of state.classes){
+    if(c.parent==null) continue;
+    const a=pos.get(c.id), b=pos.get(c.parent); if(!a||!b) continue;
+    const s=edgePoint(a,b), t=edgePoint(b,a);
+    el('line',{x1:s.x,y1:s.y,x2:t.x,y2:t.y,stroke:C.clsS,'stroke-width':selIs('class',c.id)?3:1.8,'marker-end':'url(#m-sub)',opacity:0.9},layerArcs);
+  }
+}
 
 function drawObjArcs(pos,pp){
   for(const p of state.objProps){
@@ -751,8 +763,8 @@ function setMode(m){
 }
 
 /* ---------- panneau latéral ---------- */
-function classOptions(selId,exclude){
-  return state.classes.filter(c=>c.id!==selId&&!exclude.has(c.id))
+function classOptions(selId,exclude){ // selId = option présélectionnée, exclude = Set d'ids à masquer
+  return state.classes.filter(c=>!exclude.has(c.id))
     .map(c=>'<option value="'+c.id+'"'+(c.id===selId?' selected':'')+'>'+esc(c.name)+'</option>').join('');
 }
 function updatePanel(){
@@ -773,9 +785,10 @@ function updatePanel(){
     const c=classById(s.id); if(!c){ state.sel=null; return updatePanel(); }
     const desc=new Set();
     (function walk(id){ state.classes.forEach(ch=>{ if(ch.parent===id){ desc.add(ch.id); walk(ch.id); } }); })(c.id);
+    desc.add(c.id); // une classe ne peut pas être sa propre super-classe
     h='<h3>Classe</h3>'
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(c.name)+'" spellcheck="false"></label>'
-      +'<label class="fld"><span>Sous-classe de</span><select id="pf-parent"><option value="">— (aucune, classe racine)</option>'+classOptions(c.id,desc)+'</select></label>'
+      +'<label class="fld"><span>Sous-classe de</span><select id="pf-parent"><option value="">— (aucune, classe racine)</option>'+classOptions(c.parent,desc)+'</select></label>'
       +'<button class="btn" id="pf-addchild">+ Ajouter une sous-classe</button>'
       +'<button class="btn danger" id="pf-del">Supprimer la classe</button>'
       +'<p class="hint">Astuce : glissez une classe sur une autre pour créer le subClassOf ; glissez sur le fond pour la détacher.</p>';
