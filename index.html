@@ -92,7 +92,21 @@ const XSD=['xsd:string','xsd:integer','xsd:double','xsd:decimal','xsd:boolean','
 let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:'http://example.org/onto#',sel:null,mode:'class',view:{x:null,y:null,k:1}};
 
 function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} }
-function load(){ try{ const s=JSON.parse(localStorage.getItem(LS_KEY)||'null'); if(s&&Array.isArray(s.classes)) state=Object.assign(state,s); }catch(e){} }
+/* Fusionne un état externe (localStorage ou JSON importé) avec les valeurs par défaut,
+   en garantissant que les tableaux et le mode sont valides. */
+function sanitizeState(s){
+  const arr=v=>Array.isArray(v)?v.filter(x=>x&&typeof x==='object'):[];
+  const out=Object.assign({},state,s);
+  out.classes=arr(s.classes); out.objProps=arr(s.objProps); out.dataProps=arr(s.dataProps);
+  const ids=[...out.classes,...out.objProps,...out.dataProps].map(x=>+x.id||0);
+  out.nextId=Math.max(+s.nextId||1,Math.max(0,...ids)+1);
+  out.ns=typeof s.ns==='string'&&s.ns?s.ns:'http://example.org/onto#';
+  if(!['class','obj','data','move'].includes(out.mode)) out.mode='class';
+  out.view=(s.view&&isFinite(s.view.x)&&isFinite(s.view.y)&&isFinite(s.view.k))?s.view:{x:null,y:null,k:1};
+  out.sel=null;
+  return out;
+}
+function load(){ try{ const s=JSON.parse(localStorage.getItem(LS_KEY)||'null'); if(s&&Array.isArray(s.classes)) state=sanitizeState(s); }catch(e){} }
 
 const $=s=>document.querySelector(s);
 function el(tag,attrs,parent){ const n=document.createElementNS(SVGNS,tag); for(const k in attrs) n.setAttribute(k,attrs[k]); if(parent) parent.appendChild(n); return n; }
@@ -108,10 +122,18 @@ function status(msg,err){
 }
 
 /* ---------- noms uniques ---------- */
+/* Nom local d'IRI : tout caractère hors lettres/chiffres/_/-/. devient « _ »
+   (garantit un nom préfixé Turtle valide) ; pas de « - » ou « . » en tête, pas de « . » final. */
+function localName(n){
+  let s=String(n).trim().replace(/[^\p{L}\p{N}_.\-]/gu,'_').replace(/\.+$/,'_');
+  if(/^[-.]/.test(s)) s='_'+s;
+  return s||'sans_nom';
+}
 function nameTaken(name,ignore){
-  return state.classes.some(c=>c.id!==ignore&&c.name===name)
-    ||state.objProps.some(p=>p.id!==ignore&&p.name===name)
-    ||state.dataProps.some(p=>p.id!==ignore&&p.name===name);
+  const k=localName(name);
+  return state.classes.some(c=>c.id!==ignore&&localName(c.name)===k)
+    ||state.objProps.some(p=>p.id!==ignore&&localName(p.name)===k)
+    ||state.dataProps.some(p=>p.id!==ignore&&localName(p.name)===k);
 }
 function setCommonName(kind,id,name){
   name=String(name).trim();
@@ -123,8 +145,8 @@ function setCommonName(kind,id,name){
 function freeName(base){ let n=base,i=2; while(nameTaken(n)) n=base+' '+ (i++); return n; }
 
 /* ---------- cycles de sous-classes ---------- */
-function isAncestorOf(candidate,other){ // candidate est-elle une ancestr/* (suite part1) */
-let cur=classById(other);
+function isAncestorOf(candidate,other){ // candidate est-elle une ancêtre de other ?
+  let cur=classById(other);
   while(cur&&cur.parent){ if(cur.parent===candidate) return true; cur=classById(cur.parent); }
   return false;
 }
@@ -280,7 +302,7 @@ function importJSON(){
     const r=new FileReader();
     r.onload=()=>{ try{
         const s=JSON.parse(r.result); if(!Array.isArray(s.classes)) throw new Error();
-        state=Object.assign({sel:null,mode:'class'},state,s); state.sel=null; save(); render();
+        state=sanitizeState(s); if(state.view.x==null) initView(); save(); render(); setMode(state.mode);
         status('Ontologie importée : '+s.classes.length+' classe(s).');
       }catch(e){ status('Fichier JSON invalide.',1); } };
     r.readAsText(f);
@@ -290,8 +312,7 @@ function importJSON(){
 
 /* ---------- export Turtle ---------- */
 function toTTL(ns){
-  const local=n=>String(n).trim().replace(/\s+/g,'_').replace(/[#?@{}\\"]/g,'_')||'sans_nom';
-  const N=n=>':'+local(n);
+  const N=n=>':'+localName(n);
   const L=[];
   L.push('# Généré par OntoLab le '+new Date().toISOString().slice(0,10));
   L.push('# Outil pédagogique — cours Web Sémantique');
@@ -347,7 +368,7 @@ function exportTTL(){
   document.body.appendChild(ov);
   const nsI=$('#ttl-ns'), pre=$('#ttl-pre');
   nsI.value=state.ns;
-  const build=()=>{ pre.textContent=toTTL(nsI.value.trim()||'http://example.org/onto#'); };
+  const build=()=>{ const v=nsI.value.trim(); pre.textContent=toTTL(v||'http://example.org/onto#'); if(v){ state.ns=v; save(); } };
   nsI.oninput=build; build();
   const fname=()=>((nsI.value.split('/').pop()||'ontologie').replace(/[#?]/g,'')||'ontologie')+'.ttl';
   closeB.onclick=()=>ov.remove();
@@ -358,7 +379,7 @@ function exportTTL(){
 /* ================= OntoLab — partie 2 : mise en page et rendu SVG ================= */
 const svg=$('#canvas'), world=$('#world');
 let layerArcs=null, layerData=null, layerNodes=null, layerProps=null, ghostEl=null, lastPos=new Map(), lastObjPos=new Map(), lastDataPos=new Map();
-let drag=null, pan=null;
+let drag=null, pan=null, renderQueued=false;
 
 function applyView(){ world.setAttribute('transform','translate('+state.view.x+','+state.view.y+') scale('+state.view.k+')'); }
 function toWorld(e){ const r=svg.getBoundingClientRect(); return {x:(e.clientX-r.left-state.view.x)/state.view.k, y:(e.clientY-r.top-state.view.y)/state.view.k}; }
@@ -517,7 +538,7 @@ function render(){
   layerData=el('g',{},world);
   layerNodes=el('g',{},world);
   layerProps=el('g',{},world);
-  ghostEl=el('line',{visibility:'hidden',stroke:C.sel,'stroke-width':2,'stroke-dasharray':'6 4'},world);
+  ghostEl=el('line',{visibility:'hidden','pointer-events':'none',stroke:C.sel,'stroke-width':2,'stroke-dasharray':'6 4'},world);
   lastPos=computeLayout();
   const pp=computeProps(lastPos);
   lastObjPos=pp.obj; lastDataPos=pp.data;
@@ -657,7 +678,10 @@ window.addEventListener('mousemove',e=>{
   if(drag&&drag.kind==='move'){
     const w=toWorld(e);
     const elx=drag.nodeKind==='class'?classById(drag.id):(drag.nodeKind==='obj'?objById(drag.id):dataById(drag.id));
-    if(elx){ elx.mx=w.x-drag.ox; elx.my=w.y-drag.oy; elx.man=true; drag.moved=true; render(); }
+    if(elx){
+      elx.mx=w.x-drag.ox; elx.my=w.y-drag.oy; elx.man=true; drag.moved=true;
+      if(!renderQueued){ renderQueued=true; requestAnimationFrame(()=>{ renderQueued=false; render(); }); } // 1 rendu max par image
+    }
     return;
   }
   if(drag&&drag.kind==='node'){
@@ -691,7 +715,7 @@ window.addEventListener('mouseup',e=>{
     const kind=g?g.getAttribute('data-kind'):null, id=g?g.getAttribute('data-id'):null;
     if(state.mode==='class'){
       if(kind==='class'&&id&&id!==d.id) setParent(d.id,id);
-      else if(kind!=='class') setParent(d.id,null);
+      else if(kind===null) setParent(d.id,null); // détacher seulement si lâché sur le fond
     } else if(state.mode==='obj'){
       if(kind==='class'&&id) createObjProp(d.id,id);
       else status('Glissez d\'une classe (domaine) jusqu\'à une classe (portée).',1);
@@ -799,6 +823,7 @@ function updatePanel(){
 
 /* ---------- clavier ---------- */
 document.addEventListener('keydown',e=>{
+  if(document.querySelector('.ovl')) return; // boîte de dialogue ouverte : pas de raccourcis
   const tag=e.target&&e.target.tagName;
   if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return;
   if((e.key==='Delete'||e.key==='Backspace')&&state.sel){

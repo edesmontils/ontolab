@@ -15,8 +15,8 @@ de donnée), visualisation de type VOWL, export Turtle.
 
 Le travail est sauvegardé automatiquement dans le navigateur (localStorage) et
 est exportable/importable en JSON (« Exporter JSON » / « Importer JSON ») pour
-le partager ou le sauvegarder durablement. Le fichier exporté est un `.ttl`
-OWL standard, lisible par tout outil RDF.
+le partager ou le sauvegarder durablement. Le bouton « Exporter TTL » produit,
+lui, un fichier `.ttl` OWL standard, lisible par tout outil RDF.
 
 > **Développeurs** : l'architecture, le modèle de données et les points de
 > vigilance sont documentés dans `AGENTS.md`. Licence : GPL-3.0 (fichier
@@ -155,8 +155,10 @@ toute ontologie ou MCD de votre choix convient)
   pas de restrictions (`someValuesFrom`/`onlyValuesFrom`) ni de cardinaux.
 - La mise en page automatique est par anneaux concentriques ; le placement
   manuel (mode ④) est conservé tant qu'on ne relance pas « Réorganiser ».
-- Les noms sont utilisés tels quels comme noms locaux d'IRI (accents
-  autorisés) ; les noms durs (espaces) sont remplacés par `_` à l'export.
+- Les noms sont utilisés comme noms locaux d'IRI (accents autorisés) ; tout
+  caractère autre que lettre, chiffre, `_`, `-` ou `.` est remplacé par `_`,
+  et l'unicité des noms est testée sur ce nom local.
+- Interface à la souris uniquement (pas de gestes tactiles).
 
 ## Licence
 

@@ -4,7 +4,7 @@ Outil pédagogique de **construction d'ontologies** (cours Web Sémantique).
 Construction interactive de classes, propriétés objet (caractéristiques OWL)
 et propriétés de donnée, visualisation de type VOWL, export Turtle.
 
-Le contexte général du cours et les contraintes durables (pas de git, pas de
+Le contexte général du cours et les contraintes durables (pas de
 suppression sans confirmation, documentation en français, claims « vérifiés »
 réellement vérifiés) sont dans **`../../Exemples/AGENTS.md`** et
 `../../Exemples/README.md` — les respecter avant toute modification.
@@ -52,7 +52,9 @@ Le JS est organisé en 3 blocs commentés :
   un produit de gestion.
 - Noms d'éléments **uniques** entre classes et propriétés (`nameTaken()`) ;
   un nom est utilisé tel quel comme nom local d'IRI (accents autorisés) ;
-  à l'export, espaces → `_` et `#?@{}\\"` → `_` (`local()` dans `toTTL()`).
+  `localName()` remplace tout caractère hors lettre/chiffre/`_`/`-`/`.` par `_`
+  (nom préfixé Turtle valide) et `nameTaken()` compare sur ce nom local.
+- `sanitizeState()` normalise l'état venant du `localStorage` ou d'un JSON importé.
 
 ## Modes et interactions (à ne pas casser)
 
