@@ -112,6 +112,30 @@ pour montrer chaque concept d'un coup.
     rdfs:range xsd:integer .
 ```
 
+## Importer un fichier Turtle
+
+« **Importer TTL** » charge un fichier `.ttl` (Turtle) et **remplace** l'ontologie
+courante après confirmation. Un fichier exporté par OntoLab est relu à l'identique
+(export → import → export redonne les mêmes triplets). Les ontologies venant d'ailleurs
+(Protégé, cours, Internet…) sont lues pour ce qu'OntoLab sait représenter :
+
+- **repris** : classes (`owl:Class`, `rdfs:Class`), `rdfs:subClassOf` (plusieurs parents),
+  propriétés objet et de donnée (déduites aussi d'un domaine/d'une portée en RDFS pur),
+  `rdfs:domain`, `rdfs:range`, `rdfs:subPropertyOf` (plusieurs parents, même type),
+  `owl:inverseOf`, propriétés transitives, symétriques, fonctionnelles ; le namespace
+  principal du fichier devient celui de l'ontologie ;
+- **adapté** : types XSD non gérés ramenés au plus proche (`xsd:int` → `xsd:integer`,
+  `xsd:float` → `xsd:double`, `rdfs:Literal` → `xsd:string`) ; propriété sans domaine ou
+  portée précis (ou `owl:Thing`) rattachée à une classe « Thing » ajoutée ; une seule
+  valeur de domaine/portée par propriété (les autres sont ignorées) ;
+- **ignoré, et signalé avant d'importer** : individus, restrictions (`someValuesFrom`,
+  cardinalités…), classes anonymes (`unionOf`, `intersectionOf`), `equivalentClass`,
+  `disjointWith`, annotations (`rdfs:label`, `rdfs:comment`…), imports.
+
+Le fichier doit être en **Turtle** : le RDF/XML est refusé avec un message (convertissez-le,
+par exemple avec Protégé, `riot --output=turtle` de Jena ou rdflib). Les erreurs de syntaxe
+sont signalées avec leur numéro de ligne.
+
 ## Enchaîner avec d'autres outils
 
 Le `.ttl` exporté est du **Turtle/OWL standard** : il se charge dans n'importe
@@ -163,7 +187,6 @@ toute ontologie ou MCD de votre choix convient)
   relaxation, à valider visuellement).
 - `disjointUnionOf`, individus (`owl:NamedIndividual`), restrictions
   (`someValuesFrom`/cardinalités) dans l'éditeur.
-- Import TTL/RDF (aujourd'hui export uniquement + JSON).
 - Export PNG/SVG de la visualisation pour les supports de TD.
 
 ## Limites (assumées, pédagogie > complétude)
@@ -175,6 +198,7 @@ toute ontologie ou MCD de votre choix convient)
   pas de restrictions (`someValuesFrom`/`onlyValuesFrom`) ni de cardinaux.
 - La mise en page automatique est à forces (cf. ci-dessus) ; le placement
   manuel (mode ④) est conservé tant qu'on ne relance pas « Réorganiser ».
+- L'import TTL remplace l'ontologie (pas de fusion) et ne lit pas le RDF/XML.
 - Les noms sont utilisés comme noms locaux d'IRI (accents autorisés) ; tout
   caractère autre que lettre, chiffre, `_`, `-` ou `.` est remplacé par `_`,
   et l'unicité des noms est testée sur ce nom local.

@@ -80,6 +80,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
   <div class="spacer"></div>
   <button class="btn" id="b-example">Exemple</button>
   <button class="btn" id="b-clear">Vider</button>
+  <button class="btn" id="b-import-ttl" title="Remplace l'ontologie courante par le contenu d'un fichier Turtle">Importer TTL</button>
   <button class="btn" id="b-import">Importer JSON</button>
   <button class="btn" id="b-json">Exporter JSON</button>
   <button class="btn" id="b-layout">Réorganiser</button>
@@ -113,7 +114,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 const SVGNS='http://www.w3.org/2000/svg';
 const LS_KEY='ontolab-v1';
 const C={cls:'#AEDBFC',clsS:'#2C5F9E',obj:'#D9E9A5',objS:'#5B7C29',data:'#F6CECE',dataS:'#8C2E2E',sel:'#E4572E'};
-const XSD=['xsd:string','xsd:integer','xsd:double','xsd:decimal','xsd:boolean','xsd:date','xsd:time','xsd:anyURI'];
+const XSD=['xsd:string','xsd:integer','xsd:double','xsd:decimal','xsd:boolean','xsd:date','xsd:dateTime','xsd:time','xsd:anyURI'];
 
 let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:'http://example.org/onto#',sel:null,mode:'class',view:{x:null,y:null,k:1}};
 
@@ -469,6 +470,338 @@ function exportTTL(){
   dlB.onclick=()=>{ download(new Blob([pre.textContent],{type:'text/turtle'}),fname()); };
   cpB.onclick=()=>{ navigator.clipboard.writeText(pre.textContent).then(()=>cpB.textContent='Copié ✓',()=>status('Copie impossible — sélectionnez le texte manuellement.',1)); };
   ov.addEventListener('pointerdown',e=>{ if(e.target===ov) ov.remove(); });
+}
+/* ---------- import Turtle ---------- */
+const RDFN='http://www.w3.org/1999/02/22-rdf-syntax-ns#', RDFSN='http://www.w3.org/2000/01/rdf-schema#',
+      OWLN='http://www.w3.org/2002/07/owl#', XSDN='http://www.w3.org/2001/XMLSchema#';
+
+/* Analyseur Turtle (sous-ensemble complet usuel : @prefix/@base et PREFIX/BASE, IRI, noms préfixés, `a`, listes `;` `,`,
+   littéraux (simples, longs, @lang, ^^type), nombres, booléens, nœuds anonymes `[ ]`, collections `( )`).
+   Termes : 'I'+iri, 'B'+étiquette, 'L'+texte. Retourne {triples:[[s,p,o]], prefixes}. Lève une Error avec le n° de ligne. */
+function parseTurtle(src){
+  let i=0, bn=0, base='';
+  const n=src.length, T=[], prefixes={};
+  const fail=m=>{ throw new Error(m+' (ligne '+(src.slice(0,i).split('\n').length)+')'); };
+  const ws=()=>{ for(;;){ while(i<n&&/\s/.test(src[i])) i++; if(src[i]==='#'){ while(i<n&&src[i]!=='\n') i++; } else return; } };
+  const resolve=s=>{
+    if(/^[a-zA-Z][a-zA-Z0-9+.\-]*:/.test(s)||!base) return s;
+    if(s==='') return base;
+    if(s[0]==='#') return base.replace(/#.*$/,'')+s;
+    if(s[0]==='/') return (base.match(/^[a-zA-Z][a-zA-Z0-9+.\-]*:\/\/[^\/]*/)||[''])[0]+s;
+    return base.replace(/[^\/#]*$/,'')+s;
+  };
+  const iriRef=()=>{
+    i++; let s='';
+    while(i<n&&src[i]!=='>'){
+      if(src[i]==='\\'&&(src[i+1]==='u'||src[i+1]==='U')){ const len=src[i+1]==='u'?4:8; s+=String.fromCodePoint(parseInt(src.substr(i+2,len),16)); i+=2+len; }
+      else s+=src[i++];
+    }
+    if(i>=n) fail('IRI non terminée'); i++;
+    return resolve(s);
+  };
+  const PNAME=/([^\s:<>"'{}|^`\\,;()\[\]#]*):((?:[^\s<>"'{}|^`\\,;()\[\]#]|\\[-_~.!$&'()*+,;=\/?#@%]|%[0-9A-Fa-f]{2})*)/y;
+  const pname=()=>{
+    PNAME.lastIndex=i; const m=PNAME.exec(src); if(!m) fail('terme inattendu « '+src.substr(i,12).split('\n')[0]+' »');
+    let local=m[2], len=m[0].length;
+    while(local.endsWith('.')){ local=local.slice(0,-1); len--; } // le « . » final termine la phrase
+    i+=len;
+    if(!(m[1] in prefixes)) fail('préfixe « '+m[1]+': » non déclaré');
+    return prefixes[m[1]]+local.replace(/\\(.)/g,'$1');
+  };
+  const ESC={t:'\t',n:'\n',r:'\r',b:'\b',f:'\f','"':'"',"'":"'",'\\':'\\'};
+  const literal=()=>{
+    const q=src[i], long=src.substr(i,3)===q+q+q; let s=''; i+=long?3:1;
+    for(;;){
+      if(i>=n) fail('chaîne non terminée');
+      if(long?src.substr(i,3)===q+q+q:src[i]===q){ i+=long?3:1; break; }
+      if(src[i]==='\\'){
+        const c=src[i+1];
+        if(c==='u'||c==='U'){ const len=c==='u'?4:8; s+=String.fromCodePoint(parseInt(src.substr(i+2,len),16)); i+=2+len; }
+        else{ s+=(c in ESC)?ESC[c]:c; i+=2; }
+      } else s+=src[i++];
+    }
+    if(src[i]==='@'){ const m=/@[a-zA-Z]+(-[a-zA-Z0-9]+)*/y; m.lastIndex=i; if(m.exec(src)) i=m.lastIndex; }
+    else if(src.substr(i,2)==='^^'){ i+=2; term(); }
+    return s;
+  };
+  const verb=()=>{
+    ws();
+    if(src[i]==='a'&&/[\s<\[("'_]/.test(src[i+1]||' ')){ i++; return 'I'+RDFN+'type'; }
+    const t=term(); if(t[0]!=='I') fail('prédicat attendu'); return t;
+  };
+  const poList=s=>{
+    for(;;){
+      const p=verb();
+      for(;;){ const o=term(); T.push([s,p,o]); ws(); if(src[i]===','){ i++; continue; } break; }
+      ws();
+      if(src[i]===';'){ while(src[i]===';'){ i++; ws(); } if(i>=n||src[i]==='.'||src[i]===']') return; continue; }
+      return;
+    }
+  };
+  function term(){
+    ws(); const c=src[i];
+    if(i>=n) fail('fin de fichier inattendue');
+    if(c==='<') return 'I'+iriRef();
+    if(c==='['){
+      i++; const b='B'+(++bn); ws();
+      if(src[i]===']'){ i++; return b; }
+      poList(b); ws(); if(src[i]!==']') fail('« ] » attendu'); i++; return b;
+    }
+    if(c==='('){
+      i++; const items=[];
+      for(;;){ ws(); if(src[i]===')'){ i++; break; } if(i>=n) fail('« ) » attendu'); items.push(term()); }
+      if(!items.length) return 'I'+RDFN+'nil';
+      let head=null, prev=null;
+      for(const it of items){ const b='B'+(++bn); if(prev) T.push([prev,'I'+RDFN+'rest',b]); else head=b; T.push([b,'I'+RDFN+'first',it]); prev=b; }
+      T.push([prev,'I'+RDFN+'rest','I'+RDFN+'nil']); return head;
+    }
+    if(c==='"'||c==="'") return 'L'+literal();
+    if(c==='_'&&src[i+1]===':'){ const m=/_:([^\s,;()\[\]<>]+)/y; m.lastIndex=i; const r=m.exec(src); let id=r[1]; while(id.endsWith('.')) id=id.slice(0,-1); i+=2+id.length; return 'B_'+id; }
+    const num=/[+-]?(\d*\.\d+|\d+)([eE][+-]?\d+)?/y; num.lastIndex=i;
+    if(/[\d+\-.]/.test(c)){ const m=num.exec(src); if(m){ i=num.lastIndex; return 'L'+m[0]; } }
+    const bool=/(true|false)(?![\w:.\-])/y; bool.lastIndex=i; const bm=bool.exec(src); if(bm){ i=bool.lastIndex; return 'L'+bm[1]; }
+    return 'I'+pname();
+  }
+  for(;;){
+    ws(); if(i>=n) break;
+    const dir=(w)=>src.substr(i,w.length).toLowerCase()===w;
+    if(src[i]==='@'||((dir('prefix')&&/\s/.test(src[i+6]||''))||(dir('base')&&/[\s<]/.test(src[i+4]||'')))){
+      const sparql=src[i]!=='@'; if(!sparql) i++;
+      if(dir('prefix')){
+        i+=6; ws(); const m=/([^\s:]*):/y; m.lastIndex=i; const r=m.exec(src); if(!r) fail('nom de préfixe attendu');
+        i=m.lastIndex; ws(); if(src[i]!=='<') fail('IRI de préfixe attendue'); prefixes[r[1]]=iriRef();
+      } else if(dir('base')){ i+=4; ws(); if(src[i]!=='<') fail('IRI de base attendue'); base=iriRef(); }
+      else fail('directive inconnue');
+      if(!sparql){ ws(); if(src[i]!=='.') fail('« . » attendu après la directive'); i++; }
+      continue;
+    }
+    const s=term(); ws();
+    if(src[i]!=='.') poList(s);
+    ws(); if(src[i]!=='.') fail('« . » attendu en fin de phrase'); i++;
+  }
+  return {triples:T,prefixes};
+}
+
+/* Convertit des triplets RDF en ontologie OntoLab (classes, propriétés objet/donnée, héritage multiple, inverses,
+   caractéristiques). Retourne {classes,objProps,dataProps,nextId,ns,notes:[...]} ; `notes` liste ce qui n'a pas pu être repris. */
+function ontologyFromTriples(T){
+  const ix=new Map(), order=new Map();
+  const seen=t=>{ if(t[0]==='I'&&!order.has(t)) order.set(t,order.size); };
+  T.forEach(([s,p,o])=>{
+    seen(s); seen(o);
+    if(!ix.has(s)) ix.set(s,new Map()); const m=ix.get(s); if(!m.has(p)) m.set(p,[]); m.get(p).push(o);
+  });
+  const get=(s,p)=>(ix.get(s)&&ix.get(s).get('I'+p))||[];
+  const iriOf=t=>t&&t[0]==='I'?t.slice(1):null;
+  const typesOf=s=>get(s,RDFN+'type').map(iriOf).filter(Boolean);
+  const isDT=iri=>iri.startsWith(XSDN)||iri===RDFSN+'Literal'||iri===RDFN+'langString'||iri===RDFN+'XMLLiteral'||iri===RDFN+'PlainLiteral';
+  const isVocab=iri=>iri.startsWith(RDFN)||iri.startsWith(RDFSN)||iri.startsWith(OWLN)||iri.startsWith(XSDN);
+  const THING=OWLN+'Thing';
+  const notes=[], ign=new Map();
+  const skip=(label,k)=>ign.set(label,(ign.get(label)||0)+(k||1));
+
+  // --- classes
+  const clsIri=new Set(), propIri=new Set();
+  const CLASS_T=[OWLN+'Class',RDFSN+'Class'];
+  const PROP_T=[OWLN+'ObjectProperty',OWLN+'DatatypeProperty',RDFN+'Property',OWLN+'TransitiveProperty',OWLN+'SymmetricProperty',OWLN+'FunctionalProperty',
+                OWLN+'InverseFunctionalProperty',OWLN+'AsymmetricProperty',OWLN+'ReflexiveProperty',OWLN+'IrreflexiveProperty'];
+  for(const s of ix.keys()){
+    const ts=typesOf(s); if(s[0]!=='I') continue;
+    const iri=s.slice(1);
+    if(ts.includes(OWLN+'AnnotationProperty')) continue;
+    if(ts.some(t=>CLASS_T.includes(t))&&!isVocab(iri)) clsIri.add(iri);
+    if(ts.some(t=>PROP_T.includes(t))&&!isVocab(iri)) propIri.add(iri);
+  }
+  // propriétés / classes implicites (RDFS minimaliste : on déduit des axiomes)
+  const annot=new Set(); for(const s of ix.keys()) if(typesOf(s).includes(OWLN+'AnnotationProperty')) annot.add(s.slice(1));
+  for(const [s,m] of ix){
+    if(s[0]!=='I') continue; const iri=s.slice(1); if(isVocab(iri)||annot.has(iri)) continue;
+    if(m.has('I'+RDFSN+'domain')||m.has('I'+RDFSN+'range')||m.has('I'+RDFSN+'subPropertyOf')||m.has('I'+OWLN+'inverseOf')) propIri.add(iri);
+    if(m.has('I'+RDFSN+'subClassOf')) clsIri.add(iri);
+  }
+  for(const [s,m] of ix){
+    if(s[0]!=='I') continue;
+    for(const o of (m.get('I'+RDFSN+'subClassOf')||[])){ const iri=iriOf(o); if(iri&&!isVocab(iri)) clsIri.add(iri); }
+    for(const o of (m.get('I'+RDFSN+'subPropertyOf')||[])){ const iri=iriOf(o); if(iri&&!isVocab(iri)) propIri.add(iri); }
+    for(const o of (m.get('I'+OWLN+'inverseOf')||[])){ const iri=iriOf(o); if(iri&&!isVocab(iri)) propIri.add(iri); }
+  }
+  propIri.forEach(p=>{
+    for(const o of [...get('I'+p,RDFSN+'domain'),...get('I'+p,RDFSN+'range')]){
+      const iri=iriOf(o); if(iri&&!isVocab(iri)&&!isDT(iri)) clsIri.add(iri);
+    }
+  });
+  propIri.forEach(p=>clsIri.delete(p)); // une propriété n'est pas une classe
+  // --- individus (ignorés)
+  let nInd=0;
+  for(const [s,m] of ix){
+    if(s[0]!=='I') continue; const iri=s.slice(1); if(clsIri.has(iri)||propIri.has(iri)||isVocab(iri)) continue;
+    const ts=typesOf(s);
+    if(ts.includes(OWLN+'NamedIndividual')||ts.some(t=>clsIri.has(t))) nInd++;
+  }
+  if(nInd) notes.push(nInd+' individu(s) (owl:NamedIndividual) ignoré(s)');
+
+  // --- noms et identifiants
+  const used=new Set(); let nextId=1;
+  const localOf=iri=>{ let l=iri.replace(/[#\/]+$/,'').replace(/^.*[#\/]/,''); try{ l=decodeURIComponent(l); }catch(e){} return l||'sans_nom'; };
+  const uniqueName=base=>{ let name=base, k=2; while(used.has(localName(name))) name=base+'_'+(k++); used.add(localName(name)); return name; };
+  const sortByAppearance=set=>[...set].sort((a,b)=>(order.get('I'+a)||0)-(order.get('I'+b)||0));
+  const classes=[], objProps=[], dataProps=[], cid=new Map(), civ=new Map(), pid=new Map();
+  const mkClass=iri=>{ const c={id:nextId++,name:uniqueName(localOf(iri)),parents:[]}; classes.push(c); cid.set(iri,c.id); civ.set(c.id,iri); return c; };
+  sortByAppearance(clsIri).forEach(iri=>{ if(iri!==THING) mkClass(iri); });
+  let thing=null;
+  const thingId=()=>{ if(!thing) thing=mkClass(THING); return thing.id; }; // « Thing » : domaine/portée absent(e) ou owl:Thing
+
+  // --- parents de classes
+  let nExpr=0;
+  classes.forEach(c=>{
+    const iri=civ.get(c.id); if(!iri||iri===THING) return;
+    for(const o of get('I'+iri,RDFSN+'subClassOf')){
+      const p=iriOf(o);
+      if(p===THING||p===RDFSN+'Resource') continue;
+      if(p&&cid.has(p)&&p!==iri){ if(!c.parents.includes(cid.get(p))) c.parents.push(cid.get(p)); }
+      else if(!p) nExpr++;
+    }
+  });
+  const nRestr=[...ix.keys()].filter(s=>s[0]==='B'&&typesOf(s).includes(OWLN+'Restriction')).length;
+  if(nRestr) notes.push(nRestr+' restriction(s) OWL (someValuesFrom, cardinalités…) ignorée(s)');
+  else if(nExpr) notes.push(nExpr+' super-classe(s) anonyme(s) ignorée(s)');
+
+  // --- genre des propriétés
+  const kindMemo=new Map();
+  const kindOf=(p,stack)=>{
+    if(kindMemo.has(p)) return kindMemo.get(p);
+    stack=stack||new Set(); if(stack.has(p)) return 'obj'; stack.add(p);
+    const ts=typesOf('I'+p); let k=null;
+    if(ts.includes(OWLN+'DatatypeProperty')) k='data';
+    else if(ts.includes(OWLN+'ObjectProperty')||ts.includes(OWLN+'TransitiveProperty')||ts.includes(OWLN+'SymmetricProperty')) k='obj';
+    else{
+      const rs=get('I'+p,RDFSN+'range').map(iriOf).filter(Boolean);
+      if(rs.some(isDT)) k='data'; else if(rs.length) k='obj';
+      else{ for(const q of get('I'+p,RDFSN+'subPropertyOf').map(iriOf).filter(Boolean)) if(propIri.has(q)){ k=kindOf(q,stack); break; } }
+    }
+    k=k||'obj'; kindMemo.set(p,k); return k;
+  };
+  const XSD_MAP={string:'xsd:string',normalizedString:'xsd:string',token:'xsd:string',language:'xsd:string',Name:'xsd:string',NCName:'xsd:string',
+    integer:'xsd:integer',int:'xsd:integer',long:'xsd:integer',short:'xsd:integer',byte:'xsd:integer',nonNegativeInteger:'xsd:integer',positiveInteger:'xsd:integer',
+    negativeInteger:'xsd:integer',nonPositiveInteger:'xsd:integer',unsignedInt:'xsd:integer',unsignedLong:'xsd:integer',unsignedShort:'xsd:integer',unsignedByte:'xsd:integer',
+    double:'xsd:double',float:'xsd:double',decimal:'xsd:decimal',boolean:'xsd:boolean',date:'xsd:date',time:'xsd:time',dateTime:'xsd:dateTime',dateTimeStamp:'xsd:dateTime',anyURI:'xsd:anyURI'};
+  let nApprox=0, nMultiDom=0, nComplex=0;
+  const classOfRef=o=>{ // domaine ou portée : id de classe ou null
+    const iri=iriOf(o); if(!iri||iri===THING||iri===RDFSN+'Resource') return null;
+    return cid.has(iri)?cid.get(iri):null;
+  };
+  const pick=(p,pred)=>{ // 1re valeur exploitable de rdfs:domain / rdfs:range ; compte les valeurs en trop ou complexes
+    const vs=get('I'+p,pred); let id=null;
+    vs.forEach(o=>{ if(o[0]==='B'){ nComplex++; return; } const c=classOfRef(o); if(c!=null){ if(id==null) id=c; else nMultiDom++; } });
+    return id;
+  };
+  sortByAppearance(propIri).forEach(p=>{
+    const kind=kindOf(p), ts=typesOf('I'+p);
+    const base={id:nextId++,name:uniqueName(localOf(p)),parents:[]};
+    pid.set(p,base.id);
+    let dom=pick(p,RDFSN+'domain'); if(dom==null) dom=thingId();
+    if(kind==='obj'){
+      let rng=pick(p,RDFSN+'range'); if(rng==null) rng=thingId();
+      objProps.push(Object.assign(base,{domain:dom,range:rng,transitive:ts.includes(OWLN+'TransitiveProperty'),symmetric:ts.includes(OWLN+'SymmetricProperty'),
+        functional:ts.includes(OWLN+'FunctionalProperty'),inverseOf:null}));
+    } else{
+      let type='xsd:string';
+      const r=get('I'+p,RDFSN+'range').map(iriOf).find(x=>x&&isDT(x));
+      if(r){ const loc=r.replace(XSDN,''); const m=r.startsWith(XSDN)&&XSD_MAP[loc]; type=m||'xsd:string'; if(!m||('xsd:'+loc)!==m) nApprox++; }
+      else nApprox++;
+      dataProps.push(Object.assign(base,{domain:dom,type}));
+    }
+  });
+  if(nApprox) notes.push(nApprox+' type(s) de donnée ramené(s) au plus proche type XSD géré (xsd:string par défaut)');
+  if(nMultiDom) notes.push(nMultiDom+' domaine(s)/portée(s) supplémentaire(s) ignoré(s) (une seule valeur par propriété)');
+  if(nComplex) notes.push(nComplex+' domaine(s)/portée(s) complexe(s) (unionOf, restriction…) ignoré(s) : remplacé(s) par « Thing »');
+  if(thing) notes.push('classe « '+thing.name+' » ajoutée pour les propriétés sans domaine ou portée précis (équivalent à owl:Thing)');
+
+  // --- héritage de propriétés (même genre uniquement)
+  const kindById=new Map([...objProps.map(p=>[p.id,'obj']),...dataProps.map(p=>[p.id,'data'])]);
+  const byIdP=new Map([...objProps,...dataProps].map(p=>[p.id,p]));
+  let nCross=0;
+  for(const [iri,id] of pid){
+    const me=byIdP.get(id);
+    for(const o of get('I'+iri,RDFSN+'subPropertyOf')){
+      const q=iriOf(o); if(!q||!pid.has(q)||q===iri) continue;
+      if(kindById.get(pid.get(q))!==kindById.get(id)){ nCross++; continue; }
+      if(!me.parents.includes(pid.get(q))) me.parents.push(pid.get(q));
+    }
+  }
+  if(nCross) notes.push(nCross+' sous-propriété(s) entre une propriété objet et une propriété de donnée ignorée(s)');
+
+  // --- inverses (couples dont domaine/portée sont croisés)
+  let nInv=0;
+  const invPairs=[];
+  for(const [iri,id] of pid) for(const o of get('I'+iri,OWLN+'inverseOf')){ const q=iriOf(o); if(q&&pid.has(q)) invPairs.push([id,pid.get(q)]); }
+  invPairs.forEach(([a,b])=>{
+    const p=byIdP.get(a), q=byIdP.get(b);
+    if(kindById.get(a)!=='obj'||kindById.get(b)!=='obj'||a===b) return;
+    if(p.inverseOf||q.inverseOf){ if(p.inverseOf!==b) nInv++; return; }
+    if(p.domain===q.range&&p.range===q.domain){ p.inverseOf=b; q.inverseOf=a; } else nInv++;
+  });
+  if(nInv) notes.push(nInv+' owl:inverseOf ignoré(s) (domaine/portée non croisés ou propriété déjà appariée)');
+
+  // --- cycles éventuels d'héritage (ontologies erronées)
+  cleanParents({classes,objProps,dataProps});
+
+  // --- axiomes non repris
+  const HANDLED=new Set([RDFN+'type',RDFSN+'subClassOf',RDFSN+'subPropertyOf',RDFSN+'domain',RDFSN+'range',OWLN+'inverseOf']);
+  const ANNOT=new Set([RDFSN+'label',RDFSN+'comment',RDFSN+'seeAlso',RDFSN+'isDefinedBy',OWLN+'versionInfo',OWLN+'deprecated']);
+  let nAnn=0;
+  const known=new Set([...cid.keys(),...pid.keys()]);
+  for(const s of known){
+    const m=ix.get('I'+s); if(!m) continue;
+    for(const [p,os] of m){
+      const iri=p.slice(1);
+      if(HANDLED.has(iri)) continue;
+      if(ANNOT.has(iri)||!isVocab(iri)){ nAnn+=os.length; continue; }
+      skip(iri.replace(/^.*[#\/]/,''),os.length);
+    }
+    for(const t of typesOf('I'+s)) if([OWLN+'InverseFunctionalProperty',OWLN+'AsymmetricProperty',OWLN+'ReflexiveProperty',OWLN+'IrreflexiveProperty'].includes(t)) skip(t.replace(OWLN,''));
+  }
+  if(ign.size) notes.push('axiomes non représentables ignorés : '+[...ign].map(([k,v])=>k+(v>1?' ×'+v:'')).join(', '));
+  if(nAnn) notes.push(nAnn+' annotation(s) (rdfs:label, rdfs:comment…) non conservée(s)');
+
+  // --- namespace principal
+  const count=new Map();
+  [...cid.keys(),...pid.keys()].filter(iri=>iri!==THING).forEach(iri=>{ const m=iri.match(/^(.*[#\/])[^#\/]*$/); if(m) count.set(m[1],(count.get(m[1])||0)+1); });
+  const ns=[...count].sort((a,b)=>b[1]-a[1])[0];
+  const mainNs=ns?ns[0]:null;
+  if(mainNs){ const out=[...cid.keys(),...pid.keys()].filter(iri=>iri!==THING&&!iri.startsWith(mainNs)).length;
+    if(out) notes.push(out+' élément(s) hors du namespace « '+mainNs+' » : ils seront exportés sous ce namespace'); }
+  return {classes,objProps,dataProps,nextId,ns:mainNs,notes};
+}
+
+function importTTL(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.ttl,.turtle,text/turtle,text/plain';
+  inp.onchange=()=>{
+    const f=inp.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      let res;
+      try{
+        const txt=String(r.result).replace(/^﻿/,'');
+        if(/^\s*<\?xml|^\s*<rdf:RDF/i.test(txt)) throw new Error('ce fichier est du RDF/XML ; exportez-le en Turtle (.ttl)');
+        res=ontologyFromTriples(parseTurtle(txt).triples);
+      }catch(e){ status('Import TTL impossible : '+e.message,1); return; }
+      if(!res.classes.length&&!res.objProps.length&&!res.dataProps.length){ status('Aucune classe ni propriété trouvée dans « '+f.name+' ».',1); return; }
+      const apply=()=>{
+        state=sanitizeState({classes:res.classes,objProps:res.objProps,dataProps:res.dataProps,nextId:res.nextId,ns:res.ns||state.ns,mode:state.mode});
+        initView(); save(); render(); setMode(state.mode);
+        status('Import Turtle : '+res.classes.length+' classe(s), '+res.objProps.length+' propriété(s) objet, '+res.dataProps.length+' propriété(s) de donnée.');
+      };
+      const cur=state.classes.length+state.objProps.length+state.dataProps.length;
+      if(!cur&&!res.notes.length){ apply(); return; }
+      let msg='« '+f.name+' » : '+res.classes.length+' classe(s), '+res.objProps.length+' propriété(s) objet, '+res.dataProps.length+' propriété(s) de donnée.';
+      if(cur) msg+='\n\nL\'ontologie actuelle ('+state.classes.length+' classe(s), '+(state.objProps.length+state.dataProps.length)+' propriété(s)) sera REMPLACÉE.';
+      if(res.notes.length) msg+='\n\nNon repris :\n• '+res.notes.join('\n• ');
+      confirmBox(msg,'Importer un fichier Turtle').then(ok=>{ if(ok) apply(); });
+    };
+    r.readAsText(f);
+  };
+  inp.click();
 }
 /* ================= OntoLab — partie 2 : mise en page et rendu SVG ================= */
 const svg=$('#canvas'), world=$('#world');
@@ -1070,7 +1403,7 @@ function updatePanel(){
       +'<p class="hint"><b>③ Propriété de donnée</b> — cliquez sur une classe ; choisissez le type XSD. Glissez une ellipse rouge sur une autre pour une sous-propriété.</p>'
       +'<p class="hint"><b>④ Déplacer</b> — glissez tout élément (classe, étiquette de propriété) pour le repositionner à la main ; le bouton <b>Réorganiser</b> recalcule la mise en page automatique.</p>'
       +'<p class="hint">Raccourcis : <b>1/2/3/4</b> modes, <b>Suppr</b> élément sélectionné, <b>Échap</b> désélection. Molette : zoom, glisser le fond : déplacer la vue, double-clic sur le fond : recentrer.</p>'
-      +'<p class="hint">La sauvegarde est automatique (navigateur). « Exporter TTL » produit le fichier <b>.ttl</b> prêt à charger dans Jena/Fuseki.</p>';
+      +'<p class="hint">La sauvegarde est automatique (navigateur). « Exporter TTL » produit le fichier <b>.ttl</b> prêt à charger dans Jena/Fuseki ; « Importer TTL » relit un fichier Turtle (il remplace l\'ontologie courante).</p>';
     return;
   }
   let h='';
@@ -1157,6 +1490,7 @@ document.addEventListener('keydown',e=>{
 document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 $('#b-example').onclick=()=>loadExample();
 $('#b-clear').onclick=()=>clearAll();
+$('#b-import-ttl').onclick=()=>importTTL();
 $('#b-import').onclick=()=>importJSON();
 $('#b-json').onclick=()=>exportJSON();
 $('#b-ttl').onclick=()=>exportTTL();

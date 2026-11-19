@@ -145,9 +145,27 @@ Le TTL exporté doit rester chargable par **Jena** (`arq --data`, `sparql
 --desc`) et convertissable par **`../owl2vowl.jar`** (VOWL JSON) — c'est le
 lien avec le reste du cours ; un export cassé est un incident pédagogique.
 
+## Import Turtle (`importTTL()`)
+
+Remplace l'ontologie courante (avec confirmation, sauf si elle est vide et qu'il n'y a rien à
+signaler). Trois briques, toutes en JS pur dans `index.html` (pas de dépendance) :
+- `parseTurtle(src)` — analyseur Turtle (`@prefix`/`@base` et `PREFIX`/`BASE`, IRI relatives,
+  noms préfixés, `a`, listes `;` `,`, littéraux simples/longs/@lang/^^, nombres, booléens,
+  `[ ]`, `( )`) → triplets `[s,p,o]` (termes `'I'+iri`, `'B'+id`, `'L'+texte`). Erreurs avec n° de
+  ligne. Vérifié contre rdflib et Jena (`riot --count`) : mêmes décomptes de triplets.
+- `ontologyFromTriples(T)` — triplets → `{classes, objProps, dataProps, nextId, ns, notes}` :
+  détection des classes/propriétés (déclarées, ou déduites de `subClassOf`/`domain`/`range`),
+  genre objet/donnée (types OWL, sinon portée), `owl:Thing`/domaine absent → classe « Thing »,
+  `XSD_MAP` pour les types non gérés, inverses (seulement si domaine/portée croisés), parents
+  (même genre), `cleanParents()`, namespace majoritaire ; `notes` = ce qui n'est pas repris.
+- `importTTL()` — fichier → analyse → confirmation avec les notes → `sanitizeState()` +
+  `initView()` + `render()`.
+Un TTL exporté par `toTTL()` doit se réimporter à l'identique (test : export → import → export
+→ comparer les ensembles de triplets) ; garder cette propriété en faisant évoluer l'un ou l'autre.
+
 ## Périmètre assumé (v1)
 
 Construire + visualiser + exporter. Hors périmètre (voir `README.md` §
 « Perfectionnements à l'étude » et « Limites ») : `disjointUnionOf`,
-individus, restrictions OWL, import TTL, export image. Ne pas élargir le
+individus, restrictions OWL, export image, import RDF/XML ou fusion d'ontologies. Ne pas élargir le
 périmètre sans demande explicite.
