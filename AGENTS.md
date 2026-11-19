@@ -68,6 +68,9 @@ Le JS est organisé en 3 blocs commentés :
 | ③ Propriété de donnée | `3` | clic sur classe = créer (type XSD demandé) |
 | ④ Déplacer | `4` | glisser n'importe quel élément = position manuelle |
 
+- **Double-clic / double tap** sur un élément (deux `pointerdown` < 400 ms sur le même `kind`/`id`, détecté
+  dans `nodeDown()` via `lastTap` — `dblclick` n'est pas fiable au toucher sur iOS) : `openEditor()` sélectionne,
+  rouvre le panneau (`ui.panel=true`) et, hors écran tactile, active le champ Nom. Ne démarre aucun glisser.
 - Clic sur un élément (hors mode ④) = sélection + édition dans le panneau
   droit. Clic (sans glisser) sur le fond : **désélectionne** s'il y a une sélection, sinon
   (mode ①) crée une classe ; `newClassAt()` ne sélectionne pas la classe créée, pour que

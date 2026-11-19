@@ -86,6 +86,10 @@ déplacement de la vue ; glisser le fond à un doigt : déplacement. Les boutons
 suppression (pas de touche `Suppr` sur tablette). La barre du haut tient sur une rangée même en
 portrait, et la palette de modes remplace les touches `1`-`4`.
 
+**Double-clic** (ou **double tap** au toucher) sur une classe ou une propriété : la sélectionne et
+**ouvre le panneau d'édition sur elle**, même s'il était replié (sur ordinateur, le champ « Nom » est
+actif ; sur tablette, le clavier ne s'ouvre pas tout seul).
+
 Clic sur n'importe quel élément : édition (nom, domaine, portée,
 caractéristiques, suppression) dans le panneau de droite. Molette : zoom ;
 glisser le fond : déplacement ; `Suppr` : supprimer l'élément sélectionné ; `Cmd/Ctrl+Z` : annuler ; `Échap` ou **clic sur

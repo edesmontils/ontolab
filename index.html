@@ -1460,9 +1460,19 @@ function pinchMove(){
   state.view.k=k2; state.view.x=mx-pinch.wx*k2; state.view.y=my-pinch.wy*k2; applyView();
 }
 
+/* Double clic / double tap sur un élément (classe ou propriété) : sélectionne et ouvre le panneau d'édition sur lui.
+   Détecté à la main (deux pointerdown rapprochés sur le même élément) : `dblclick` n'est pas fiable au toucher sur iOS. */
+let lastTap=null;
+function openEditor(kind,id){
+  state.sel={kind,id}; ui.panel=true; saveUI(); save(); render();
+  if(!matchMedia('(pointer:coarse)').matches){ const n=$('#pf-name'); if(n){ n.focus(); n.select(); } } // pas de clavier virtuel intempestif sur tablette
+}
 function nodeDown(e,kind,id){
   if(e.pointerType==='mouse'&&e.button!==0) return;
   if(touches.size>0) return; // un autre doigt est déjà posé : geste multi-touch, rien à faire ici
+  const now=performance.now(), dbl=lastTap&&lastTap.kind===kind&&lastTap.id===id&&now-lastTap.t<400;
+  lastTap=dbl?null:{kind,id,t:now};
+  if(dbl){ e.preventDefault(); openEditor(kind,id); return; }
   if(state.mode==='move'){
     const cur=kind==='class'?lastPos.get(id):(kind==='obj'?lastObjPos.get(id):lastDataPos.get(id));
     if(!cur) return;
@@ -1616,7 +1626,7 @@ function renderPanelBody(){
       +'<p class="hint"><b>② Propriété objet</b> — glissez d\'une classe vers une autre (domaine → portée) ; cochez transitive / symétrique / fonctionnelle, définissez une paire inverse. Glissez une ellipse verte sur une autre pour créer une <b>sous-propriété</b>.</p>'
       +'<p class="hint"><b>③ Propriété de donnée</b> — cliquez sur une classe ; choisissez le type XSD. Glissez une ellipse rouge sur une autre pour une sous-propriété.</p>'
       +'<p class="hint"><b>④ Déplacer</b> — glissez tout élément (classe, étiquette de propriété) pour le repositionner à la main ; le bouton <b>Réorganiser</b> recalcule la mise en page automatique.</p>'
-      +'<p class="hint">Raccourcis : <b>1/2/3/4</b> modes, <b>Suppr</b> élément sélectionné, <b>Échap</b> ou clic sur le fond : désélection. Molette : zoom, glisser le fond : déplacer la vue, double-clic sur le fond : recentrer.</p>'
+      +'<p class="hint">Double-clic (ou double tap) sur un élément : édition dans ce panneau. Raccourcis : <b>1/2/3/4</b> modes, <b>Suppr</b> élément sélectionné, <b>Échap</b> ou clic sur le fond : désélection. Molette : zoom, glisser le fond : déplacer la vue, double-clic sur le fond : recentrer.</p>'
       +'<p class="hint">La sauvegarde est automatique (navigateur). « Exporter TTL » produit le fichier <b>.ttl</b> prêt à charger dans Jena/Fuseki ; « Importer TTL » relit un fichier Turtle (il remplace l\'ontologie courante).</p>';
     return;
   }
@@ -1749,7 +1759,7 @@ document.addEventListener('pointerdown',e=>{ // tap à côté : ferme le menu sa
 },true);
 window.addEventListener('resize',closeMenu);
 function showHelp(){
-  infoBox('Modes : 1 Classe · 2 Propriété objet · 3 Propriété de donnée · 4 Déplacer\nAnnuler / rétablir : Cmd/Ctrl+Z, Cmd/Ctrl+Maj+Z (ou Ctrl+Y)\nSuppr : supprimer l\'élément sélectionné · Échap ou clic sur le fond : désélectionner\nMolette ou pincement : zoom · glisser le fond : déplacer la vue · double-clic sur le fond : recentrer\nGlisser une classe (ou une propriété) sur une autre : héritage ; sur le fond : retirer les parents','Aide et raccourcis');
+  infoBox('Modes : 1 Classe · 2 Propriété objet · 3 Propriété de donnée · 4 Déplacer\nAnnuler / rétablir : Cmd/Ctrl+Z, Cmd/Ctrl+Maj+Z (ou Ctrl+Y)\nSuppr : supprimer l\'élément sélectionné · Échap ou clic sur le fond : désélectionner\nMolette ou pincement : zoom · glisser le fond : déplacer la vue · double-clic sur le fond : recentrer\nDouble-clic (ou double tap) sur un élément : ouvre le panneau d\'édition sur lui\nGlisser une classe (ou une propriété) sur une autre : héritage ; sur le fond : retirer les parents','Aide et raccourcis');
 }
 $('#b-imp').onclick=()=>showMenu($('#b-imp'),[
   {label:'Turtle (.ttl)…',run:importTTL},
