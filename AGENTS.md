@@ -68,7 +68,9 @@ Le JS est organisé en 3 blocs commentés :
 | ④ Déplacer | `4` | glisser n'importe quel élément = position manuelle |
 
 - Clic sur un élément (hors mode ④) = sélection + édition dans le panneau
-  droit. `Suppr` = supprimer l'élément sélectionné (cascade : une classe
+  droit. Clic (sans glisser) sur le fond : **désélectionne** s'il y a une sélection, sinon
+  (mode ①) crée une classe ; `newClassAt()` ne sélectionne pas la classe créée, pour que
+  la création en série reste à un clic. `Suppr` = supprimer l'élément sélectionné (cascade : une classe
   emporte ses propriétés liées, ses sous-classes redeviennent racines).
 - **Héritage multiple** (classes, propriétés objet, propriétés de donnée) : un seul code
   générique indexé par `kind` ∈ `class|obj|data` (`KINDS`) : `addParent()`,

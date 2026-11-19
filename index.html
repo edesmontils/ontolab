@@ -231,7 +231,7 @@ function newClassAt(){
     if(!v) return;
     if(nameTaken(v.name)){ status('Le nom « '+v.name+' » est déjà utilisé.',1); return; }
     const c={id:state.nextId++,name:v.name,parents:[]};
-    state.classes.push(c); state.sel={kind:'class',id:c.id}; save(); render();
+    state.classes.push(c); save(); render(); // pas de sélection auto : le clic suivant sur le fond crée directement une autre classe
   });
 }
 function addChildClass(parentId){
@@ -1349,7 +1349,8 @@ function pointerEnd(e){
   if(e.type==='pointercancel'){ cancelGesture(); return; }
   if(pan){
     const wasClick=!pan.moved; pan=null; svg.classList.remove('panning');
-    if(wasClick&&state.mode==='class') newClassAt();
+    if(wasClick&&state.sel){ state.sel=null; save(); render(); } // clic sur le fond : on désélectionne (sans créer)
+    else if(wasClick&&state.mode==='class') newClassAt();
     else save();
   }
   if(drag){
@@ -1398,7 +1399,7 @@ function setMode(m){
   state.mode=m;
   document.querySelectorAll('.modes button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
   save();
-  if(m==='class') status('Mode Classe : cliquez sur le fond pour créer une classe ; glissez-en une sur une autre pour lui ajouter une super-classe (plusieurs possibles) ; glissez sur le fond pour retirer ses super-classes.');
+  if(m==='class') status('Mode Classe : cliquez sur le fond pour créer une classe (si un élément est sélectionné, un premier clic le désélectionne) ; glissez-en une sur une autre pour lui ajouter une super-classe (plusieurs possibles) ; glissez sur le fond pour retirer ses super-classes.');
   if(m==='obj') status('Mode Propriété objet : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une ellipse verte pour la modifier ; glissez-la sur une autre ellipse verte pour en faire une sous-propriété (plusieurs parents possibles).');
   if(m==='data') status('Mode Propriété de donnée : cliquez sur une classe pour lui ajouter une propriété de donnée. Cliquez sur une ellipse rouge pour la modifier ; glissez-la sur une autre ellipse rouge pour en faire une sous-propriété (plusieurs parents possibles).');
   if(m==='move') status('Mode Déplacer : glissez une classe ou une étiquette de propriété pour la repositionner ; glissez le fond pour déplacer la vue. « Réorganiser » recalcule la mise en page automatique.');
@@ -1415,7 +1416,7 @@ function updatePanel(){
       +'<p class="hint"><b>② Propriété objet</b> — glissez d\'une classe vers une autre (domaine → portée) ; cochez transitive / symétrique / fonctionnelle, définissez une paire inverse. Glissez une ellipse verte sur une autre pour créer une <b>sous-propriété</b>.</p>'
       +'<p class="hint"><b>③ Propriété de donnée</b> — cliquez sur une classe ; choisissez le type XSD. Glissez une ellipse rouge sur une autre pour une sous-propriété.</p>'
       +'<p class="hint"><b>④ Déplacer</b> — glissez tout élément (classe, étiquette de propriété) pour le repositionner à la main ; le bouton <b>Réorganiser</b> recalcule la mise en page automatique.</p>'
-      +'<p class="hint">Raccourcis : <b>1/2/3/4</b> modes, <b>Suppr</b> élément sélectionné, <b>Échap</b> désélection. Molette : zoom, glisser le fond : déplacer la vue, double-clic sur le fond : recentrer.</p>'
+      +'<p class="hint">Raccourcis : <b>1/2/3/4</b> modes, <b>Suppr</b> élément sélectionné, <b>Échap</b> ou clic sur le fond : désélection. Molette : zoom, glisser le fond : déplacer la vue, double-clic sur le fond : recentrer.</p>'
       +'<p class="hint">La sauvegarde est automatique (navigateur). « Exporter TTL » produit le fichier <b>.ttl</b> prêt à charger dans Jena/Fuseki ; « Importer TTL » relit un fichier Turtle (il remplace l\'ontologie courante).</p>';
     return;
   }

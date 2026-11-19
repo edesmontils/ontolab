@@ -79,7 +79,9 @@ les boutons de mode.
 
 Clic sur n'importe quel élément : édition (nom, domaine, portée,
 caractéristiques, suppression) dans le panneau de droite. Molette : zoom ;
-glisser le fond : déplacement ; `Suppr` : supprimer l'élément sélectionné.
+glisser le fond : déplacement ; `Suppr` : supprimer l'élément sélectionné ; `Échap` ou **clic sur
+le fond** : désélectionner (en mode ① Classe, le clic sur le fond désélectionne d'abord, et ne
+crée une classe que s'il n'y a rien de sélectionné).
 
 Bouton **Exemple** : charge une mini-ontologie de randonnées (Personne ⊃
 Membre, Guide ; Groupe ; Voie ⊃ Sentier, Piste ; `connaît` transitive et
