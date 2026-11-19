@@ -99,8 +99,10 @@ Le JS est organisé en 3 blocs commentés :
    - boîtes englobantes avec marge pour étiquettes, empaquetage en rangées.
 2. **`computeProps()`** — étiquettes vertes au milieu domaine–portée (décalage
    perpendiculaire si plusieurs propriétés sur la même paire non orientée) ;
-   boucles et props de donnée placées par `freeAngle()` (angle le plus éloigné des
-   liens et étiquettes déjà présents autour de la classe).
+   boucles et props de donnée placées par `placeAround()` : 72 angles × 5 distances,
+   coût = chevauchement avec classes / étiquettes déjà posées (légende de type XSD
+   incluse), arêtes traversées (`segHitsEllipse`, y compris les flèches déjà tracées),
+   écart angulaire aux liens ; on garde le moins coûteux.
 3. **`relax()`** — 150 itérations max : écarte les ellipses qui se chevauchent
    (marge 10 px, coefficients asymétriques, positions manuelles immuables).
 4. **`refinalizeProps()`** — points d'attache sur les bords après relaxation ;

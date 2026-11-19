@@ -57,8 +57,8 @@ long des liens, repoussement des ellipses, sous-classes placées sous leur
 super-classe), plusieurs départs déterministes dont on garde celui qui a le moins
 de croisements d'arêtes, puis empaquetage des composantes en rangées. Les
 étiquettes de propriétés objet sont posées sur leur arête (la courbe passe par
-leur centre) ; boucles et propriétés de donnée prennent les directions les plus
-dégagées autour de leur classe ; une dernière passe de relaxation pousse à
+leur centre) ; boucles et propriétés de donnée prennent, autour de leur classe, la place
+la moins encombrée (sans recouvrir classes, étiquettes ni arêtes) ; une dernière passe de relaxation pousse à
 l'écart tout chevauchement restant.
 
 **Écran tactile (iPad, tablette)** : les mêmes gestes fonctionnent au doigt ou au

@@ -554,20 +554,18 @@ function forceLayout(){
 
 /* Rayon d'une ellipse (rx,ry) dans la direction a. */
 function ellR(rx,ry,a){ return rx*ry/Math.hypot(ry*Math.cos(a),rx*Math.sin(a)); }
-/* Angle le plus éloigné de tous les angles de `occ` (échantillonnage régulier, départ vers le haut). */
-function freeAngle(occ){
-  if(!occ.length) return -Math.PI/2;
-  let best=-Math.PI/2, bestD=-1;
-  for(let k=0;k<96;k++){
-    const a=-Math.PI/2+k*2*Math.PI/96; let m=Math.PI;
-    for(const o of occ){ let d=Math.abs(a-o)%(2*Math.PI); if(d>Math.PI) d=2*Math.PI-d; if(d<m) m=d; }
-    if(m>bestD+1e-9){ bestD=m; best=a; }
-  }
-  return best;
+/* Distance minimale (en unités d'ellipse normalisée) entre le centre d'une ellipse (rx,ry) en `p` et le segment s0–s1 :
+   < 1 signifie que le segment traverse l'ellipse. */
+function segHitsEllipse(p,rx,ry,s0,s1){
+  const ax=(s0.x-p.x)/rx, ay=(s0.y-p.y)/ry, dx=(s1.x-p.x)/rx-ax, dy=(s1.y-p.y)/ry-ay;
+  const L2=dx*dx+dy*dy; const t=L2?Math.max(0,Math.min(1,-(ax*dx+ay*dy)/L2)):0;
+  return Math.hypot(ax+t*dx,ay+t*dy)<1;
 }
 
-/* Positions des propriétés (ellipses vertes / rouges) : étiquettes sur la droite domaine–portée,
-   boucles et propriétés de donnée dans les directions les plus dégagées autour de leur classe. */
+/* Positions des propriétés (ellipses vertes / rouges) : étiquettes sur la droite domaine–portée ;
+   boucles et propriétés de donnée : chaque position candidate autour de la classe est évaluée
+   (chevauchement avec classes et étiquettes déjà posées, arêtes traversées, écart angulaire aux liens)
+   et la moins coûteuse est retenue. */
 function computeProps(pos){
   const obj=new Map(), data=new Map();
   const occ=new Map(); pos.forEach((p,id)=>occ.set(id,[]));
@@ -595,16 +593,41 @@ function computeProps(pos){
       obj.set(p.id,{x:mid.x,y:mid.y,rx:Math.max(36,14+p.name.length*3.4),ry:16,start:edgePoint(d,mid),end:edgePoint(r,mid)});
     });
   });
+  // obstacles : segments d'arêtes (hiérarchie, propriétés objet passant par leur étiquette) et ellipses déjà posées
+  const segs=[]; const placed=[];
+  for(const c of state.classes){ const a=pos.get(c.id), b=c.parent!=null&&pos.get(c.parent); if(a&&b) segs.push([a,b]); }
+  obj.forEach((q,pid)=>{ const p=objById(pid); segs.push([pos.get(p.domain),q],[q,pos.get(p.range)]); placed.push(q); });
+  const overlap=(a,b,margin)=>{
+    const d=Math.hypot(a.x-b.x,a.y-b.y)||1e-3, ang=Math.atan2(b.y-a.y,b.x-a.x);
+    return ellR(a.rx,a.ry,ang)+ellR(b.rx,b.ry,ang+Math.PI)+margin-d;
+  };
+  /* Cherche la meilleure place pour une étiquette (lrx,lry) autour de la classe `id`. */
+  function placeAround(id,lrx,lry,gap){
+    const c=pos.get(id), mine=occ.get(id);
+    let best=null, bestCost=Infinity;
+    for(let lvl=0;lvl<5;lvl++) for(let k=0;k<72;k++){
+      const a=-Math.PI/2+k*2*Math.PI/72;
+      const dist=ellR(c.rx,c.ry,a)+ellR(lrx,lry,a)+gap+lvl*40;
+      const cand={x:c.x+Math.cos(a)*dist,y:c.y+Math.sin(a)*dist,rx:lrx,ry:lry};
+      let cost=lvl*70;
+      pos.forEach((q,qid)=>{ if(qid===id) return; const o=overlap(cand,q,16); if(o>0) cost+=1500+o*10; });
+      for(const q of placed){ const o=overlap(cand,q,10); if(o>0) cost+=1500+o*10; }
+      for(const sg of segs) if(segHitsEllipse(cand,lrx+8,lry+6,sg[0],sg[1])) cost+=500;
+      let m=Math.PI; for(const o of mine){ let d=Math.abs(a-o)%(2*Math.PI); if(d>Math.PI) d=2*Math.PI-d; if(d<m) m=d; }
+      cost+=60*(1-m/Math.PI);
+      if(cost<bestCost-1e-9){ bestCost=cost; best={a,x:cand.x,y:cand.y}; }
+    }
+    return best;
+  }
   selfs.forEach((arr,id)=>{
     const c=pos.get(id);
     arr.forEach(p=>{
       const lrx=Math.max(36,14+p.name.length*3.4), lry=16;
-      const a=freeAngle(occ.get(id));
-      occ.get(id).push(a); if(p.transitive) occ.get(id).push(a+1.0);
-      const dist=ellR(c.rx,c.ry,a)+ellR(lrx,lry,a)+26;
-      let mid={x:c.x+Math.cos(a)*dist,y:c.y+Math.sin(a)*dist};
-      if(p.mx!=null) mid={x:p.mx,y:p.my};
-      obj.set(p.id,{x:mid.x,y:mid.y,rx:lrx,ry:lry,start:{x:c.x,y:c.y},end:{x:c.x,y:c.y}});
+      const s=placeAround(id,lrx,lry,26);
+      occ.get(id).push(s.a); if(p.transitive) occ.get(id).push(s.a+1.0);
+      let mid={x:s.x,y:s.y}; if(p.mx!=null) mid={x:p.mx,y:p.my};
+      const q={x:mid.x,y:mid.y,rx:lrx,ry:lry,start:{x:c.x,y:c.y},end:{x:c.x,y:c.y}};
+      obj.set(p.id,q); placed.push(q);
     });
   });
   const byDom=new Map();
@@ -612,12 +635,14 @@ function computeProps(pos){
   byDom.forEach((arr,dom)=>{
     const c=pos.get(dom);
     arr.forEach(p=>{
-      const prx=Math.max(30,11+p.name.length*3.1), pry=14;
-      const a=freeAngle(occ.get(dom)); occ.get(dom).push(a);
-      const dist=ellR(c.rx,c.ry,a)+ellR(prx,pry,a)+34;
-      let px=c.x+Math.cos(a)*dist, py=c.y+Math.sin(a)*dist;
-      if(p.mx!=null){ px=p.mx; py=p.my; }
-      data.set(p.id,{x:px,y:py,rx:prx,ry:pry,start:edgePoint(c,{x:px,y:py})});
+      const prx=Math.max(30,8+p.name.length*3.45), pry=14; // assez large pour le texte (cf. short())
+      const CAP=9; // la légende du type XSD est écrite sous l'ellipse : elle compte dans l'encombrement
+      const s=placeAround(dom,prx,pry+CAP,34);
+      occ.get(dom).push(s.a);
+      let px=s.x, py=s.y; if(p.mx!=null){ px=p.mx; py=p.my; }
+      const q={x:px,y:py,rx:prx,ry:pry,start:edgePoint(c,{x:px,y:py})};
+      data.set(p.id,q); placed.push({x:px,y:py+CAP/2,rx:prx,ry:pry+CAP});
+      segs.push([c,{x:px,y:py}]); // la flèche vers cette étiquette est un obstacle pour les suivantes
     });
   });
   return {obj,data};
