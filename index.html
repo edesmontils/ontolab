@@ -48,6 +48,13 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 #legend-pill{left:100px;bottom:12px;}
 .pcollapse{position:absolute;top:8px;right:8px;width:28px;height:28px;border:1px solid #c9d4e6;background:#fff;border-radius:8px;font-size:16px;line-height:1;color:#41506b;cursor:pointer;padding:0;}
 .pcollapse:hover{background:#eef3fa;}
+.nsrow{display:grid;grid-template-columns:130px 1fr 34px;gap:6px;align-items:center;margin:0 0 6px;}
+.nsrow input,.nsrow select{width:100%;box-sizing:border-box;border:1px solid #c9d4e6;border-radius:7px;padding:6px 8px;font-size:13px;color:#1c2333;min-width:0;}
+.nsrow .nsp{font-size:12.5px;color:#516079;}
+.nsrow .btn{padding:4px 0;}
+.nsadd{grid-template-columns:auto 1fr 0;}
+.nsuse{margin:-3px 0 6px 136px;font-size:11.5px;color:#7b8aa5;}
+.nserr{min-height:18px;margin-top:8px;font-size:12.5px;color:#b3261e;}
 .iri code{font-size:11.5px;word-break:break-all;color:#41506b;}
 .hint{font-size:12px;color:#7b8aa5;margin:10px 0 0;line-height:1.5;}
 #legend{position:fixed;left:100px;bottom:54px;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:10px 12px;font-size:11.5px;color:#516079;z-index:1;line-height:1.8;box-shadow:0 2px 10px rgba(30,50,90,.08);max-width:330px;}
@@ -57,7 +64,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 #status.err{background:#b3261e;}
 #stats{position:fixed;right:14px;bottom:12px;font-size:11.5px;color:#7b8aa5;z-index:5;}
 .ovl{position:fixed;inset:0;background:rgba(20,30,50,.35);z-index:50;display:flex;align-items:center;justify-content:center;}
-.dlg{background:#fff;border-radius:14px;padding:18px 20px;width:min(440px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.25);}
+.dlg{box-sizing:border-box;background:#fff;border-radius:14px;padding:18px 20px;width:min(440px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.25);}
 .dlg h3{margin:0 0 12px;font-size:15px;color:var(--blueS);}
 .dlg-msg{font-size:13px;color:#41506b;margin:0 0 10px;line-height:1.5;}
 .dlg .fld.check input{width:auto;}
@@ -81,6 +88,7 @@ svg text{pointer-events:none;user-select:none;}
   #viewctl .btn{width:44px;height:44px;}
   .menu .mi{padding:13px 16px;font-size:15px;}
   .btn{padding:10px 14px;font-size:14px;}
+  .nsrow input,.nsrow select{font-size:16px;padding:9px 10px;}
   .fld input,.fld select{font-size:16px;padding:9px 10px;} /* évite le zoom automatique d'iOS au focus */
   .fld.check input{width:22px;height:22px;}
   #toolbar{height:58px;}
@@ -149,7 +157,7 @@ const LS_KEY='ontolab-v1';
 const C={cls:'#AEDBFC',clsS:'#2C5F9E',obj:'#D9E9A5',objS:'#5B7C29',data:'#F6CECE',dataS:'#8C2E2E',sel:'#E4572E'};
 const XSD=['xsd:string','xsd:integer','xsd:double','xsd:decimal','xsd:boolean','xsd:date','xsd:dateTime','xsd:time','xsd:anyURI'];
 
-let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:'http://example.org/onto#',sel:null,mode:'class',view:{x:null,y:null,k:1}};
+let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:'http://example.org/onto#',nsList:[],sel:null,mode:'class',view:{x:null,y:null,k:1}};
 
 /* ---------- historique (annuler / rétablir) ----------
    Chaque save() compare les données (classes, propriétés, nextId : ni la vue, ni la sélection, ni le mode) à la dernière
@@ -157,7 +165,7 @@ let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:'http://example.org/o
    n'a donc à connaître l'historique ; un glisser en mode ④ ne produit qu'une entrée (save() n'est appelé qu'à la fin). */
 const HIST_MAX=100, HIST_CHARS=6e6;
 const hist={undo:[],redo:[],last:null,chars:0};
-const snapOf=()=>JSON.stringify([state.classes,state.objProps,state.dataProps,state.nextId]);
+const snapOf=()=>JSON.stringify([state.classes,state.objProps,state.dataProps,state.nextId,state.ns,state.nsList]);
 function trackHistory(){
   const s=snapOf();
   if(hist.last===null){ hist.last=s; return; }
@@ -168,7 +176,7 @@ function trackHistory(){
 }
 function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} trackHistory(); }
 function restoreSnap(snap){
-  [state.classes,state.objProps,state.dataProps,state.nextId]=JSON.parse(snap);
+  [state.classes,state.objProps,state.dataProps,state.nextId,state.ns,state.nsList]=JSON.parse(snap);
   hist.last=snap;
   if(state.sel&&!itemOf(state.sel.kind,state.sel.id)) state.sel=null; // l'élément sélectionné peut ne plus exister
   save(); render(); updateHistButtons();
@@ -206,6 +214,7 @@ function sanitizeState(s){
   out.objProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); p.range=num(p.range); p.inverseOf=num(p.inverseOf); });
   out.dataProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); });
   [...out.classes,...out.objProps,...out.dataProps].forEach(x=>{ if(typeof x.ns!=='string'||!x.ns.trim()) delete x.ns; else x.ns=x.ns.trim(); }); // espace de noms propre (facultatif)
+  out.nsList=Array.isArray(s.nsList)?s.nsList.map(e=>Object.assign({},e)):[]; syncNsList(out); // espaces de noms déclarés (+ ceux utilisés)
   cleanParents(out); // migre l'ancien champ `parent` (héritage simple) vers `parents` (héritage multiple)
   out.sel=null;
   return out;
@@ -424,7 +433,7 @@ function deleteProp(kind,id){
 
 /* ---------- exemple chargé ---------- */
 function loadExample(){
-  state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nextId=1;
+  state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nextId=1; state.nsList=[]; // l'exemple n'utilise que l'espace de noms de l'ontologie
   const id={};
   const add=n=>{ const i=state.nextId++; state.classes.push({id:i,name:n,parents:[]}); id[n]=i; return i; };
   add('Personne'); add('Groupe'); add('Voie');
@@ -447,7 +456,7 @@ function loadExample(){
 function clearAll(){
   confirmBox('Tout effacer ? La sauvegarde locale sera remplacée.','Vider').then(ok=>{
     if(!ok) return;
-    state.classes=[]; state.objProps=[]; state.dataProps=[]; state.sel=null; save(); render();
+    state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nsList=[]; state.sel=null; save(); render();
   });
 }
 
@@ -482,7 +491,8 @@ function handleJSONFile(f){
 /* ---------- export Turtle ---------- */
 function toTTL(ns){
   // nom préfixé dans l'espace de noms par défaut, ou IRI complète si l'élément a son propre espace de noms
-  const N=x=>(x.ns&&x.ns!==ns)?'<'+x.ns+localName(x.name)+'>':':'+localName(x.name);
+  const prefixOf=new Map(state.nsList.map(e=>[e.iri,e.prefix]));
+  const N=x=>{ const l=localName(x.name); if(!x.ns||x.ns===ns) return ':'+l; const px=prefixOf.get(x.ns); return px?px+':'+l:'<'+x.ns+l+'>'; };
   const L=[];
   L.push('# Généré par OntoLab le '+new Date().toISOString().slice(0,10));
   L.push('# Outil pédagogique — cours Web Sémantique');
@@ -491,6 +501,7 @@ function toTTL(ns){
   L.push('@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .');
   L.push('@prefix owl: <http://www.w3.org/2002/07/owl#> .');
   L.push('@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .');
+  state.nsList.forEach(e=>L.push('@prefix '+e.prefix+': <'+e.iri+'> .'));
   L.push('');
   L.push('<'+ns.replace(/[#/]?$/,'')+'> rdf:type owl:Ontology .');
   L.push('');
@@ -538,7 +549,7 @@ function exportTTL(){
   const ov=document.createElement('div'); ov.className='ovl';
   const box=document.createElement('div'); box.className='dlg'; box.style.width='min(720px,94vw)';
   box.innerHTML='<h3>Export — Turtle (TTL)</h3>'
-    +'<label class="fld"><span>Namespace de l\'ontologie</span><input type="text" id="ttl-ns" spellcheck="false"></label>'
+    +'<p class="dlg-msg">Espace de noms de l\'ontologie : <code>'+esc(state.ns)+'</code> — modifiable par « ⋯ › Espaces de noms… ».</p>'
     +'<pre id="ttl-pre"></pre>';
   const btns=document.createElement('div'); btns.className='dlg-btns';
   const closeB=document.createElement('button'); closeB.className='btn'; closeB.textContent='Fermer';
@@ -547,11 +558,9 @@ function exportTTL(){
   btns.append(closeB,dlB,cpB); box.appendChild(btns); ov.appendChild(box);
   ov.style.pointerEvents='none'; setTimeout(()=>{ ov.style.pointerEvents=''; },350);
   document.body.appendChild(ov);
-  const nsI=$('#ttl-ns'), pre=$('#ttl-pre');
-  nsI.value=state.ns;
-  const build=()=>{ const v=nsI.value.trim(); pre.textContent=toTTL(v||'http://example.org/onto#'); if(v){ state.ns=v; save(); } };
-  nsI.oninput=build; build();
-  const fname=()=>((nsI.value.split('/').pop()||'ontologie').replace(/[#?]/g,'')||'ontologie')+'.ttl';
+  const pre=$('#ttl-pre');
+  pre.textContent=toTTL(state.ns);
+  const fname=()=>((state.ns.split('/').filter(Boolean).pop()||'ontologie').replace(/[#?]/g,'')||'ontologie')+'.ttl';
   closeB.onclick=()=>ov.remove();
   dlB.onclick=()=>{ download(new Blob([pre.textContent],{type:'application/octet-stream'}),fname()); };
   cpB.onclick=()=>{ navigator.clipboard.writeText(pre.textContent).then(()=>cpB.textContent='Copié ✓',()=>status('Copie impossible — sélectionnez le texte manuellement.',1)); };
@@ -784,7 +793,7 @@ function parseTurtle(src){
 
 /* Convertit des triplets RDF en ontologie OntoLab (classes, propriétés objet/donnée, héritage multiple, inverses,
    caractéristiques). Retourne {classes,objProps,dataProps,nextId,ns,notes:[...]} ; `notes` liste ce qui n'a pas pu être repris. */
-function ontologyFromTriples(T){
+function ontologyFromTriples(T,prefixes){
   const ix=new Map(), order=new Map();
   const seen=t=>{ if(t[0]==='I'&&!order.has(t)) order.set(t,order.size); };
   T.forEach(([s,p,o])=>{
@@ -844,7 +853,9 @@ function ontologyFromTriples(T){
   const nsOfIri=iri=>{ const m=iri.match(/^(.*[#\/])[^#\/]+$/); return m?m[1]:null; };
   const nsCount=new Map();
   [...clsIri,...propIri].forEach(iri=>{ const n=nsOfIri(iri); if(n) nsCount.set(n,(nsCount.get(n)||0)+1); });
-  const best=[...nsCount].sort((a,b)=>b[1]-a[1])[0], mainNs=best?best[0]:null;
+  const best=[...nsCount].sort((a,b)=>b[1]-a[1])[0];
+  const declDefault=prefixes&&prefixes['']; // préfixe par défaut déclaré par le fichier (@prefix : <…>) : il l'emporte s'il est utilisé
+  const mainNs=(declDefault&&nsCount.has(declDefault))?declDefault:(best?best[0]:null);
   const ownNs=iri=>{ const n=nsOfIri(iri); return (n&&n!==mainNs&&iri!==THING)?n:null; };
   // --- noms et identifiants
   const used=new Set(); let nextId=1;
@@ -971,7 +982,14 @@ function ontologyFromTriples(T){
   if(ign.size) notes.push('axiomes non représentables ignorés : '+[...ign].map(([k,v])=>k+(v>1?' ×'+v:'')).join(', '));
   if(nAnn) notes.push(nAnn+' annotation(s) (rdfs:label, rdfs:comment…) non conservée(s)');
 
-  return {classes,objProps,dataProps,nextId,ns:mainNs,notes};
+  // espaces de noms propres des éléments : préfixe déclaré dans le fichier, sinon préfixe automatique
+  const pfx=prefixes||{}, takenP=new Set(), nsList=[];
+  [...new Set([...classes,...objProps,...dataProps].map(x=>x.ns).filter(Boolean))].forEach(n=>{
+    let px=Object.keys(pfx).find(k=>k&&pfx[k]===n&&!RESERVED_PREFIXES.includes(k)&&/^[A-Za-z][A-Za-z0-9_-]*$/.test(k)&&!takenP.has(k));
+    if(!px) px=autoPrefix(n,takenP);
+    takenP.add(px); nsList.push({prefix:px,iri:n});
+  });
+  return {classes,objProps,dataProps,nextId,ns:mainNs,nsList,notes};
 }
 
 function importTTL(){ openFilePicker('#f-ttl'); }
@@ -981,13 +999,13 @@ function handleTTLFile(f){
     try{
       if(!txt.trim()) throw new Error('le fichier est vide (ou illisible : sur iPad, vérifiez qu\'il est bien téléchargé depuis iCloud)');
       if(/^\s*<\?xml|^\s*<rdf:RDF/i.test(txt)) throw new Error('ce fichier est du RDF/XML ; exportez-le en Turtle (.ttl)');
-      res=ontologyFromTriples(parseTurtle(txt).triples);
+      const parsed=parseTurtle(txt); res=ontologyFromTriples(parsed.triples,parsed.prefixes);
     }catch(e){ infoBox('« '+f.name+' » : '+e.message,'Import Turtle impossible'); return; }
     if(!res.classes.length&&!res.objProps.length&&!res.dataProps.length){
       infoBox('Aucune classe ni propriété trouvée dans « '+f.name+' » ('+txt.length+' caractères lus). Le fichier est-il bien de l\'OWL/RDFS en Turtle ?','Import Turtle'); return; }
     const apply=()=>{
       try{
-        state=sanitizeState({classes:res.classes,objProps:res.objProps,dataProps:res.dataProps,nextId:res.nextId,ns:res.ns||state.ns,mode:state.mode});
+        state=sanitizeState({classes:res.classes,objProps:res.objProps,dataProps:res.dataProps,nextId:res.nextId,ns:res.ns||state.ns,nsList:res.nsList,mode:state.mode});
         initView(); save(); render(); setMode(state.mode);
         status('Import Turtle : '+res.classes.length+' classe(s), '+res.objProps.length+' propriété(s) objet, '+res.dataProps.length+' propriété(s) de donnée.');
       }catch(e){ console.error(e); infoBox('Erreur pendant l\'import : '+e.message,'Import Turtle impossible'); }
@@ -1627,23 +1645,155 @@ function updatePanel(){ // le panneau se rouvre par le menu « ⋯ » (entrée �
   p.insertAdjacentHTML('afterbegin','<button id="pf-collapse" class="pcollapse" title="Replier le panneau" aria-label="Replier le panneau">–</button>');
   $('#pf-collapse').onclick=()=>{ ui.panel=false; saveUI(); updatePanel(); };
 }
-/* Espace de noms (IRI = espace de noms + nom local) : par élément, facultatif (sinon celui de l'ontologie, `state.ns`). */
-function cleanNsInput(v){
-  v=String(v).trim(); if(!v) return '';
-  if(/[\s<>"{}|\\^`]/.test(v)||!/^[A-Za-z][A-Za-z0-9+.\-]*:/.test(v)){ status('Espace de noms invalide : une IRI absolue est attendue (ex. http://example.org/onto#), sans espace ni < > " { } | ^ `.',1); return null; }
-  if(!/[#\/]$/.test(v)){ v+='#'; status('« # » ajouté à la fin de l\'espace de noms.'); }
-  return v;
+/* ---------- espaces de noms ----------
+   IRI d'un élément = espace de noms + nom local. `state.ns` = espace de noms de l'ontologie (préfixe « : »).
+   `state.nsList` = autres espaces de noms déclarés [{prefix, iri}] ; un élément en choisit un dans son panneau (`x.ns` = IRI).
+   Ils se gèrent dans l'éditeur « ⋯ › Espaces de noms… », et se complètent par un catalogue d'espaces courants. */
+const RESERVED_PREFIXES=['rdf','rdfs','owl','xsd'];
+const FREQUENT_NS=[
+  {prefix:'foaf',iri:'http://xmlns.com/foaf/0.1/',label:'FOAF — personnes, relations'},
+  {prefix:'dcterms',iri:'http://purl.org/dc/terms/',label:'Dublin Core terms — métadonnées'},
+  {prefix:'dc',iri:'http://purl.org/dc/elements/1.1/',label:'Dublin Core elements'},
+  {prefix:'skos',iri:'http://www.w3.org/2004/02/skos/core#',label:'SKOS — thésaurus, concepts'},
+  {prefix:'schema',iri:'https://schema.org/',label:'schema.org — web, personnes, lieux'},
+  {prefix:'org',iri:'http://www.w3.org/ns/org#',label:'ORG — organisations'},
+  {prefix:'prov',iri:'http://www.w3.org/ns/prov#',label:'PROV-O — provenance'},
+  {prefix:'time',iri:'http://www.w3.org/2006/time#',label:'OWL-Time — temps'},
+  {prefix:'geo',iri:'http://www.w3.org/2003/01/geo/wgs84_pos#',label:'WGS84 — coordonnées'},
+  {prefix:'vcard',iri:'http://www.w3.org/2006/vcard/ns#',label:'vCard — contacts'},
+  {prefix:'dcat',iri:'http://www.w3.org/ns/dcat#',label:'DCAT — catalogues de données'},
+  {prefix:'sioc',iri:'http://rdfs.org/sioc/ns#',label:'SIOC — communautés en ligne'},
+  {prefix:'bibo',iri:'http://purl.org/ontology/bibo/',label:'BIBO — bibliographie'},
+  {prefix:'sh',iri:'http://www.w3.org/ns/shacl#',label:'SHACL — contraintes'},
+  {prefix:'dbo',iri:'http://dbpedia.org/ontology/',label:'DBpedia ontology'},
+  {prefix:'dbr',iri:'http://dbpedia.org/resource/',label:'DBpedia resources'},
+  {prefix:'wd',iri:'http://www.wikidata.org/entity/',label:'Wikidata — entités'}];
+
+/* Valide une IRI d'espace de noms : {iri} (avec « # » ajouté si elle ne finit ni par # ni par /) ou {err}. */
+function validateNs(v){
+  v=String(v).trim(); if(!v) return {err:'IRI vide'};
+  if(/[\s<>"{}|\\^`]/.test(v)||!/^[A-Za-z][A-Za-z0-9+.\-]*:/.test(v)) return {err:'IRI absolue attendue (ex. http://example.org/onto#), sans espace ni < > " { } | ^ `'};
+  return {iri:/[#\/]$/.test(v)?v:v+'#'};
+}
+/* Préfixe automatique tiré de l'IRI (hôte ou dernier segment), unique parmi `taken`. */
+function autoPrefix(iri,taken){
+  const parts=iri.replace(/^[A-Za-z][A-Za-z0-9+.\-]*:\/\//,'').replace(/^www\./,'').split(/[\/#.]/).filter(Boolean);
+  let b=(parts[0]||'ns').toLowerCase().replace(/[^a-z0-9]/g,'');
+  if(!b||/^[0-9]/.test(b)) b='ns'+b;
+  let p=b,k=2; while(taken.has(p)||RESERVED_PREFIXES.includes(p)) p=b+(k++);
+  return p;
+}
+/* Nettoie la liste de déclarations d'un état et y ajoute les espaces de noms utilisés par des éléments mais non déclarés. */
+function syncNsList(st){
+  const seenP=new Set(), seenI=new Set([st.ns]), out=[];
+  (Array.isArray(st.nsList)?st.nsList:[]).forEach(e=>{
+    if(!e||typeof e.prefix!=='string'||typeof e.iri!=='string') return;
+    const v=validateNs(e.iri); if(v.err||!/^[A-Za-z][A-Za-z0-9_-]*$/.test(e.prefix)) return;
+    if(RESERVED_PREFIXES.includes(e.prefix)||seenP.has(e.prefix)||seenI.has(v.iri)) return;
+    seenP.add(e.prefix); seenI.add(v.iri); out.push({prefix:e.prefix,iri:v.iri});
+  });
+  [...st.classes,...st.objProps,...st.dataProps].forEach(x=>{
+    if(!x.ns) return;
+    if(x.ns===st.ns){ delete x.ns; return; }
+    if(!seenI.has(x.ns)){ const p=autoPrefix(x.ns,seenP); seenP.add(p); seenI.add(x.ns); out.push({prefix:p,iri:x.ns}); }
+  });
+  st.nsList=out;
+}
+function declareNs(prefix,iri){ // déclare un espace de noms s'il ne l'est pas encore (préfixe rendu unique)
+  if(iri===state.ns||state.nsList.some(e=>e.iri===iri)) return;
+  const taken=new Set(state.nsList.map(e=>e.prefix)); let p=prefix,k=2;
+  while(taken.has(p)||RESERVED_PREFIXES.includes(p)) p=prefix+(k++);
+  state.nsList.push({prefix:p,iri});
 }
 function setItemNs(kind,id,v){
   const x=itemOf(kind,+id); if(!x) return;
-  const n=cleanNsInput(v); if(n===null){ render(); return; }
-  if(!n||n===state.ns) delete x.ns; else x.ns=n;
+  if(!v||v===state.ns){ delete x.ns; }
+  else{ const n=validateNs(v); if(n.err){ status('Espace de noms invalide : '+n.err+'.',1); render(); return; }
+    declareNs(autoPrefix(n.iri,new Set(state.nsList.map(e=>e.prefix))),n.iri); x.ns=n.iri; }
   save(); render();
 }
-function setOntologyNs(v){ const n=cleanNsInput(v); if(n===null||!n){ render(); return; } state.ns=n; save(); render(); }
-function nsBlock(x){
-  return '<label class="fld"><span>Espace de noms</span><input id="pf-ns" value="'+esc(x.ns||'')+'" placeholder="'+esc(state.ns)+'" spellcheck="false" autocapitalize="off" autocorrect="off"></label>'
-    +'<p class="hint iri" style="margin:-4px 0 10px">IRI : <code>'+esc((x.ns||state.ns)+localName(x.name))+'</code>'+(x.ns?'':'<br>(espace de noms de l\'ontologie ; laisser vide pour le conserver)')+'</p>';
+function onNsSelect(kind,id,v){ // valeur du sélecteur : '' (défaut) | IRI déclarée | '@préfixe' (espace courant) | '@@edit'
+  if(v==='@@edit'){ render(); openNamespaceEditor(); return; }
+  if(v&&v[0]==='@'){ const f=FREQUENT_NS.find(q=>q.prefix===v.slice(1)); if(!f){ render(); return; } declareNs(f.prefix,f.iri); v=f.iri; }
+  setItemNs(kind,id,v);
+}
+function nsBlock(kind,x){
+  const cur=x.ns||'', decl=state.nsList, have=new Set(decl.map(e=>e.iri));
+  let o='<option value=""'+(cur?'':' selected')+'>: (par défaut) — '+esc(state.ns)+'</option>';
+  o+=decl.map(e=>'<option value="'+esc(e.iri)+'"'+(cur===e.iri?' selected':'')+'>'+esc(e.prefix)+': — '+esc(e.iri)+'</option>').join('');
+  const freq=FREQUENT_NS.filter(f=>!have.has(f.iri)&&f.iri!==state.ns);
+  if(freq.length) o+='<optgroup label="Espaces courants (ajoutés en les choisissant)">'+freq.map(f=>'<option value="@'+esc(f.prefix)+'">'+esc(f.prefix)+': — '+esc(f.label)+'</option>').join('')+'</optgroup>';
+  o+='<option value="@@edit">Gérer les espaces de noms…</option>';
+  const iri=(cur||state.ns)+localName(x.name);
+  return '<label class="fld"><span>Espace de noms</span><select id="pf-ns">'+o+'</select></label>'
+    +'<p class="hint iri" style="margin:-4px 0 10px">IRI : <code>'+esc(iri)+'</code></p>';
+}
+
+/* Éditeur d'espaces de noms (menu « ⋯ »). Lignes = [préfixe, IRI] ; la première ligne est l'espace de noms de l'ontologie. */
+function nsUsage(iri){ return [...state.classes,...state.objProps,...state.dataProps].filter(x=>x.ns===iri).length; }
+function openNamespaceEditor(){
+  const rows=state.nsList.map(e=>({prefix:e.prefix,iri:e.iri,orig:e.iri}));
+  const def={iri:state.ns};
+  const ov=document.createElement('div'); ov.className='ovl';
+  const box=document.createElement('div'); box.className='dlg'; box.style.width='min(680px,94vw)'; box.style.maxHeight='88vh'; box.style.overflow='auto';
+  ov.appendChild(box);
+  const onKey=e=>{ if(e.key==='Escape'&&!document.querySelector('.ovl ~ .ovl')){ e.stopPropagation(); close(); } };
+  function close(){ document.removeEventListener('keydown',onKey,true); ov.remove(); }
+  document.addEventListener('keydown',onKey,true);
+  const draw=()=>{
+    box.innerHTML='<h3>Espaces de noms</h3>'
+      +'<p class="dlg-msg">L\'IRI d\'un élément = espace de noms + nom. Le premier est celui de l\'ontologie (préfixe « : » dans le Turtle). Les autres s\'écrivent avec leur préfixe et se choisissent dans le panneau de chaque élément.</p>'
+      +'<div class="nsrow"><span class="nsp">: (ontologie)</span><input id="ns-def" spellcheck="false" autocapitalize="off" autocorrect="off" value="'+esc(def.iri)+'"><span></span></div>'
+      +rows.map((r,i)=>'<div class="nsrow"><input class="ns-p" data-i="'+i+'" placeholder="préfixe" spellcheck="false" autocapitalize="off" autocorrect="off" value="'+esc(r.prefix)+'"><input class="ns-i" data-i="'+i+'" placeholder="http://…#" spellcheck="false" autocapitalize="off" autocorrect="off" value="'+esc(r.iri)+'"><button class="btn ns-x" data-i="'+i+'" title="Retirer" aria-label="Retirer">✕</button></div>'
+         +(r.orig&&nsUsage(r.orig)?'<div class="nsuse">utilisé par '+nsUsage(r.orig)+' élément(s)</div>':'')).join('')
+      +'<div class="nsrow nsadd"><button class="btn" id="ns-add">+ Ajouter</button>'
+      +'<select id="ns-freq"><option value="">Ajouter un espace courant…</option>'
+        +FREQUENT_NS.filter(f=>!rows.some(r=>r.iri===f.iri)&&f.iri!==def.iri).map(f=>'<option value="'+esc(f.prefix)+'">'+esc(f.prefix)+': — '+esc(f.label)+'</option>').join('')+'</select><span></span></div>'
+      +'<div id="ns-err" class="nserr"></div>'
+      +'<div class="dlg-btns"><button class="btn" id="ns-cancel">Annuler</button><button class="btn primary" id="ns-ok">OK</button></div>';
+    box.querySelector('#ns-def').oninput=e=>{ def.iri=e.target.value; };
+    box.querySelectorAll('.ns-p').forEach(n=>n.oninput=e=>{ rows[+n.dataset.i].prefix=e.target.value; });
+    box.querySelectorAll('.ns-i').forEach(n=>n.oninput=e=>{ rows[+n.dataset.i].iri=e.target.value; });
+    box.querySelectorAll('.ns-x').forEach(b=>b.onclick=()=>{ rows.splice(+b.dataset.i,1); draw(); });
+    box.querySelector('#ns-add').onclick=()=>{ rows.push({prefix:'',iri:'',orig:null}); draw(); const l=box.querySelectorAll('.ns-p'); if(l.length) l[l.length-1].focus(); };
+    box.querySelector('#ns-freq').onchange=e=>{
+      const f=FREQUENT_NS.find(q=>q.prefix===e.target.value); if(!f) return;
+      const taken=new Set(rows.map(r=>r.prefix)); let p=f.prefix,k=2; while(taken.has(p)||RESERVED_PREFIXES.includes(p)) p=f.prefix+(k++);
+      rows.push({prefix:p,iri:f.iri,orig:null}); draw();
+    };
+    box.querySelector('#ns-cancel').onclick=close;
+    box.querySelector('#ns-ok').onclick=apply;
+  };
+  const fail=m=>{ const e=box.querySelector('#ns-err'); e.textContent=m; };
+  const apply=()=>{
+    const d=validateNs(def.iri); if(d.err){ fail('Espace de noms de l\'ontologie : '+d.err+'.'); return; }
+    const seenP=new Set(RESERVED_PREFIXES), seenI=new Set([d.iri]), out=[];
+    for(const r of rows){
+      const p=r.prefix.trim(), v=validateNs(r.iri);
+      if(!p&&!r.iri.trim()) continue; // ligne vide ignorée
+      if(!/^[A-Za-z][A-Za-z0-9_-]*$/.test(p)){ fail('Préfixe « '+p+' » invalide : lettres, chiffres, _ et -, en commençant par une lettre.'); return; }
+      if(seenP.has(p)){ fail('Préfixe « '+p+' » déjà utilisé'+(RESERVED_PREFIXES.includes(p)?' (réservé : rdf, rdfs, owl, xsd).':'.')); return; }
+      if(v.err){ fail('« '+p+' » : '+v.err+'.'); return; }
+      if(seenI.has(v.iri)){ fail('L\'IRI « '+v.iri+' » est déclarée deux fois.'); return; }
+      seenP.add(p); seenI.add(v.iri); out.push({prefix:p,iri:v.iri,orig:r.orig});
+    }
+    const kept=new Set(out.map(o=>o.orig).filter(Boolean));
+    const removed=state.nsList.map(e=>e.iri).filter(i=>!kept.has(i));
+    const impacted=[...state.classes,...state.objProps,...state.dataProps].filter(x=>x.ns&&removed.includes(x.ns)).length;
+    const go=()=>{
+      const remap=new Map(out.filter(o=>o.orig).map(o=>[o.orig,o.iri]));
+      [...state.classes,...state.objProps,...state.dataProps].forEach(x=>{ if(!x.ns) return; if(remap.has(x.ns)) x.ns=remap.get(x.ns); else delete x.ns; });
+      state.ns=d.iri; state.nsList=out.map(o=>({prefix:o.prefix,iri:o.iri}));
+      syncNsList(state); save(); render(); close();
+      status('Espaces de noms enregistrés'+(impacted?' ; '+impacted+' élément(s) sont revenus à l\'espace par défaut':'')+'.');
+    };
+    if(impacted) confirmBox(impacted+' élément(s) utilisent un espace de noms que vous retirez : ils reviendront à l\'espace de noms par défaut. Continuer ?','Retirer des espaces de noms').then(ok=>{ if(ok) go(); });
+    else go();
+  };
+  draw();
+  ov.style.pointerEvents='none'; setTimeout(()=>{ ov.style.pointerEvents=''; },350);
+  ov.addEventListener('pointerdown',e=>{ if(e.target===ov) close(); });
+  document.body.appendChild(ov);
 }
 function renderPanelBody(){
   const p=$('#panel'), s=state.sel;
@@ -1656,9 +1806,9 @@ function renderPanelBody(){
       +'<p class="hint"><b>④ Déplacer</b> — glissez tout élément (classe, étiquette de propriété) pour le repositionner à la main ; le bouton <b>Réorganiser</b> recalcule la mise en page automatique.</p>'
       +'<p class="hint">Double-clic (ou double tap) sur un élément : édition dans ce panneau. Raccourcis : <b>1/2/3/4</b> modes, <b>Suppr</b> élément sélectionné, <b>Échap</b> ou clic sur le fond : désélection. Molette : zoom, glisser le fond : déplacer la vue, double-clic sur le fond : recentrer.</p>'
       +'<p class="hint">La sauvegarde est automatique (navigateur). « Exporter TTL » produit le fichier <b>.ttl</b> prêt à charger dans Jena/Fuseki ; « Importer TTL » relit un fichier Turtle (il remplace l\'ontologie courante).</p>'
-      +'<label class="fld" style="margin-top:12px"><span>Espace de noms de l\'ontologie</span><input id="pf-ns0" value="'+esc(state.ns)+'" spellcheck="false" autocapitalize="off" autocorrect="off"></label>'
-      +'<p class="hint" style="margin-top:-4px">IRI d\'un élément = espace de noms + nom. Chaque classe ou propriété peut avoir son propre espace de noms (champ « Espace de noms » de son panneau).</p>';
-    $('#pf-ns0').onchange=e=>setOntologyNs(e.target.value);
+      +'<p class="hint" style="margin-top:12px">Espace de noms de l\'ontologie : <code>'+esc(state.ns)+'</code></p>'
+      +'<button class="btn" id="pf-nsedit">Espaces de noms…</button>';
+    $('#pf-nsedit').onclick=()=>openNamespaceEditor();
     return;
   }
   let h='';
@@ -1666,14 +1816,14 @@ function renderPanelBody(){
     const c=classById(s.id); if(!c){ state.sel=null; return renderPanelBody(); }
     h='<h3>Classe</h3>'
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(c.name)+'" spellcheck="false"></label>'
-      +nsBlock(c)
+      +nsBlock('class',c)
       +parentsBlock('class',c,'Sous-classe de (rdfs:subClassOf) — plusieurs possibles')
       +'<button class="btn" id="pf-addchild">+ Ajouter une sous-classe</button>'
       +'<button class="btn danger" id="pf-del">Supprimer la classe</button>'
       +'<p class="hint">Astuce : glissez une classe sur une autre pour lui ajouter une super-classe (autant que voulu) ; glissez sur le fond pour les retirer toutes.</p>';
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('class',c.id,e.target.value);
-    $('#pf-ns').onchange=e=>setItemNs('class',c.id,e.target.value);
+    $('#pf-ns').onchange=e=>onNsSelect('class',c.id,e.target.value);
     wireParents('class',c);
     $('#pf-addchild').onclick=()=>addChildClass(c.id);
     $('#pf-del').onclick=()=>deleteClass(c.id);
@@ -1683,7 +1833,7 @@ function renderPanelBody(){
     if(p2.inverseOf&&!cands.some(x=>x.id===p2.inverseOf)){ const q=objById(p2.inverseOf); if(q) q.inverseOf=null; p2.inverseOf=null; }
     h='<h3>Propriété objet</h3>'
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p2.name)+'" spellcheck="false"></label>'
-      +nsBlock(p2)
+      +nsBlock('obj',p2)
       +'<label class="fld"><span>Domaine (rdfs:domain)</span><select id="pf-domain">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p2.domain?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
       +'<label class="fld"><span>Portée (rdfs:range)</span><select id="pf-range">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p2.range?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
       +'<label class="fld check"><span>Transitive</span><input type="checkbox" id="pf-trans"'+(p2.transitive?' checked':'')+'></label>'
@@ -1696,7 +1846,7 @@ function renderPanelBody(){
       +'<button class="btn danger" id="pf-del">Supprimer la propriété</button>';
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('obj',p2.id,e.target.value);
-    $('#pf-ns').onchange=e=>setItemNs('obj',p2.id,e.target.value);
+    $('#pf-ns').onchange=e=>onNsSelect('obj',p2.id,e.target.value);
     wireParents('obj',p2);
     $('#pf-domain').onchange=e=>{ p2.domain=+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
     $('#pf-range').onchange=e=>{ p2.range=+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
@@ -1717,14 +1867,14 @@ function renderPanelBody(){
     const p3=dataById(s.id); if(!p3){ state.sel=null; return renderPanelBody(); }
     h='<h3>Propriété de donnée</h3>'
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p3.name)+'" spellcheck="false"></label>'
-      +nsBlock(p3)
+      +nsBlock('data',p3)
       +'<label class="fld"><span>Domaine (rdfs:domain)</span><select id="pf-domain">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p3.domain?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
       +'<label class="fld"><span>Type XSD (rdfs:range)</span><select id="pf-type">'+XSD.map(t=>'<option value="'+t+'"'+(t===p3.type?' selected':'')+'>'+t+'</option>').join('')+'</select></label>'
       +parentsBlock('data',p3,'Sous-propriété de (rdfs:subPropertyOf)')
       +'<button class="btn danger" id="pf-del">Supprimer la propriété</button>';
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('data',p3.id,e.target.value);
-    $('#pf-ns').onchange=e=>setItemNs('data',p3.id,e.target.value);
+    $('#pf-ns').onchange=e=>onNsSelect('data',p3.id,e.target.value);
     wireParents('data',p3);
     $('#pf-domain').onchange=e=>{ p3.domain=+e.target.value; save(); render(); };
     $('#pf-type').onchange=e=>{ p3.type=e.target.value; save(); render(); };
@@ -1812,6 +1962,7 @@ $('#b-more').onclick=()=>showMenu($('#b-more'),[
   {label:'Vider l\'ontologie',danger:true,run:clearAll},
   '-',
   {label:'Panneau d\'édition',check:()=>ui.panel,run:()=>{ ui.panel=!ui.panel; saveUI(); updatePanel(); }},
+  {label:'Espaces de noms…',run:openNamespaceEditor},
   '-',
   {label:'Aide et raccourcis',run:showHelp}]);
 svg.addEventListener('dblclick',e=>{ if(e.target===svg||e.target===world) initView(); });

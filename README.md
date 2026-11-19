@@ -19,7 +19,7 @@ de donnée), visualisation de type VOWL, export Turtle.
   ④ Déplacer — touches `1` à `4`.
 - **Barre du haut** : annuler ↶ / rétablir ↷, menu **Importer ▾** (Turtle, JSON OntoLab), menu
   **Exporter ▾** (Turtle, JSON OntoLab, image PNG/SVG) et menu **⋯** (Charger l'exemple, Vider l'ontologie,
-  Panneau d'édition, Aide et raccourcis).
+  Panneau d'édition, Espaces de noms…, Aide et raccourcis).
 - **Contrôles de vue** (en bas à droite, au-dessus du graphe) : zoom +, zoom −, recentrer, réorganiser.
 - **Légende** : pastille en bas à gauche ; **panneau d'édition** à droite (replié/affiché par le menu ⋯).
 
@@ -118,15 +118,27 @@ pour montrer chaque concept d'un coup.
   partie visible), avec ou sans légende, fond blanc ou transparent ; la sélection n'apparaît pas.
   Sur iPad / iPhone, le fichier est proposé via la feuille de partage (« Enregistrer l'image »).
 
-## Espace de noms (IRI) des éléments
+## Espaces de noms (IRI) des éléments
 
-L'IRI d'une classe ou d'une propriété = **espace de noms + nom**. Le panneau d'édition de chaque élément
-affiche le champ **Espace de noms** et l'**IRI complète** (qui suit le nom). Laissé vide, l'élément
-utilise l'espace de noms de l'ontologie (modifiable dans le panneau d'accueil quand rien n'est sélectionné,
-ou dans la fenêtre « Exporter ▾ › Turtle ») ; renseigné, il a le sien — utile pour réutiliser un vocabulaire
-existant (FOAF, schema.org…) ou pour une ontologie importée qui mêle plusieurs vocabulaires. Une valeur
-sans `#` ni `/` final reçoit un `#` ; une valeur qui n'est pas une IRI absolue est refusée. À l'export, les
-éléments de l'espace par défaut s'écrivent `:Nom`, les autres `<IRI complète>`.
+L'IRI d'une classe ou d'une propriété = **espace de noms + nom**.
+
+- **Éditeur** : menu **⋯ › Espaces de noms…**. La première ligne est l'espace de noms de
+  l'ontologie (préfixe `:` dans le Turtle) ; les suivantes sont des espaces de noms
+  supplémentaires, chacun avec son **préfixe** (`foaf`, `skos`…). On peut les ajouter à la main, ou
+  choisir dans une liste d'**espaces courants** : FOAF, Dublin Core (terms et elements), SKOS,
+  schema.org, ORG, PROV-O, OWL-Time, WGS84, vCard, DCAT, SIOC, BIBO, SHACL, DBpedia (ontologie et
+  ressources), Wikidata. Les préfixes `rdf`, `rdfs`, `owl`, `xsd` sont réservés ; chaque préfixe et chaque
+  IRI doit être unique. Retirer un espace utilisé demande confirmation (ses éléments reviennent à l'espace
+  par défaut) ; modifier son IRI met à jour ses éléments.
+- **Panneau d'édition** : sous le nom, un **sélecteur « Espace de noms »** propose l'espace par défaut,
+  les espaces déclarés, les espaces courants (choisir l'un d'eux le déclare aussitôt) et « Gérer les
+  espaces de noms… ». L'**IRI complète** s'affiche dessous et suit le nom. Sans sélection, le panneau
+  d'accueil donne l'espace de noms de l'ontologie et un bouton vers l'éditeur.
+- **Turtle** : les espaces déclarés deviennent des `@prefix` ; les éléments s'écrivent `:Nom` (espace
+  par défaut) ou `foaf:Nom` (leur préfixe). **À l'import**, un élément d'un autre espace de noms le garde,
+  avec le préfixe qu'il avait dans le fichier ; le `@prefix :` du fichier devient l'espace par défaut.
+- Annuler / rétablir couvre aussi les espaces de noms ; « Charger l'exemple » et « Vider » remettent la
+  liste à zéro (l'espace par défaut est conservé).
 
 ## Export Turtle
 

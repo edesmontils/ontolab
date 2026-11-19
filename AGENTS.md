@@ -49,8 +49,11 @@ Le JS est organisé en 3 blocs commentés :
     jamais sur une propriété de donnée ; style de bordure par `dashOf()` : tirets / points / tirets-points)
   - `dataProps[]` : `{id, name, domain, type, parents: [id]}` (type = IRI XSD)
     + `{mx, my}` ; `parents` = `rdfs:subPropertyOf` (même type de propriété) ;
-  - `nextId`, `ns` (namespace de l'ontologie, défaut `http://example.org/onto#`) ; chaque classe/propriété peut
-    porter un `ns` **facultatif** (son propre espace de noms ; absent = celui de l'ontologie) → IRI = `(x.ns||state.ns)+localName(x.name)` ;
+  - `nextId`, `ns` (espace de noms de l'ontologie, défaut `http://example.org/onto#`), `nsList` (autres espaces déclarés :
+    `[{prefix, iri}]`) ; chaque classe/propriété peut porter un `ns` **facultatif** (son IRI d'espace de noms,
+    toujours présente dans `nsList` ; absent = celui de l'ontologie) → IRI = `(x.ns||state.ns)+localName(x.name)`.
+    `syncNsList()` (appelée par `sanitizeState`) nettoie la liste et y ajoute les espaces utilisés mais non
+    déclarés (préfixe auto `autoPrefix()`) ; `ns` et `nsList` font partie de l'historique (`snapOf`) ;
     `sel`, `mode` (`class|obj|data|move`), `view` (`{x,y,k}`).
 - Évolution du schéma : de préférence **changer la clé** `ontolab-v1` (ex.
   `ontolab-v2`) plutôt que migrer. Exception faite pour l'héritage : l'ancien
@@ -169,6 +172,15 @@ lien avec le reste du cours ; un export cassé est un incident pédagogique.
 - Z-index : graphe 2 < légende… (légende 1, derrière) ; panneau 5 ; pastille/contrôles 6 ; palette 9 ;
   barre du haut 10 ; menus 40 ; dialogues 50.
 
+## Espaces de noms (éditeur, sélecteur, catalogue)
+
+`openNamespaceEditor()` (menu ⋯) : dialogue propre (lignes préfixe/IRI, ajout, retrait, espaces courants), validation
+(`validateNs()` : IRI absolue, `#` ajouté si besoin ; préfixes `[A-Za-z][\w-]*`, uniques, hors `RESERVED_PREFIXES`), remappage
+des éléments si une IRI change, confirmation si on retire un espace utilisé. Panneau : `nsBlock(kind,x)` = `<select id="pf-ns">`
+(par défaut, déclarés, groupe `FREQUENT_NS`, `@@edit`) ; `onNsSelect()` déclare un espace courant au premier choix
+(`declareNs()`). L'export Turtle (`toTTL`) émet un `@prefix` par entrée de `nsList` et `préfixe:Nom` ; plus aucune saisie
+d'espace de noms dans la fenêtre d'export. `FREQUENT_NS` : ajouter une entrée = une ligne `{prefix, iri, label}`.
+
 ## Historique, préférences d'affichage, export image
 
 - **Historique (annuler/rétablir)** : intégré à `save()` — `trackHistory()` compare `snapOf()`
@@ -209,7 +221,8 @@ signaler). Trois briques, toutes en JS pur dans `index.html` (pas de dépendance
   genre objet/donnée (types OWL, sinon portée), `owl:Thing`/domaine absent → classe « Thing »,
   `XSD_MAP` pour les types non gérés, inverses (seulement si domaine/portée croisés), parents
   (même genre), `cleanParents()`, namespace majoritaire (`ns` de l'ontologie) ; les éléments d'un autre
-  espace de noms gardent le leur (`ownNs()`, champ `x.ns`) ; `notes` = ce qui n'est pas repris.
+  espace de noms gardent le leur (`ownNs()`, champ `x.ns`) et le préfixe du fichier (`prefixes` renvoyé par
+  `parseTurtle`, 2ᵉ argument de `ontologyFromTriples`) ; le `@prefix :` du fichier l'emporte comme espace par défaut ; `notes` = ce qui n'est pas repris.
 - `importTTL()` — fichier → analyse → confirmation avec les notes → `sanitizeState()` +
   `initView()` + `render()`.
 Un TTL exporté par `toTTL()` doit se réimporter à l'identique (test : export → import → export

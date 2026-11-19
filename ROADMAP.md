@@ -39,7 +39,8 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 ## Phase B — Annotations et métadonnées
 
 ### B1. Étiquettes, commentaires et nom local d'IRI éditables — M
-- *Fait* : l'**espace de noms** par élément (champ `ns`, panneau, Turtle, import). *Reste* : étiquette,
+- *Fait* : l'**espace de noms** par élément (champ `ns`, éditeur d'espaces de noms avec préfixes et espaces
+  courants, sélecteur du panneau, Turtle, import). *Reste* : étiquette,
   commentaire et nom local d'IRI distincts du nom affiché.
 - **Pourquoi** : aujourd'hui le nom est à la fois affichage et nom local d'IRI ; impossible d'écrire
   « Étudiant·e » tout en gardant l'IRI `…#Etudiant` d'une ontologie importée. L'import ignore déjà `rdfs:label` /
@@ -180,7 +181,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
   performances (simulation à forces O(n²) × 4 départs).
 - **Partage d'image sur iPad** : `navigator.share({files})` (feuille de partage) est utilisé sur écran tactile, mais n'a
   pas été testé sur un appareil réel ; repli : téléchargement classique.
-- **Historique** : non conservé au rechargement de la page ; `ns` (namespace) n'en fait pas partie.
+- **Historique** : non conservé au rechargement de la page.
 - **Étiquettes** : avec beaucoup de propriétés de donnée sur une même classe, une légende de type
   peut être partiellement masquée par une flèche voisine.
 - **Une seule valeur de domaine/portée** par propriété ; **types XSD** limités à la liste de
