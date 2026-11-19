@@ -44,6 +44,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 #ttl-pre{background:#0f172a;color:#dbe6ff;border-radius:10px;padding:14px;font:12px/1.5 ui-monospace,Menlo,monospace;max-height:52vh;overflow:auto;white-space:pre;margin:10px 0 0;}
 svg text{pointer-events:none;user-select:none;}
 #canvas{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;}
+.hidden-file{position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;}
 #toolbar{overflow-x:auto;scrollbar-width:none;}
 #toolbar::-webkit-scrollbar{display:none;}
 #toolbar>*{flex-shrink:0;}
@@ -108,6 +109,8 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
   <div>Doubles flèches : <b>symétrique</b> · symboles <b>⇄</b> : paire de propriétés <b>inverse</b></div>
 </div>
 <div id="status"></div>
+<input type="file" id="f-ttl" class="hidden-file" tabindex="-1" aria-hidden="true">
+<input type="file" id="f-json" class="hidden-file" accept=".json,application/json" tabindex="-1" aria-hidden="true">
 <div id="stats"></div>
 <script>'use strict';
 /* ================= OntoLab — partie 1 : état, opérations, export ================= */
@@ -216,6 +219,11 @@ function dialog(title,fields,msg){
   });
 }
 function confirmBox(msg,title){ return dialog(title||'Confirmer',[],msg).then(v=>v!==null); }
+function infoBox(msg,title){ // message bloquant, un seul bouton (une erreur d'import ne doit pas passer inaperçue)
+  const p=dialog(title||'Information',[],msg);
+  const ovs=document.querySelectorAll('.ovl'); const cn=ovs[ovs.length-1].querySelector('.dlg-btns .btn:not(.primary)'); if(cn) cn.remove();
+  return p;
+}
 
 /* ---------- création / suppression ---------- */
 function newClassAt(){
@@ -381,19 +389,25 @@ function download(blob,name){
   setTimeout(()=>{ a.remove(); URL.revokeObjectURL(a.href); },60000);
 }
 function exportJSON(){ download(new Blob([JSON.stringify(state,null,1)],{type:'application/json'}),'ontologie-ontolab.json'); }
-function importJSON(){
-  const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
-  inp.onchange=()=>{
-    const f=inp.files[0]; if(!f) return;
-    const r=new FileReader();
-    r.onload=()=>{ try{
-        const s=JSON.parse(r.result); if(!Array.isArray(s.classes)) throw new Error();
-        state=sanitizeState(s); if(state.view.x==null) initView(); save(); render(); setMode(state.mode);
-        status('Ontologie importée : '+s.classes.length+' classe(s).');
-      }catch(e){ status('Fichier JSON invalide.',1); } };
-    r.readAsText(f);
-  };
-  inp.click();
+/* Les sélecteurs de fichier (#f-json, #f-ttl) sont des <input> permanents de la page : sur Safari iOS, un <input> créé
+   à la volée et non inséré dans le DOM peut être libéré avant la fin du choix, et l'événement `change` n'arrive jamais. */
+function openFilePicker(id){ const inp=$(id); inp.value=''; inp.click(); }
+function importJSON(){ openFilePicker('#f-json'); }
+function readTextFile(f,done){
+  status('Lecture de « '+f.name+' »…'); // retour immédiat : on voit que le fichier a bien été transmis
+  const r=new FileReader();
+  r.onload=()=>done(String(r.result).replace(/^\uFEFF/,''));
+  r.onerror=()=>infoBox('Lecture de « '+f.name+' » impossible.'+(r.error?'\n'+r.error.message:'')+'\nSur iPad, vérifiez que le fichier est bien téléchargé (et non seulement dans iCloud).','Import impossible');
+  r.readAsText(f);
+}
+function handleJSONFile(f){
+  readTextFile(f,txt=>{
+    try{
+      const s=JSON.parse(txt); if(!Array.isArray(s.classes)) throw new Error('pas de liste « classes »');
+      state=sanitizeState(s); if(state.view.x==null) initView(); save(); render(); setMode(state.mode);
+      status('Ontologie importée : '+s.classes.length+' classe(s).');
+    }catch(e){ infoBox('« '+f.name+' » n\'est pas un export JSON d\'OntoLab valide.\n'+e.message,'Import JSON impossible'); }
+  });
 }
 
 /* ---------- export Turtle ---------- */
@@ -775,35 +789,33 @@ function ontologyFromTriples(T){
   return {classes,objProps,dataProps,nextId,ns:mainNs,notes};
 }
 
-function importTTL(){
-  const inp=document.createElement('input'); inp.type='file'; // pas de filtre `accept` : iOS grise les fichiers .ttl (type inconnu) dès qu'un filtre est posé
-  inp.onchange=()=>{
-    const f=inp.files[0]; if(!f) return;
-    const r=new FileReader();
-    r.onload=()=>{
-      let res;
+function importTTL(){ openFilePicker('#f-ttl'); }
+function handleTTLFile(f){
+  readTextFile(f,txt=>{
+    let res;
+    try{
+      if(!txt.trim()) throw new Error('le fichier est vide (ou illisible : sur iPad, vérifiez qu\'il est bien téléchargé depuis iCloud)');
+      if(/^\s*<\?xml|^\s*<rdf:RDF/i.test(txt)) throw new Error('ce fichier est du RDF/XML ; exportez-le en Turtle (.ttl)');
+      res=ontologyFromTriples(parseTurtle(txt).triples);
+    }catch(e){ infoBox('« '+f.name+' » : '+e.message,'Import Turtle impossible'); return; }
+    if(!res.classes.length&&!res.objProps.length&&!res.dataProps.length){
+      infoBox('Aucune classe ni propriété trouvée dans « '+f.name+' » ('+txt.length+' caractères lus). Le fichier est-il bien de l\'OWL/RDFS en Turtle ?','Import Turtle'); return; }
+    const apply=()=>{
       try{
-        const txt=String(r.result).replace(/^﻿/,'');
-        if(/^\s*<\?xml|^\s*<rdf:RDF/i.test(txt)) throw new Error('ce fichier est du RDF/XML ; exportez-le en Turtle (.ttl)');
-        res=ontologyFromTriples(parseTurtle(txt).triples);
-      }catch(e){ status('Import TTL impossible : '+e.message,1); return; }
-      if(!res.classes.length&&!res.objProps.length&&!res.dataProps.length){ status('Aucune classe ni propriété trouvée dans « '+f.name+' ».',1); return; }
-      const apply=()=>{
         state=sanitizeState({classes:res.classes,objProps:res.objProps,dataProps:res.dataProps,nextId:res.nextId,ns:res.ns||state.ns,mode:state.mode});
         initView(); save(); render(); setMode(state.mode);
         status('Import Turtle : '+res.classes.length+' classe(s), '+res.objProps.length+' propriété(s) objet, '+res.dataProps.length+' propriété(s) de donnée.');
-      };
-      const cur=state.classes.length+state.objProps.length+state.dataProps.length;
-      if(!cur&&!res.notes.length){ apply(); return; }
-      let msg='« '+f.name+' » : '+res.classes.length+' classe(s), '+res.objProps.length+' propriété(s) objet, '+res.dataProps.length+' propriété(s) de donnée.';
-      if(cur) msg+='\n\nL\'ontologie actuelle ('+state.classes.length+' classe(s), '+(state.objProps.length+state.dataProps.length)+' propriété(s)) sera REMPLACÉE.';
-      if(res.notes.length) msg+='\n\nNon repris :\n• '+res.notes.join('\n• ');
-      confirmBox(msg,'Importer un fichier Turtle').then(ok=>{ if(ok) apply(); });
+      }catch(e){ console.error(e); infoBox('Erreur pendant l\'import : '+e.message,'Import Turtle impossible'); }
     };
-    r.readAsText(f);
-  };
-  inp.click();
+    const cur=state.classes.length+state.objProps.length+state.dataProps.length;
+    if(!cur&&!res.notes.length){ apply(); return; }
+    let msg='« '+f.name+' » : '+res.classes.length+' classe(s), '+res.objProps.length+' propriété(s) objet, '+res.dataProps.length+' propriété(s) de donnée.';
+    if(cur) msg+='\n\nL\'ontologie actuelle ('+state.classes.length+' classe(s), '+(state.objProps.length+state.dataProps.length)+' propriété(s)) sera REMPLACÉE.';
+    if(res.notes.length) msg+='\n\nNon repris :\n• '+res.notes.join('\n• ');
+    confirmBox(msg,'Importer un fichier Turtle').then(ok=>{ if(ok) apply(); });
+  });
 }
+
 /* ================= OntoLab — partie 2 : mise en page et rendu SVG ================= */
 const svg=$('#canvas'), world=$('#world');
 let layerArcs=null, layerData=null, layerNodes=null, layerProps=null, ghostEl=null, lastPos=new Map(), lastObjPos=new Map(), lastDataPos=new Map();
@@ -1491,6 +1503,8 @@ document.addEventListener('keydown',e=>{
 document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 $('#b-example').onclick=()=>loadExample();
 $('#b-clear').onclick=()=>clearAll();
+$('#f-ttl').addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) handleTTLFile(f); });
+$('#f-json').addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) handleJSONFile(f); });
 $('#b-import-ttl').onclick=()=>importTTL();
 $('#b-import').onclick=()=>importJSON();
 $('#b-json').onclick=()=>exportJSON();

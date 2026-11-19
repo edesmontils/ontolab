@@ -145,6 +145,14 @@ Le TTL exporté doit rester chargable par **Jena** (`arq --data`, `sparql
 --desc`) et convertissable par **`../owl2vowl.jar`** (VOWL JSON) — c'est le
 lien avec le reste du cours ; un export cassé est un incident pédagogique.
 
+## Fichiers (import JSON / TTL) : à garder tel quel pour iPad
+
+`#f-json` et `#f-ttl` sont des `<input type=file>` **permanents dans le DOM** (visuellement cachés,
+pas `display:none`), jamais créés à la volée : sur Safari iOS un input détaché peut être libéré avant
+la fin du choix et `change` n'arrive jamais. `#f-ttl` n'a **pas** d'attribut `accept` (iOS grise
+`.ttl`, type inconnu). `openFilePicker()` vide `value` avant `click()` pour pouvoir re-sélectionner
+le même fichier. Les erreurs d'import passent par `infoBox()` (bloquant) et non par `status()`.
+
 ## Import Turtle (`importTTL()`)
 
 Remplace l'ontologie courante (avec confirmation, sauf si elle est vide et qu'il n'y a rien à
