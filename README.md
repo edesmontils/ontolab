@@ -1,12 +1,29 @@
 # OntoLab — constructeur d'ontologies (outil pédagogique)
 
-**`index.html`** est un fichier unique, sans dépendance : double-cliquez dessus
-pour l'ouvrir dans un navigateur (Chrome, Firefox, Safari). Pas de serveur, pas
-de Java, fonctionne hors-ligne. Le travail est sauvegardé automatiquement dans
-le navigateur (localStorage) et exportable/importable en JSON.
+Outil pédagogique de construction d'ontologies RDFS/OWL : modélisation
+interactive (classes, propriétés objet avec caractéristiques OWL, propriétés
+de donnée), visualisation de type VOWL, export Turtle.
 
-L'interface reprend les codes visuels de la **notation VOWL** (cf. WebVOWL /
-`owl2vowl.jar` dans le dossier `Outils/` parent) :
+## Démarrage rapide
+
+**`index.html`** est un fichier unique, sans aucune dépendance :
+
+1. clonez le repo (ou téléchargez l'archive ZIP de GitHub) ;
+2. ouvrez `index.html` dans un navigateur (Chrome, Firefox, Safari) —
+   double-clic, pas de serveur, pas de Java, fonctionne **hors-ligne** ;
+3. bouton **Exemple** : charge une mini-ontologie de démo.
+
+Le travail est sauvegardé automatiquement dans le navigateur (localStorage) et
+est exportable/importable en JSON (« Exporter JSON » / « Importer JSON ») pour
+le partager ou le sauvegarder durablement. Le fichier exporté est un `.ttl`
+OWL standard, lisible par tout outil RDF.
+
+> **Développeurs** : l'architecture, le modèle de données et les points de
+> vigilance sont documentés dans `AGENTS.md`. Licence : GPL-3.0 (fichier
+> `LICENSE`).
+
+L'interface reprend les codes visuels de la **notation VOWL**
+(cf. [WebVOWL](https://vowl.visualdataweb.org)) :
 
 | Visuel | Signification |
 |--------|---------------|
@@ -18,7 +35,7 @@ L'interface reprend les codes visuels de la **notation VOWL** (cf. WebVOWL /
 | Bordure verte pointillée | `owl:FunctionalProperty` |
 | Symboles `⇄` sur deux propriétés | paire `owl:inverseOf` |
 
-## Les trois modes (touches 1 / 2 / 3)
+## Les modes (touches 1 / 2 / 3 / 4)
 
 1. **Classe** — clic sur le fond : nouvelle classe ; glisser une classe sur une
    autre : `subClassOf` ; glisser sur le fond : détacher (redevient racine).
@@ -75,24 +92,34 @@ pour montrer chaque concept d'un coup.
     rdfs:range xsd:integer .
 ```
 
-## Enchaînement avec la boîte à outils Jena du cours
+## Enchaîner avec d'autres outils
 
-Placez le fichier exporté dans `ontologies/` d'un exercice, puis :
+Le `.ttl` exporté est du **Turtle/OWL standard** : il se charge dans n'importe
+quel outil RDF (Jena, Apache Jena Fuseki, Protégé, Stardog, …) et se requête en
+SPARQL avec ou sans raisonnement.
+
+Dans le cadre du cours Web Sémantique, la boîte à outils Jena s'utilise ainsi
+(les chemins relatifs ci-dessous sont ceux de l'arborescence du cours) :
 
 ```bash
+# requêter sans raisonnement
 arq --data ontologies/ontologie-ontolab.ttl --query req.sparql
 # ou avec raisonnement, cf. README racine (sparql --desc + assemblageur)
 ```
 
-Pour voir le résultat dans le vrai **WebVOWL** (notation identique) — depuis
-le dossier d'exercice, ⚠️ `java` 8 requis (plante sous Java 17+ : Guice/cglib) :
+Pour voir le résultat dans le vrai **WebVOWL** (notation identique), convertir
+le TTL en JSON avec [OWL2VOWL](https://github.com/VisualDataWeb/OWL2VOWL)
+(`owl2vowl.jar`, ⚠️ **Java 8 requis** — plante sous Java 17+) :
 
 ```bash
-/Library/Internet\ Plug-Ins/JavaAppletPlugin.plugin/Contents/Home/bin/java -jar ../../Outils/owl2vowl.jar -file ontologies/ontologie-ontolab.ttl -output ontologie-ontolab.json
+java -jar owl2vowl.jar -file ontologie-ontolab.ttl -output ontologie-ontolab.json
 # → charger le JSON dans https://vowl.visualdataweb.org/webvowl.html
 ```
 
 ## Idées d'exercices en TD
+
+(les dossiers cités entre parenthèses font partie du matériel du cours —
+toute ontologie ou MCD de votre choix convient)
 
 1. **Repérage** : montrer l'exemple chargé ; faire identifier chaque axiome
    (subClassOf, domaine, portée, transitivité…) dans la visualisation, puis
@@ -130,3 +157,7 @@ le dossier d'exercice, ⚠️ `java` 8 requis (plante sous Java 17+ : Guice/cgli
   manuel (mode ④) est conservé tant qu'on ne relance pas « Réorganiser ».
 - Les noms sont utilisés tels quels comme noms locaux d'IRI (accents
   autorisés) ; les noms durs (espaces) sont remplacés par `_` à l'export.
+
+## Licence
+
+GPL-3.0 — voir le fichier [`LICENSE`](LICENSE).

@@ -8,6 +8,8 @@ Le contexte général du cours et les contraintes durables (pas de git, pas de
 suppression sans confirmation, documentation en français, claims « vérifiés »
 réellement vérifiés) sont dans **`../../Exemples/AGENTS.md`** et
 `../../Exemples/README.md` — les respecter avant toute modification.
+> ⚠️ Dans le repo GitHub (`edesmontils/ontolab`), ce dépôt est **autonome** :
+> l'arborescence `Exemples/` n'y existe pas ; seul le présent dossier compte.
 
 ## Architecture : un fichier unique
 
