@@ -71,7 +71,14 @@ Le JS est organisé en 3 blocs commentés :
 - **Protection des cycles** : `isAncestorOf()` refuse tout `subClassOf`
   créant un cycle ; le panneau exclut les descendants de la liste.
 - Molette = zoom (autour du curseur), glisser le fond = pan, double-clic fond
-  = recentrer (`initView()`).
+  = recentrer (`initView()`), bouton « Recentrer » pour le tactile.
+- **Pointer Events** (pas de `mouse*`/`touch*`) : souris, doigt et stylet passent par
+  le même code. `touches` (Map) suit les pointeurs posés ; 2 pointeurs = pincement
+  (`pinchStart/pinchMove`) et annulent tout glisser en cours (`cancelGesture`).
+  `svg` a `touch-action:none` et capture le pointeur (`setPointerCapture`) pour
+  survivre aux re-rendus du DOM. Seuil tap/glisser : `thrOf()` (10 px doigt, 4 souris).
+  Les boîtes de dialogue ignorent les clics 350 ms après ouverture (clic synthétisé
+  par le tap qui les ouvre). À tester avec des `PointerEvent` `pointerType:'touch'`.
 - « **Réorganiser** » : supprime tous les `mx/my` puis re-layout.
 
 ## Mise en page (le point le plus fragile)

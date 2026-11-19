@@ -61,6 +61,14 @@ leur centre) ; boucles et propriétés de donnée prennent les directions les pl
 dégagées autour de leur classe ; une dernière passe de relaxation pousse à
 l'écart tout chevauchement restant.
 
+**Écran tactile (iPad, tablette)** : les mêmes gestes fonctionnent au doigt ou au
+stylet — toucher = clic, glisser = glisser. Pincer à deux doigts : zoom et
+déplacement de la vue ; glisser le fond à un doigt : déplacement. Le bouton
+**Recentrer** remplace le double-clic ; le panneau contient le bouton de
+suppression (pas de touche `Suppr` sur tablette) et la barre d'outils défile
+horizontalement si l'écran est étroit. Les touches `1`-`4` ont pour équivalent
+les boutons de mode.
+
 Clic sur n'importe quel élément : édition (nom, domaine, portée,
 caractéristiques, suppression) dans le panneau de droite. Molette : zoom ;
 glisser le fond : déplacement ; `Suppr` : supprimer l'élément sélectionné.
@@ -162,7 +170,6 @@ toute ontologie ou MCD de votre choix convient)
 - Les noms sont utilisés comme noms locaux d'IRI (accents autorisés) ; tout
   caractère autre que lettre, chiffre, `_`, `-` ou `.` est remplacé par `_`,
   et l'unicité des noms est testée sur ce nom local.
-- Interface à la souris uniquement (pas de gestes tactiles).
 
 ## Licence
 
