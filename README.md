@@ -118,10 +118,20 @@ pour montrer chaque concept d'un coup.
   partie visible), avec ou sans légende, fond blanc ou transparent ; la sélection n'apparaît pas.
   Sur iPad / iPhone, le fichier est proposé via la feuille de partage (« Enregistrer l'image »).
 
+## Espace de noms (IRI) des éléments
+
+L'IRI d'une classe ou d'une propriété = **espace de noms + nom**. Le panneau d'édition de chaque élément
+affiche le champ **Espace de noms** et l'**IRI complète** (qui suit le nom). Laissé vide, l'élément
+utilise l'espace de noms de l'ontologie (modifiable dans le panneau d'accueil quand rien n'est sélectionné,
+ou dans la fenêtre « Exporter ▾ › Turtle ») ; renseigné, il a le sien — utile pour réutiliser un vocabulaire
+existant (FOAF, schema.org…) ou pour une ontologie importée qui mêle plusieurs vocabulaires. Une valeur
+sans `#` ni `/` final reçoit un `#` ; une valeur qui n'est pas une IRI absolue est refusée. À l'export, les
+éléments de l'espace par défaut s'écrivent `:Nom`, les autres `<IRI complète>`.
+
 ## Export Turtle
 
 « **Exporter ▾ › Turtle** » affiche et télécharge un fichier `.ttl` OWL en Turtle
-(namespace modifiable) :
+(namespace par défaut modifiable ; un élément peut avoir le sien) :
 
 ```ttl
 @prefix : <http://example.org/onto#> .
@@ -155,7 +165,8 @@ courante après confirmation. Un fichier exporté par OntoLab est relu à l'iden
   propriétés objet et de donnée (déduites aussi d'un domaine/d'une portée en RDFS pur),
   `rdfs:domain`, `rdfs:range`, `rdfs:subPropertyOf` (plusieurs parents, même type),
   `owl:inverseOf`, propriétés transitives, symétriques, fonctionnelles, fonctionnelles inverses ; le namespace
-  principal du fichier devient celui de l'ontologie ;
+  le plus fréquent du fichier devient celui de l'ontologie, et **chaque élément d'un autre namespace
+  le conserve** (champ « Espace de noms » de son panneau) ;
 - **adapté** : types XSD non gérés ramenés au plus proche (`xsd:int` → `xsd:integer`,
   `xsd:float` → `xsd:double`, `rdfs:Literal` → `xsd:string`) ; propriété sans domaine ou
   portée précis (ou `owl:Thing`) rattachée à une classe « Thing » ajoutée ; une seule

@@ -49,7 +49,8 @@ Le JS est organisé en 3 blocs commentés :
     jamais sur une propriété de donnée ; style de bordure par `dashOf()` : tirets / points / tirets-points)
   - `dataProps[]` : `{id, name, domain, type, parents: [id]}` (type = IRI XSD)
     + `{mx, my}` ; `parents` = `rdfs:subPropertyOf` (même type de propriété) ;
-  - `nextId`, `ns` (namespace, défaut `http://example.org/onto#`),
+  - `nextId`, `ns` (namespace de l'ontologie, défaut `http://example.org/onto#`) ; chaque classe/propriété peut
+    porter un `ns` **facultatif** (son propre espace de noms ; absent = celui de l'ontologie) → IRI = `(x.ns||state.ns)+localName(x.name)` ;
     `sel`, `mode` (`class|obj|data|move`), `view` (`{x,y,k}`).
 - Évolution du schéma : de préférence **changer la clé** `ontolab-v1` (ex.
   `ontolab-v2`) plutôt que migrer. Exception faite pour l'héritage : l'ancien
@@ -207,7 +208,8 @@ signaler). Trois briques, toutes en JS pur dans `index.html` (pas de dépendance
   détection des classes/propriétés (déclarées, ou déduites de `subClassOf`/`domain`/`range`),
   genre objet/donnée (types OWL, sinon portée), `owl:Thing`/domaine absent → classe « Thing »,
   `XSD_MAP` pour les types non gérés, inverses (seulement si domaine/portée croisés), parents
-  (même genre), `cleanParents()`, namespace majoritaire ; `notes` = ce qui n'est pas repris.
+  (même genre), `cleanParents()`, namespace majoritaire (`ns` de l'ontologie) ; les éléments d'un autre
+  espace de noms gardent le leur (`ownNs()`, champ `x.ns`) ; `notes` = ce qui n'est pas repris.
 - `importTTL()` — fichier → analyse → confirmation avec les notes → `sanitizeState()` +
   `initView()` + `render()`.
 Un TTL exporté par `toTTL()` doit se réimporter à l'identique (test : export → import → export

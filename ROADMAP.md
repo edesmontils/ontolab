@@ -38,11 +38,13 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 
 ## Phase B — Annotations et métadonnées
 
-### B1. Étiquettes, commentaires et IRI éditables — M
+### B1. Étiquettes, commentaires et nom local d'IRI éditables — M
+- *Fait* : l'**espace de noms** par élément (champ `ns`, panneau, Turtle, import). *Reste* : étiquette,
+  commentaire et nom local d'IRI distincts du nom affiché.
 - **Pourquoi** : aujourd'hui le nom est à la fois affichage et nom local d'IRI ; impossible d'écrire
-  « Étudiant·e » ou de garder l'IRI d'une ontologie importée. L'import ignore déjà `rdfs:label` /
+  « Étudiant·e » tout en gardant l'IRI `…#Etudiant` d'une ontologie importée. L'import ignore déjà `rdfs:label` /
   `rdfs:comment` (« annotations non conservées »).
-- **Modèle** : champs optionnels `label` (avec langue ?), `comment`, `iri` (nom local imposé) sur
+- **Modèle** : champs optionnels `label` (avec langue ?), `comment`, `local` (nom local d'IRI imposé) sur
   classes et propriétés. `name` reste la clé d'affichage tant qu'aucun `label` n'est fourni.
 - **Impact** : `nameTaken()` / `localName()` (unicité sur le nom local effectif), panneau, `toTTL`
   (`rdfs:label "…"@fr`, `rdfs:comment`), `ontologyFromTriples` (conserver au lieu d'ignorer),

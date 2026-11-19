@@ -48,6 +48,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 #legend-pill{left:100px;bottom:12px;}
 .pcollapse{position:absolute;top:8px;right:8px;width:28px;height:28px;border:1px solid #c9d4e6;background:#fff;border-radius:8px;font-size:16px;line-height:1;color:#41506b;cursor:pointer;padding:0;}
 .pcollapse:hover{background:#eef3fa;}
+.iri code{font-size:11.5px;word-break:break-all;color:#41506b;}
 .hint{font-size:12px;color:#7b8aa5;margin:10px 0 0;line-height:1.5;}
 #legend{position:fixed;left:100px;bottom:54px;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:10px 12px;font-size:11.5px;color:#516079;z-index:1;line-height:1.8;box-shadow:0 2px 10px rgba(30,50,90,.08);max-width:330px;}
 .chip{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px;}
@@ -204,6 +205,7 @@ function sanitizeState(s){
   out.classes.forEach(c=>{ c.id=+c.id; });
   out.objProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); p.range=num(p.range); p.inverseOf=num(p.inverseOf); });
   out.dataProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); });
+  [...out.classes,...out.objProps,...out.dataProps].forEach(x=>{ if(typeof x.ns!=='string'||!x.ns.trim()) delete x.ns; else x.ns=x.ns.trim(); }); // espace de noms propre (facultatif)
   cleanParents(out); // migre l'ancien champ `parent` (héritage simple) vers `parents` (héritage multiple)
   out.sel=null;
   return out;
@@ -479,7 +481,8 @@ function handleJSONFile(f){
 
 /* ---------- export Turtle ---------- */
 function toTTL(ns){
-  const N=n=>':'+localName(n);
+  // nom préfixé dans l'espace de noms par défaut, ou IRI complète si l'élément a son propre espace de noms
+  const N=x=>(x.ns&&x.ns!==ns)?'<'+x.ns+localName(x.name)+'>':':'+localName(x.name);
   const L=[];
   L.push('# Généré par OntoLab le '+new Date().toISOString().slice(0,10));
   L.push('# Outil pédagogique — cours Web Sémantique');
@@ -505,8 +508,8 @@ function toTTL(ns){
   for(const id of order){
     const c=byId.get(id); if(!c) continue;
     const pars=parentsOf(c).map(pid=>byId.get(pid)).filter(Boolean);
-    L.push(pars.length ? N(c.name)+' rdf:type owl:Class ;\n    rdfs:subClassOf '+pars.map(q=>N(q.name)).join(', ')+' .'
-                       : N(c.name)+' rdf:type owl:Class .');
+    L.push(pars.length ? N(c)+' rdf:type owl:Class ;\n    rdfs:subClassOf '+pars.map(q=>N(q)).join(', ')+' .'
+                       : N(c)+' rdf:type owl:Class .');
   }
   if(state.classes.length) L.push('');
   for(const p of state.objProps){
@@ -517,17 +520,17 @@ function toTTL(ns){
     if(p.symmetric) types.push('owl:SymmetricProperty');
     if(p.functional) types.push('owl:FunctionalProperty');
     if(p.inverseFunctional) types.push('owl:InverseFunctionalProperty');
-    const preds=['rdfs:domain '+N(d.name),'rdfs:range '+N(r.name)];
-    const pars=parentsOf(p).map(objById).filter(Boolean); if(pars.length) preds.push('rdfs:subPropertyOf '+pars.map(q=>N(q.name)).join(', '));
-    const q=p.inverseOf&&objById(p.inverseOf); if(q) preds.push('owl:inverseOf '+N(q.name));
-    L.push(N(p.name)+' a '+types.join(', ')+' ;\n    '+preds.join(' ;\n    ')+' .');
+    const preds=['rdfs:domain '+N(d),'rdfs:range '+N(r)];
+    const pars=parentsOf(p).map(objById).filter(Boolean); if(pars.length) preds.push('rdfs:subPropertyOf '+pars.map(q=>N(q)).join(', '));
+    const q=p.inverseOf&&objById(p.inverseOf); if(q) preds.push('owl:inverseOf '+N(q));
+    L.push(N(p)+' a '+types.join(', ')+' ;\n    '+preds.join(' ;\n    ')+' .');
   }
   if(state.objProps.length) L.push('');
   for(const p of state.dataProps){
     const d=classById(p.domain); if(!d) continue;
-    const preds=['rdfs:domain '+N(d.name),'rdfs:range '+p.type];
-    const pars=parentsOf(p).map(dataById).filter(Boolean); if(pars.length) preds.push('rdfs:subPropertyOf '+pars.map(q=>N(q.name)).join(', '));
-    L.push(N(p.name)+' a owl:DatatypeProperty ;\n    '+preds.join(' ;\n    ')+' .');
+    const preds=['rdfs:domain '+N(d),'rdfs:range '+p.type];
+    const pars=parentsOf(p).map(dataById).filter(Boolean); if(pars.length) preds.push('rdfs:subPropertyOf '+pars.map(q=>N(q)).join(', '));
+    L.push(N(p)+' a owl:DatatypeProperty ;\n    '+preds.join(' ;\n    ')+' .');
   }
   return L.join('\n')+'\n';
 }
@@ -837,13 +840,19 @@ function ontologyFromTriples(T){
   }
   if(nInd) notes.push(nInd+' individu(s) (owl:NamedIndividual) ignoré(s)');
 
+  // --- espace de noms principal (le plus fréquent) ; les éléments d'un autre espace de noms le conservent
+  const nsOfIri=iri=>{ const m=iri.match(/^(.*[#\/])[^#\/]+$/); return m?m[1]:null; };
+  const nsCount=new Map();
+  [...clsIri,...propIri].forEach(iri=>{ const n=nsOfIri(iri); if(n) nsCount.set(n,(nsCount.get(n)||0)+1); });
+  const best=[...nsCount].sort((a,b)=>b[1]-a[1])[0], mainNs=best?best[0]:null;
+  const ownNs=iri=>{ const n=nsOfIri(iri); return (n&&n!==mainNs&&iri!==THING)?n:null; };
   // --- noms et identifiants
   const used=new Set(); let nextId=1;
   const localOf=iri=>{ let l=iri.replace(/[#\/]+$/,'').replace(/^.*[#\/]/,''); try{ l=decodeURIComponent(l); }catch(e){} return l||'sans_nom'; };
   const uniqueName=base=>{ let name=base, k=2; while(used.has(localName(name))) name=base+'_'+(k++); used.add(localName(name)); return name; };
   const sortByAppearance=set=>[...set].sort((a,b)=>(order.get('I'+a)||0)-(order.get('I'+b)||0));
   const classes=[], objProps=[], dataProps=[], cid=new Map(), civ=new Map(), pid=new Map();
-  const mkClass=iri=>{ const c={id:nextId++,name:uniqueName(localOf(iri)),parents:[]}; classes.push(c); cid.set(iri,c.id); civ.set(c.id,iri); return c; };
+  const mkClass=iri=>{ const c={id:nextId++,name:uniqueName(localOf(iri)),parents:[]}; const own=ownNs(iri); if(own) c.ns=own; classes.push(c); cid.set(iri,c.id); civ.set(c.id,iri); return c; };
   sortByAppearance(clsIri).forEach(iri=>{ if(iri!==THING) mkClass(iri); });
   let thing=null;
   const thingId=()=>{ if(!thing) thing=mkClass(THING); return thing.id; }; // « Thing » : domaine/portée absent(e) ou owl:Thing
@@ -894,7 +903,7 @@ function ontologyFromTriples(T){
   };
   sortByAppearance(propIri).forEach(p=>{
     const kind=kindOf(p), ts=typesOf('I'+p);
-    const base={id:nextId++,name:uniqueName(localOf(p)),parents:[]};
+    const base={id:nextId++,name:uniqueName(localOf(p)),parents:[]}; const own=ownNs(p); if(own) base.ns=own;
     pid.set(p,base.id);
     let dom=pick(p,RDFSN+'domain'); if(dom==null) dom=thingId();
     if(kind==='obj'){
@@ -962,13 +971,6 @@ function ontologyFromTriples(T){
   if(ign.size) notes.push('axiomes non représentables ignorés : '+[...ign].map(([k,v])=>k+(v>1?' ×'+v:'')).join(', '));
   if(nAnn) notes.push(nAnn+' annotation(s) (rdfs:label, rdfs:comment…) non conservée(s)');
 
-  // --- namespace principal
-  const count=new Map();
-  [...cid.keys(),...pid.keys()].filter(iri=>iri!==THING).forEach(iri=>{ const m=iri.match(/^(.*[#\/])[^#\/]*$/); if(m) count.set(m[1],(count.get(m[1])||0)+1); });
-  const ns=[...count].sort((a,b)=>b[1]-a[1])[0];
-  const mainNs=ns?ns[0]:null;
-  if(mainNs){ const out=[...cid.keys(),...pid.keys()].filter(iri=>iri!==THING&&!iri.startsWith(mainNs)).length;
-    if(out) notes.push(out+' élément(s) hors du namespace « '+mainNs+' » : ils seront exportés sous ce namespace'); }
   return {classes,objProps,dataProps,nextId,ns:mainNs,notes};
 }
 
@@ -1625,6 +1627,24 @@ function updatePanel(){ // le panneau se rouvre par le menu « ⋯ » (entrée �
   p.insertAdjacentHTML('afterbegin','<button id="pf-collapse" class="pcollapse" title="Replier le panneau" aria-label="Replier le panneau">–</button>');
   $('#pf-collapse').onclick=()=>{ ui.panel=false; saveUI(); updatePanel(); };
 }
+/* Espace de noms (IRI = espace de noms + nom local) : par élément, facultatif (sinon celui de l'ontologie, `state.ns`). */
+function cleanNsInput(v){
+  v=String(v).trim(); if(!v) return '';
+  if(/[\s<>"{}|\\^`]/.test(v)||!/^[A-Za-z][A-Za-z0-9+.\-]*:/.test(v)){ status('Espace de noms invalide : une IRI absolue est attendue (ex. http://example.org/onto#), sans espace ni < > " { } | ^ `.',1); return null; }
+  if(!/[#\/]$/.test(v)){ v+='#'; status('« # » ajouté à la fin de l\'espace de noms.'); }
+  return v;
+}
+function setItemNs(kind,id,v){
+  const x=itemOf(kind,+id); if(!x) return;
+  const n=cleanNsInput(v); if(n===null){ render(); return; }
+  if(!n||n===state.ns) delete x.ns; else x.ns=n;
+  save(); render();
+}
+function setOntologyNs(v){ const n=cleanNsInput(v); if(n===null||!n){ render(); return; } state.ns=n; save(); render(); }
+function nsBlock(x){
+  return '<label class="fld"><span>Espace de noms</span><input id="pf-ns" value="'+esc(x.ns||'')+'" placeholder="'+esc(state.ns)+'" spellcheck="false" autocapitalize="off" autocorrect="off"></label>'
+    +'<p class="hint iri" style="margin:-4px 0 10px">IRI : <code>'+esc((x.ns||state.ns)+localName(x.name))+'</code>'+(x.ns?'':'<br>(espace de noms de l\'ontologie ; laisser vide pour le conserver)')+'</p>';
+}
 function renderPanelBody(){
   const p=$('#panel'), s=state.sel;
   if(!s){
@@ -1635,7 +1655,10 @@ function renderPanelBody(){
       +'<p class="hint"><b>③ Propriété de donnée</b> — cliquez sur une classe ; choisissez le type XSD. Glissez une ellipse rouge sur une autre pour une sous-propriété.</p>'
       +'<p class="hint"><b>④ Déplacer</b> — glissez tout élément (classe, étiquette de propriété) pour le repositionner à la main ; le bouton <b>Réorganiser</b> recalcule la mise en page automatique.</p>'
       +'<p class="hint">Double-clic (ou double tap) sur un élément : édition dans ce panneau. Raccourcis : <b>1/2/3/4</b> modes, <b>Suppr</b> élément sélectionné, <b>Échap</b> ou clic sur le fond : désélection. Molette : zoom, glisser le fond : déplacer la vue, double-clic sur le fond : recentrer.</p>'
-      +'<p class="hint">La sauvegarde est automatique (navigateur). « Exporter TTL » produit le fichier <b>.ttl</b> prêt à charger dans Jena/Fuseki ; « Importer TTL » relit un fichier Turtle (il remplace l\'ontologie courante).</p>';
+      +'<p class="hint">La sauvegarde est automatique (navigateur). « Exporter TTL » produit le fichier <b>.ttl</b> prêt à charger dans Jena/Fuseki ; « Importer TTL » relit un fichier Turtle (il remplace l\'ontologie courante).</p>'
+      +'<label class="fld" style="margin-top:12px"><span>Espace de noms de l\'ontologie</span><input id="pf-ns0" value="'+esc(state.ns)+'" spellcheck="false" autocapitalize="off" autocorrect="off"></label>'
+      +'<p class="hint" style="margin-top:-4px">IRI d\'un élément = espace de noms + nom. Chaque classe ou propriété peut avoir son propre espace de noms (champ « Espace de noms » de son panneau).</p>';
+    $('#pf-ns0').onchange=e=>setOntologyNs(e.target.value);
     return;
   }
   let h='';
@@ -1643,12 +1666,14 @@ function renderPanelBody(){
     const c=classById(s.id); if(!c){ state.sel=null; return renderPanelBody(); }
     h='<h3>Classe</h3>'
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(c.name)+'" spellcheck="false"></label>'
+      +nsBlock(c)
       +parentsBlock('class',c,'Sous-classe de (rdfs:subClassOf) — plusieurs possibles')
       +'<button class="btn" id="pf-addchild">+ Ajouter une sous-classe</button>'
       +'<button class="btn danger" id="pf-del">Supprimer la classe</button>'
       +'<p class="hint">Astuce : glissez une classe sur une autre pour lui ajouter une super-classe (autant que voulu) ; glissez sur le fond pour les retirer toutes.</p>';
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('class',c.id,e.target.value);
+    $('#pf-ns').onchange=e=>setItemNs('class',c.id,e.target.value);
     wireParents('class',c);
     $('#pf-addchild').onclick=()=>addChildClass(c.id);
     $('#pf-del').onclick=()=>deleteClass(c.id);
@@ -1658,6 +1683,7 @@ function renderPanelBody(){
     if(p2.inverseOf&&!cands.some(x=>x.id===p2.inverseOf)){ const q=objById(p2.inverseOf); if(q) q.inverseOf=null; p2.inverseOf=null; }
     h='<h3>Propriété objet</h3>'
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p2.name)+'" spellcheck="false"></label>'
+      +nsBlock(p2)
       +'<label class="fld"><span>Domaine (rdfs:domain)</span><select id="pf-domain">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p2.domain?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
       +'<label class="fld"><span>Portée (rdfs:range)</span><select id="pf-range">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p2.range?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
       +'<label class="fld check"><span>Transitive</span><input type="checkbox" id="pf-trans"'+(p2.transitive?' checked':'')+'></label>'
@@ -1670,6 +1696,7 @@ function renderPanelBody(){
       +'<button class="btn danger" id="pf-del">Supprimer la propriété</button>';
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('obj',p2.id,e.target.value);
+    $('#pf-ns').onchange=e=>setItemNs('obj',p2.id,e.target.value);
     wireParents('obj',p2);
     $('#pf-domain').onchange=e=>{ p2.domain=+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
     $('#pf-range').onchange=e=>{ p2.range=+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
@@ -1690,12 +1717,14 @@ function renderPanelBody(){
     const p3=dataById(s.id); if(!p3){ state.sel=null; return renderPanelBody(); }
     h='<h3>Propriété de donnée</h3>'
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p3.name)+'" spellcheck="false"></label>'
+      +nsBlock(p3)
       +'<label class="fld"><span>Domaine (rdfs:domain)</span><select id="pf-domain">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p3.domain?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
       +'<label class="fld"><span>Type XSD (rdfs:range)</span><select id="pf-type">'+XSD.map(t=>'<option value="'+t+'"'+(t===p3.type?' selected':'')+'>'+t+'</option>').join('')+'</select></label>'
       +parentsBlock('data',p3,'Sous-propriété de (rdfs:subPropertyOf)')
       +'<button class="btn danger" id="pf-del">Supprimer la propriété</button>';
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('data',p3.id,e.target.value);
+    $('#pf-ns').onchange=e=>setItemNs('data',p3.id,e.target.value);
     wireParents('data',p3);
     $('#pf-domain').onchange=e=>{ p3.domain=+e.target.value; save(); render(); };
     $('#pf-type').onchange=e=>{ p3.type=e.target.value; save(); render(); };
