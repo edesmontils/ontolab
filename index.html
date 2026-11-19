@@ -726,6 +726,11 @@ function relax(pos,objP,dataP){
   pos.forEach((p,id)=>nodes.push({p,k:'class',id:'c'+id,ox:p.x,oy:p.y}));
   objP.forEach((p,id)=>nodes.push({p,k:'lbl',id:'o'+id,ox:p.x,oy:p.y}));
   dataP.forEach((p,id)=>nodes.push({p,k:'lbl',id:'d'+id,ox:p.x,oy:p.y}));
+  // paires propriété–propriété parente : marge plus grande pour que la flèche pointillée reste visible
+  const linkM=new Map(), SUBGAP=58;
+  const lk=(a,b)=>a<b?a+'|'+b:b+'|'+a;
+  state.objProps.forEach(p=>parentsOf(p).forEach(q=>linkM.set(lk('o'+p.id,'o'+q),SUBGAP)));
+  state.dataProps.forEach(p=>parentsOf(p).forEach(q=>linkM.set(lk('d'+p.id,'d'+q),SUBGAP)));
   for(let it=0;it<150;it++){
     let any=false;
     for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
@@ -734,7 +739,7 @@ function relax(pos,objP,dataP){
       const ang=Math.atan2(dy,dx);
       const ra=a.rx*a.ry/Math.hypot(a.ry*Math.cos(ang),a.rx*Math.sin(ang));
       const rb=b.rx*b.ry/Math.hypot(b.ry*Math.cos(ang),b.rx*Math.sin(ang));
-      const o=ra+rb+10-d;
+      const o=ra+rb+(linkM.get(lk(A.id,B.id))||10)-d;
       if(o<=0) continue;
       const ma=manual.has(A.id), mb=manual.has(B.id);
       if(ma&&mb) continue;

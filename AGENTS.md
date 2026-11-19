@@ -114,7 +114,9 @@ Le JS est organisé en 3 blocs commentés :
    incluse), arêtes traversées (`segHitsEllipse`, y compris les flèches déjà tracées),
    écart angulaire aux liens ; on garde le moins coûteux.
 3. **`relax()`** — 150 itérations max : écarte les ellipses qui se chevauchent
-   (marge 10 px, coefficients asymétriques, positions manuelles immuables).
+   (marge 10 px, coefficients asymétriques, positions manuelles immuables) ;
+   marge `SUBGAP`=58 px entre une propriété et sa propriété parente pour que la flèche
+   pointillée `subPropertyOf` reste visible.
 4. **`refinalizeProps()`** — points d'attache sur les bords après relaxation ;
    boucle = deux points du bord de part et d'autre de l'étiquette. Les courbes
    objet ont pour point de contrôle `2·étiquette − (début+fin)/2` : elles passent
