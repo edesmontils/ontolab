@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OntoLab — constructeur d'ontologies (Web Sémantique)</title>
+<style>
+:root{--blue:#AEDBFC;--blueS:#2C5F9E;--green:#D9E9A5;--greenS:#5B7C29;--red:#F6CECE;--redS:#8C2E2E;--sel:#E4572E;}
+html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#1c2333;background:#f4f7fb;}
+#toolbar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;gap:10px;padding:0 14px;background:#fff;border-bottom:1px solid #d8e0ec;z-index:10;flex-wrap:nowrap;}
+#toolbar h1{font-size:16px;margin:0 6px 0 0;font-weight:700;color:var(--blueS);white-space:nowrap;}
+#toolbar h1 .sub{font-size:11px;color:#7b8aa5;font-weight:400;}
+.modes{display:flex;border:1px solid #c9d4e6;border-radius:8px;overflow:hidden;}
+.modes button{border:0;background:#fff;padding:7px 11px;font-size:12.5px;cursor:pointer;color:#41506b;}
+.modes button.active{background:var(--blueS);color:#fff;}
+.spacer{flex:1;}
+.btn{border:1px solid #c9d4e6;background:#fff;border-radius:8px;padding:7px 11px;font-size:12.5px;cursor:pointer;color:#2c3a55;white-space:nowrap;}
+.btn:hover{background:#eef3fa;}
+.btn.primary{background:var(--blueS);color:#fff;border-color:var(--blueS);}
+.btn.danger{color:#b3261e;border-color:#e5b8b5;}
+#canvas{position:fixed;inset:0;width:100%;height:100%;}
+#canvas.panning{cursor:grabbing;}
+#panel{position:fixed;top:64px;right:12px;width:272px;max-height:calc(100% - 120px);overflow:auto;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:14px;z-index:5;box-shadow:0 2px 10px rgba(30,50,90,.08);}
+#panel h3{margin:0 0 10px;font-size:14px;color:var(--blueS);}
+.fld{display:block;margin:0 0 10px;font-size:12px;color:#516079;}
+.fld span{display:block;margin-bottom:3px;}
+.fld input,.fld select{width:100%;box-sizing:border-box;border:1px solid #c9d4e6;border-radius:7px;padding:6px 8px;font-size:13px;color:#1c2333;}
+.fld.check{display:flex;gap:8px;align-items:center;margin:7px 0;}
+.fld.check span{margin:0;flex:1;font-size:13px;color:#1c2333;}
+#panel .btn{width:100%;margin-top:8px;}
+.hint{font-size:12px;color:#7b8aa5;margin:10px 0 0;line-height:1.5;}
+#legend{position:fixed;left:12px;bottom:12px;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:10px 12px;font-size:11.5px;color:#516079;z-index:5;line-height:1.8;box-shadow:0 2px 10px rgba(30,50,90,.08);max-width:330px;}
+.chip{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px;}
+#status{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#2c3a55;color:#fff;padding:7px 14px;border-radius:20px;font-size:13px;z-index:20;opacity:0;transition:opacity .25s;pointer-events:none;max-width:70vw;text-align:center;}
+#status.show{opacity:1;}
+#status.err{background:#b3261e;}
+#stats{position:fixed;right:14px;bottom:12px;font-size:11.5px;color:#7b8aa5;z-index:5;}
+.ovl{position:fixed;inset:0;background:rgba(20,30,50,.35);z-index:50;display:flex;align-items:center;justify-content:center;}
+.dlg{background:#fff;border-radius:14px;padding:18px 20px;width:min(440px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.25);}
+.dlg h3{margin:0 0 12px;font-size:15px;color:var(--blueS);}
+.dlg-msg{font-size:13px;color:#41506b;margin:0 0 10px;line-height:1.5;}
+.dlg .fld.check input{width:auto;}
+.dlg-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;}
+#ttl-pre{background:#0f172a;color:#dbe6ff;border-radius:10px;padding:14px;font:12px/1.5 ui-monospace,Menlo,monospace;max-height:52vh;overflow:auto;white-space:pre;margin:10px 0 0;}
+svg text{pointer-events:none;user-select:none;}
+#canvas.move g[data-kind]{cursor:grab;}
+g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <h1>OntoLab <span class="sub">constructeur d'ontologies · Web Sémantique</span></h1>
+  <div class="modes">
+    <button data-mode="class" class="active">① Classe</button>
+    <button data-mode="obj">② Propriété objet</button>
+    <button data-mode="data">③ Propriété de donnée</button>
+    <button data-mode="move">④ Déplacer</button>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn" id="b-example">Exemple</button>
+  <button class="btn" id="b-clear">Vider</button>
+  <button class="btn" id="b-import">Importer JSON</button>
+  <button class="btn" id="b-json">Exporter JSON</button>
+  <button class="btn" id="b-layout">Réorganiser</button>
+  <button class="btn primary" id="b-ttl">Exporter TTL</button>
+</div>
+<svg id="canvas">
+  <defs>
+    <marker id="m-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5B7C29"/></marker>
+    <marker id="m-arr-start" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5B7C29"/></marker>
+    <marker id="m-arr-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8C2E2E"/></marker>
+  </defs>
+  <g id="world"></g>
+</svg>
+<div id="panel"></div>
+<div id="legend">
+  <div><span class="chip" style="background:var(--blue);border:2px solid var(--blueS)"></span>Classe — hiérarchie = <b>rdfs:subClassOf</b></div>
+  <div><span class="chip" style="background:var(--green);border:2px solid var(--greenS)"></span>Propriété objet — flèche : domaine → portée</div>
+  <div><span class="chip" style="background:var(--red);border:2px solid var(--redS)"></span>Propriété de donnée (XSD)</div>
+  <div>Bordure pointillée : <b>fonctionnelle</b> · petite boucle verte : <b>transitive</b></div>
+  <div>Doubles flèches : <b>symétrique</b> · symboles <b>⇄</b> : paire de propriétés <b>inverse</b></div>
+</div>
+<div id="status"></div>
+<div id="stats"></div>
+<script>'use strict';
+/* ================= OntoLab — partie 1 : état, opérations, export ================= */
+const SVGNS='http://www.w3.org/2000/svg';
+const LS_KEY='ontolab-v1';
+const C={cls:'#AEDBFC',clsS:'#2C5F9E',obj:'#D9E9A5',objS:'#5B7C29',data:'#F6CECE',dataS:'#8C2E2E',sel:'#E4572E'};
+const XSD=['xsd:string','xsd:integer','xsd:double','xsd:decimal','xsd:boolean','xsd:date','xsd:time','xsd:anyURI'];
+
+let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:'http://example.org/onto#',sel:null,mode:'class',view:{x:null,y:null,k:1}};
+
+function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} }
+function load(){ try{ const s=JSON.parse(localStorage.getItem(LS_KEY)||'null'); if(s&&Array.isArray(s.classes)) state=Object.assign(state,s); }catch(e){} }
+
+const $=s=>document.querySelector(s);
+function el(tag,attrs,parent){ const n=document.createElementNS(SVGNS,tag); for(const k in attrs) n.setAttribute(k,attrs[k]); if(parent) parent.appendChild(n); return n; }
+function classById(id){ return state.classes.find(c=>c.id===id); }
+function objById(id){ return state.objProps.find(p=>p.id===id); }
+function dataById(id){ return state.dataProps.find(p=>p.id===id); }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+let statusTimer=null;
+function status(msg,err){
+  const t=$('#status'); t.textContent=msg; t.classList.toggle('err',!!err); t.classList.add('show');
+  clearTimeout(statusTimer); statusTimer=setTimeout(()=>t.classList.remove('show'),4500);
+}
+
+/* ---------- noms uniques ---------- */
+function nameTaken(name,ignore){
+  return state.classes.some(c=>c.id!==ignore&&c.name===name)
+    ||state.objProps.some(p=>p.id!==ignore&&p.name===name)
+    ||state.dataProps.some(p=>p.id!==ignore&&p.name===name);
+}
+function setCommonName(kind,id,name){
+  name=String(name).trim();
+  if(!name){ status('Le nom est obligatoire.',1); return false; }
+  if(nameTaken(name,id)){ status('Le nom « '+name+' » est déjà utilisé par un autre élément.',1); return false; }
+  (kind==='class'?classById:kind==='obj'?objById:dataById)(id).name=name;
+  save(); render(); return true;
+}
+function freeName(base){ let n=base,i=2; while(nameTaken(n)) n=base+' '+ (i++); return n; }
+
+/* ---------- cycles de sous-classes ---------- */
+function isAncestorOf(candidate,other){ // candidate est-elle une ancestr/* (suite part1) */
+let cur=classById(other);
+  while(cur&&cur.parent){ if(cur.parent===candidate) return true; cur=classById(cur.parent); }
+  return false;
+}
+function setParent(id,parentId){
+  if(parentId===id||isAncestorOf(id,parentId)){ status('Impossible : cela créerait un cycle de sous-classes.',1); return; }
+  const c=classById(id); c.parent=parentId||null;
+  state.sel={kind:'class',id}; save(); render();
+}
+
+/* ---------- boîte de dialogue générique ---------- */
+function dialog(title,fields,msg){
+  return new Promise(res=>{
+    const ov=document.createElement('div'); ov.className='ovl';
+    const box=document.createElement('div'); box.className='dlg';
+    let h='<h3>'+esc(title)+'</h3>';
+    if(msg) h+='<p class="dlg-msg">'+esc(msg).replace(/\n/g,'<br>')+'</p>';
+    fields.forEach(f=>{
+      h+='<label class="fld'+(f.type==='check'?' check':'')+'"><span>'+esc(f.label)+'</span>';
+      if(f.type==='check') h+='<input type="checkbox" data-k="'+f.key+'" '+(f.value?'checked':'')+'>';
+      else if(f.type==='select') h+='<select data-k="'+f.key+'">'+f.options.map(o=>'<option value="'+esc(o.v)+'"'+(o.v===f.value?' selected':'')+'>'+esc(o.t)+'</option>').join('')+'</select>';
+      else h+='<input type="text" data-k="'+f.key+'" value="'+esc(f.value||'')+'" spellcheck="false">';
+      h+='</label>';
+    });
+    box.innerHTML=h;
+    const btns=document.createElement('div'); btns.className='dlg-btns';
+    const cn=document.createElement('button'); cn.className='btn'; cn.textContent='Annuler';
+    const ok=document.createElement('button'); ok.className='btn primary'; ok.textContent='OK';
+    btns.append(cn,ok); box.appendChild(btns); ov.appendChild(box);
+    function close(v){ ov.remove(); document.removeEventListener('keydown',onKey,true); res(v); }
+    function submit(){
+      const v={};
+      for(const f of fields){ const n=box.querySelector('[data-k="'+f.key+'"]'); v[f.key]=f.type==='check'?n.checked:n.value; }
+      close(v);
+    }
+    function onKey(e){
+      if(e.key==='Escape'){ e.stopPropagation(); close(null); }
+      if(e.key==='Enter'&&e.target&&e.target.tagName==='INPUT'){ e.preventDefault(); submit(); }
+    }
+    ok.onclick=submit; cn.onclick=()=>close(null);
+    ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(null); });
+    document.addEventListener('keydown',onKey,true);
+    document.body.appendChild(ov);
+    const first=box.querySelector('input[type=text]');
+    if(first){ first.focus(); first.select(); }
+  });
+}
+function confirmBox(msg,title){ return dialog(title||'Confirmer',[],msg).then(v=>v!==null); }
+
+/* ---------- création / suppression ---------- */
+function newClassAt(){
+  dialog('Nouvelle classe',[{key:'name',label:'Nom de la classe',value:''}]).then(v=>{
+    if(!v) return;
+    if(nameTaken(v.name)){ status('Le nom « '+v.name+' » est déjà utilisé.',1); return; }
+    const c={id:state.nextId++,name:v.name,parent:null};
+    state.classes.push(c); state.sel={kind:'class',id:c.id}; save(); render();
+  });
+}
+function addChildClass(parentId){
+  const c={id:state.nextId++,name:freeName('Sous-classe'),parent:parentId};
+  state.classes.push(c); state.sel={kind:'class',id:c.id}; save(); render();
+  const inp=$('#pf-name'); if(inp){ inp.focus(); inp.select(); }
+}
+function createObjProp(domain,range){
+  dialog('Nouvelle propriété objet',
+    [{key:'name',label:'Nom de la propriété',value:''},
+     {key:'transitive',label:'Transitive (owl:TransitiveProperty)',type:'check'},
+     {key:'symmetric',label:'Symétrique (owl:SymmetricProperty)',type:'check'},
+     {key:'functional',label:'Fonctionnelle (une seule valeur, owl:FunctionalProperty)',type:'check'}]
+  ).then(v=>{
+    if(!v) return;
+    if(nameTaken(v.name)){ status('Le nom « '+v.name+' » est déjà utilisé.',1); return; }
+    const p={id:state.nextId++,name:v.name,domain,range,transitive:!!v.transitive,symmetric:!!v.symmetric,functional:!!v.functional,inverseOf:null};
+    state.objProps.push(p); state.sel={kind:'obj',id:p.id}; save(); render();
+  });
+}
+function newDataProp(domain){
+  dialog('Nouvelle propriété de donnée',
+    [{key:'name',label:'Nom de la propriété',value:''},
+     {key:'type',label:'Type XSD de la valeur',type:'select',options:XSD.map(t=>({v:t,t})),value:'xsd:string'}]
+  ).then(v=>{
+    if(!v) return;
+    if(nameTaken(v.name)){ status('Le nom « '+v.name+' » est déjà utilisé.',1); return; }
+    const p={id:state.nextId++,name:v.name,domain,type:v.type};
+    state.dataProps.push(p); state.sel={kind:'data',id:p.id}; save(); render();
+  });
+}
+function cleanInverses(){
+  state.objProps.forEach(p=>{ const q=p.inverseOf&&objById(p.inverseOf); if(!q||q.inverseOf!==p.id) p.inverseOf=null; });
+}
+function deleteClass(id){
+  const c=classById(id);
+  const nObj=state.objProps.filter(p=>p.domain===id||p.range===id).length;
+  const nData=state.dataProps.filter(p=>p.domain===id).length;
+  const extra=(nObj||nData)?'\n'+nObj+' propriété(s) objet et '+nData+' propriété(s) donnée(s) qui lui sont liées seront supprimées.\nLes sous-classes deviendront des classes indépendantes.':'';
+  confirmBox('Supprimer la classe « '+c.name+' » ?'+extra,'Supprimer').then(ok=>{
+    if(!ok) return;
+    state.classes=state.classes.filter(x=>x.id!==id);
+    state.classes.forEach(x=>{ if(x.parent===id) x.parent=null; });
+    state.objProps=state.objProps.filter(p=>p.domain!==id&&p.range!==id);
+    state.dataProps=state.dataProps.filter(p=>p.domain!==id);
+    cleanInverses(); state.sel=null; save(); render();
+  });
+}
+function deleteProp(kind,id){
+  const p=(kind==='obj'?objById:dataById)(id);
+  confirmBox('Supprimer la propriété « '+p.name+' » ?','Supprimer').then(ok=>{
+    if(!ok) return;
+    if(kind==='obj'){ const q=p.inverseOf&&objById(p.inverseOf); if(q) q.inverseOf=null; state.objProps=state.objProps.filter(x=>x.id!==id); }
+    else state.dataProps=state.dataProps.filter(x=>x.id!==id);
+    state.sel=null; save(); render();
+  });
+}
+
+/* ---------- exemple chargé ---------- */
+function loadExample(){
+  state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nextId=1;
+  const id={};
+  const add=n=>{ const i=state.nextId++; state.classes.push({id:i,name:n,parent:null}); id[n]=i; return i; };
+  add('Personne'); add('Groupe'); add('Voie');
+  add('Membre');  state.classes[3].parent=id['Personne'];
+  add('Guide');   state.classes[4].parent=id['Personne'];
+  add('Sentier'); state.classes[5].parent=id['Voie'];
+  add('Piste');   state.classes[6].parent=id['Voie'];
+  const P=(n,d,r,x)=>state.objProps.push(Object.assign({id:state.nextId++,name:n,domain:id[d],range:id[r],inverseOf:null},x||{}));
+  P('connaît','Personne','Personne',{transitive:true,symmetric:true});
+  P('appartient-à','Membre','Groupe',{});
+  P('encadre','Guide','Groupe',{functional:true});
+  P('mène-à','Voie','Voie',{transitive:true});
+  const D=(n,d,t)=>state.dataProps.push({id:state.nextId++,name:n,domain:id[d],type:t});
+  D('nom','Personne','xsd:string');
+  D('âge','Membre','xsd:integer');
+  D('difficulté','Voie','xsd:string');
+  state.sel=null; save(); render();
+  status('Exemple chargé : une mini-ontologie de randonnées (personnes, groupes, voies).');
+}
+function clearAll(){
+  confirmBox('Tout effacer ? La sauvegarde locale sera remplacée.','Vider').then(ok=>{
+    if(!ok) return;
+    state.classes=[]; state.objProps=[]; state.dataProps=[]; state.sel=null; save(); render();
+  });
+}
+
+/* ---------- JSON ---------- */
+function download(blob,name){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+function exportJSON(){ download(new Blob([JSON.stringify(state,null,1)],{type:'application/json'}),'ontologie-ontolab.json'); }
+function importJSON(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
+  inp.onchange=()=>{
+    const f=inp.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{ try{
+        const s=JSON.parse(r.result); if(!Array.isArray(s.classes)) throw new Error();
+        state=Object.assign({sel:null,mode:'class'},state,s); state.sel=null; save(); render();
+        status('Ontologie importée : '+s.classes.length+' classe(s).');
+      }catch(e){ status('Fichier JSON invalide.',1); } };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+
+/* ---------- export Turtle ---------- */
+function toTTL(ns){
+  const local=n=>String(n).trim().replace(/\s+/g,'_').replace(/[#?@{}\\"]/g,'_')||'sans_nom';
+  const N=n=>':'+local(n);
+  const L=[];
+  L.push('# Généré par OntoLab le '+new Date().toISOString().slice(0,10));
+  L.push('# Outil pédagogique — cours Web Sémantique');
+  L.push('@prefix : <'+ns+'> .');
+  L.push('@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .');
+  L.push('@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .');
+  L.push('@prefix owl: <http://www.w3.org/2002/07/owl#> .');
+  L.push('@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .');
+  L.push('');
+  L.push('<'+ns.replace(/[#/]?$/,'')+'> rdf:type owl:Ontology .');
+  L.push('');
+  const byId=new Map(state.classes.map(c=>[c.id,c]));
+  const order=[];
+  const visit=id=>{ order.push(id); state.classes.filter(c=>c.parent===id).forEach(c=>visit(c.id)); };
+  state.classes.filter(c=>!c.parent||!byId.has(c.parent)).forEach(c=>visit(c.id));
+  for(const id of order){
+    const c=byId.get(id); if(!c) continue;
+    const par=c.parent&&byId.get(c.parent);
+    L.push(par ? N(c.name)+' rdf:type owl:Class ;\n    rdfs:subClassOf '+N(par.name)+' .'
+               : N(c.name)+' rdf:type owl:Class .');
+  }
+  if(state.classes.length) L.push('');
+  for(const p of state.objProps){
+    const d=classById(p.domain), r=classById(p.range);
+    if(!d||!r) continue;
+    const types=['owl:ObjectProperty'];
+    if(p.transitive) types.push('owl:TransitiveProperty');
+    if(p.symmetric) types.push('owl:SymmetricProperty');
+    if(p.functional) types.push('owl:FunctionalProperty');
+    let s=N(p.name)+' a '+types.join(', ')+' ;\n    rdfs:domain '+N(d.name)+' ;\n    rdfs:range '+N(r.name);
+    const q=p.inverseOf&&objById(p.inverseOf);
+    if(q) s+='\n    owl:inverseOf '+N(q.name);
+    L.push(s+' .');
+  }
+  if(state.objProps.length) L.push('');
+  for(const p of state.dataProps){
+    const d=classById(p.domain); if(!d) continue;
+    L.push(N(p.name)+' a owl:DatatypeProperty ;\n    rdfs:domain '+N(d.name)+' ;\n    rdfs:range '+p.type+' .');
+  }
+  return L.join('\n')+'\n';
+}
+function exportTTL(){
+  const ov=document.createElement('div'); ov.className='ovl';
+  const box=document.createElement('div'); box.className='dlg'; box.style.width='min(720px,94vw)';
+  box.innerHTML='<h3>Export — Turtle (TTL)</h3>'
+    +'<label class="fld"><span>Namespace de l\'ontologie</span><input type="text" id="ttl-ns" spellcheck="false"></label>'
+    +'<pre id="ttl-pre"></pre>';
+  const btns=document.createElement('div'); btns.className='dlg-btns';
+  const closeB=document.createElement('button'); closeB.className='btn'; closeB.textContent='Fermer';
+  const dlB=document.createElement('button'); dlB.className='btn'; dlB.textContent='Télécharger .ttl';
+  const cpB=document.createElement('button'); cpB.className='btn primary'; cpB.textContent='Copier';
+  btns.append(closeB,dlB,cpB); box.appendChild(btns); ov.appendChild(box);
+  document.body.appendChild(ov);
+  const nsI=$('#ttl-ns'), pre=$('#ttl-pre');
+  nsI.value=state.ns;
+  const build=()=>{ pre.textContent=toTTL(nsI.value.trim()||'http://example.org/onto#'); };
+  nsI.oninput=build; build();
+  const fname=()=>((nsI.value.split('/').pop()||'ontologie').replace(/[#?]/g,'')||'ontologie')+'.ttl';
+  closeB.onclick=()=>ov.remove();
+  dlB.onclick=()=>{ download(new Blob([pre.textContent],{type:'text/turtle'}),fname()); };
+  cpB.onclick=()=>{ navigator.clipboard.writeText(pre.textContent).then(()=>cpB.textContent='Copié ✓',()=>status('Copie impossible — sélectionnez le texte manuellement.',1)); };
+  ov.addEventListener('mousedown',e=>{ if(e.target===ov) ov.remove(); });
+}
+/* ================= OntoLab — partie 2 : mise en page et rendu SVG ================= */
+const svg=$('#canvas'), world=$('#world');
+let layerArcs=null, layerData=null, layerNodes=null, layerProps=null, ghostEl=null, lastPos=new Map(), lastObjPos=new Map(), lastDataPos=new Map();
+let drag=null, pan=null;
+
+function applyView(){ world.setAttribute('transform','translate('+state.view.x+','+state.view.y+') scale('+state.view.k+')'); }
+function toWorld(e){ const r=svg.getBoundingClientRect(); return {x:(e.clientX-r.left-state.view.x)/state.view.k, y:(e.clientY-r.top-state.view.y)/state.view.k}; }
+function initView(){ const r=svg.getBoundingClientRect(); state.view={x:r.width/2,y:r.height/2+10,k:1}; applyView(); }
+
+function classSize(name){ return {rx:Math.max(44,16+name.length*3.6), ry:26}; }
+function short(name,rx){ const max=Math.max(4,Math.floor((2*rx-14)/6.8)); return name.length<=max?name:name.slice(0,max-1)+'…'; }
+function edgePoint(c,toward){ const a=Math.atan2(toward.y-c.y,toward.x-c.x); return {x:c.x+c.rx*Math.cos(a), y:c.y+c.ry*Math.sin(a)}; }
+
+/* Disposition concentrique type VOWL : une racine au centre, sous-classes en anneaux. */
+function computeLayout(){
+  const pos=new Map();
+  const cls=state.classes; if(!cls.length) return pos;
+  const byId=new Map(cls.map(c=>[c.id,c]));
+  const children=new Map(cls.map(c=>[c.id,[]]));
+  for(const c of cls) if(c.parent&&byId.has(c.parent)) children.get(c.parent).push(c.id);
+  const roots=cls.filter(c=>!c.parent||!byId.has(c.parent));
+  const leafCount=new Map();
+  function lc(id){ let v=leafCount.get(id); if(v!=null) return v;
+    const ch=children.get(id)||[]; v=ch.length?ch.reduce((s,cid)=>s+lc(cid),0):1; leafCount.set(id,v); return v; }
+  // profondeur de chaque classe
+  const depth=new Map();
+  function dOf(id){ let v=depth.get(id); if(v!=null) return v;
+    const c=byId.get(id); v=(c.parent&&byId.has(c.parent))?dOf(c.parent)+1:0; depth.set(id,v); return v; }
+  let maxD=0; cls.forEach(c=>{ const d=dOf(c.id); if(d>maxD) maxD=d; });
+  // poids d'un nœud = largeur totale des feuilles de sa sous-arborescence :
+  // un sous-arbre large (ou aux noms longs) reçoit un secteur angulaire plus grand
+  const GAP=36, weight=new Map();
+  function wOf(id){ let v=weight.get(id); if(v!=null) return v;
+    const ch=children.get(id)||[];
+    v=ch.length?ch.reduce((s,cid)=>s+wOf(cid),0):(2*classSize(byId.get(id).name).rx+GAP);
+    weight.set(id,v); return v; }
+  const totalW=roots.reduce((s,r)=>s+wOf(r.id),0)||1;
+  // rayon des anneaux : les nœuds d'une même profondeur tuilent tout le cercle
+  // (largeur totale identique à chaque niveau), + dégagement parent/enfant
+  const ringR=new Map();
+  ringR.set(0, roots.length===1?0:170);
+  const rBase=1.18*totalW/(2*Math.PI);
+  for(let d=1;d<=maxD;d++){
+    let r=rBase;
+    cls.filter(c=>depth.get(c.id)===d).forEach(c=>{ const par=byId.get(c.parent);
+      if(par&&byId.has(c.parent)) r=Math.max(r,(ringR.get(depth.get(par.id))||0)+classSize(par.name).ry+classSize(c.name).ry+20); });
+    ringR.set(d,r);
+  }
+  function place(clsId,start,end){
+    const c=byId.get(clsId); const sz=classSize(c.name);
+    const ch=children.get(clsId)||[];
+    if(ch.length){
+      const total=ch.reduce((s,cid)=>s+wOf(cid),0); let cur=start;
+      for(const cid of ch){ const span=(end-start)*wOf(cid)/total; place(cid,cur,cur+span); cur+=span; }
+    }
+    const radius=ringR.get(depth.get(clsId))||0;
+    const angle=(start+end)/2;
+    pos.set(clsId,{x:radius*Math.cos(angle), y:radius*Math.sin(angle), rx:sz.rx, ry:sz.ry, angle});
+  }
+  if(roots.length===1) place(roots[0].id,0,2*Math.PI);
+  else{ let cur=0; roots.forEach(r=>{ const span=2*Math.PI*wOf(r.id)/totalW; place(r.id,cur,cur+span); cur+=span; }); }
+  // positions manuelles (mode ④) : elles priment sur la mise en page
+  cls.forEach(c=>{ if(c.mx!=null){ const p=pos.get(c.id); p.x=c.mx; p.y=c.my; } });
+  return pos;
+}
+
+/* Positions des propriétés (ellipses vertes / rouges) le long des arêtes. */
+function computeProps(pos){
+  const obj=new Map(), data=new Map();
+  const pairs=new Map();
+  state.objProps.forEach(p=>{ const k=p.domain+'|'+p.range; if(!pairs.has(k)) pairs.set(k,[]); pairs.get(k).push(p); });
+  pairs.forEach(arr=>{
+    arr.forEach((p,i)=>{
+      const d=pos.get(p.domain), r=pos.get(p.range); if(!d||!r) return;
+      let mid;
+      if(p.domain===p.range){
+        const L0=Math.hypot(d.x,d.y); const ang=L0>1?Math.atan2(d.y,d.x):-Math.PI/2;
+        mid={x:d.x+Math.cos(ang)*(d.ry+46), y:d.y+Math.sin(ang)*(d.ry+46)};
+      } else {
+        mid={x:(d.x+r.x)/2, y:(d.y+r.y)/2};
+        const mlen=Math.hypot(mid.x,mid.y);
+        if(mlen>1){ mid.x*=1.15; mid.y*=1.15; }
+        const dx=r.x-d.x, dy=r.y-d.y, L=Math.hypot(dx,dy)||1;
+        const off=(i-(arr.length-1)/2)*54;
+        mid.x+=(-dy/L)*off; mid.y+=(dx/L)*off;
+      }
+      if(p.mx!=null) mid={x:p.mx, y:p.my};
+      obj.set(p.id,{x:mid.x, y:mid.y, rx:Math.max(36,14+p.name.length*3.4), ry:16, start:edgePoint(d,mid), end:edgePoint(r,mid)});
+    });
+  });
+  const byDom=new Map();
+  state.dataProps.forEach(p=>{ if(!byDom.has(p.domain)) byDom.set(p.domain,[]); byDom.get(p.domain).push(p); });
+  byDom.forEach((arr,dom)=>{
+    const c=pos.get(dom); if(!c) return;
+    const c0=Math.hypot(c.x,c.y); const base=c0>1?Math.atan2(c.y,c.x):-Math.PI/2;
+    arr.forEach((p,i)=>{
+      const ang=base+(i-(arr.length-1)/2)*0.55;
+      const ex=c.x+c.rx*Math.cos(ang), ey=c.y+c.ry*Math.sin(ang);
+      const R=Math.max(c.rx,c.ry)+54;
+      let px=c.x+Math.cos(ang)*R, py=c.y+Math.sin(ang)*R;
+      if(p.mx!=null){ px=p.mx; py=p.my; }
+      data.set(p.id,{x:px, y:py, rx:Math.max(30,11+p.name.length*3.1), ry:14, start:edgePoint(c,{x:px,y:py})});
+    });
+  });
+  return {obj,data};
+}
+
+/* Résolution des collisions restantes (classes + étiquettes de propriétés).
+   Pousse les ellipses qui se chevauchent, ancre doucement les classes vers
+   leur position radiale initiale, respecte les positions manuelles. */
+function relax(pos,objP,dataP){
+  const manual=new Set();
+  state.classes.forEach(c=>{if(c.mx!=null)manual.add('c'+c.id);});
+  state.objProps.forEach(p=>{if(p.mx!=null)manual.add('o'+p.id);});
+  state.dataProps.forEach(p=>{if(p.mx!=null)manual.add('d'+p.id);});
+  const nodes=[];
+  pos.forEach((p,id)=>nodes.push({p,k:'class',id:'c'+id,ox:p.x,oy:p.y}));
+  objP.forEach((p,id)=>nodes.push({p,k:'lbl',id:'o'+id,ox:p.x,oy:p.y}));
+  dataP.forEach((p,id)=>nodes.push({p,k:'lbl',id:'d'+id,ox:p.x,oy:p.y}));
+  for(let it=0;it<150;it++){
+    let any=false;
+    for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+      const A=nodes[i],B=nodes[j],a=A.p,b=B.p;
+      const dx=b.x-a.x,dy=b.y-a.y; let d=Math.hypot(dx,dy); if(d<1e-4)d=1e-4;
+      const ang=Math.atan2(dy,dx);
+      const ra=a.rx*a.ry/Math.hypot(a.ry*Math.cos(ang),a.rx*Math.sin(ang));
+      const rb=b.rx*b.ry/Math.hypot(b.ry*Math.cos(ang),b.rx*Math.sin(ang));
+      const o=ra+rb+10-d;
+      if(o<=0) continue;
+      const ma=manual.has(A.id), mb=manual.has(B.id);
+      if(ma&&mb) continue;
+      any=true;
+      let wa,wb;
+      if(A.k==='class'&&B.k==='class'){wa=0.25;wb=0.25;}
+      else if(A.k==='class'){wa=0.12;wb=0.38;}
+      else if(B.k==='class'){wa=0.38;wb=0.12;}
+      else{wa=0.25;wb=0.25;}
+      if(ma){wa=0;wb=0.5;} else if(mb){wb=0;wa=0.5;}
+      const ux=dx/d, uy=dy/d;
+      A.p.x-=ux*o*wa*2; A.p.y-=uy*o*wa*2;
+      B.p.x+=ux*o*wb*2; B.p.y+=uy*o*wb*2;
+    }
+    nodes.forEach(n=>{ if(n.k==='class'&&!manual.has(n.id)){ n.p.x+=(n.ox-n.p.x)*0.08; n.p.y+=(n.oy-n.p.y)*0.08; } });
+    if(!any) break;
+  }
+}
+function refinalizeProps(pos,objP,dataP){
+  state.objProps.forEach(p=>{ const q=objP.get(p.id); if(!q)return;
+    const d=pos.get(p.domain), r=pos.get(p.range); if(!d||!r)return;
+    q.start=edgePoint(d,q); q.end=edgePoint(r,q); });
+  state.dataProps.forEach(p=>{ const q=dataP.get(p.id); if(!q)return;
+    const c=pos.get(p.domain); if(!c)return;
+    q.start=edgePoint(c,q); });
+}
+
+function render(){
+  applyView();
+  world.innerHTML='';
+  layerArcs=el('g',{},world);
+  layerData=el('g',{},world);
+  layerNodes=el('g',{},world);
+  layerProps=el('g',{},world);
+  ghostEl=el('line',{visibility:'hidden',stroke:C.sel,'stroke-width':2,'stroke-dasharray':'6 4'},world);
+  lastPos=computeLayout();
+  const pp=computeProps(lastPos);
+  lastObjPos=pp.obj; lastDataPos=pp.data;
+  relax(lastPos,pp.obj,pp.data);
+  refinalizeProps(lastPos,pp.obj,pp.data);
+  drawObjArcs(lastPos,pp.obj);
+  drawData(lastPos,pp.data);
+  drawClasses(lastPos);
+  drawObjProps(pp.obj);
+  updatePanel(); updateStats();
+}
+
+function selIs(kind,id){ return state.sel&&state.sel.kind===kind&&state.sel.id===id; }
+
+function drawObjArcs(pos,pp){
+  for(const p of state.objProps){
+    const q=pp.get(p.id); if(!q) continue;
+    const d=pos.get(p.domain), r=pos.get(p.range);
+    const pathD='M'+q.start.x+' '+q.start.y+' Q'+q.x+' '+q.y+' '+q.end.x+' '+q.end.y;
+    const attrs={d:pathD,fill:'none',stroke:C.objS,'stroke-width':2,opacity:0.9};
+    if(selIs('obj',p.id)) attrs['stroke-width']=3.4;
+    const m={};
+    if(p.symmetric) m['marker-start']='url(#m-arr-start)';
+    m['marker-end']='url(#m-arr)';
+    Object.assign(attrs,m);
+    el('path',attrs,layerArcs);
+    if(p.transitive){ // petite boucle verte sur le domaine
+      const ang=Math.atan2(q.y-d.y,q.x-d.x);
+      const a1=ang-0.45, a2=ang+0.45;
+      const x1=d.x+(d.rx+4)*Math.cos(a1), y1=d.y+(d.ry+4)*Math.sin(a1);
+      const x2=d.x+(d.rx+4)*Math.cos(a2), y2=d.y+(d.ry+4)*Math.sin(a2);
+      const cx=d.x+(d.rx+20)*Math.cos(ang), cy=d.y+(d.ry+20)*Math.sin(ang);
+      el('path',{d:'M'+x1+' '+y1+' Q'+cx+' '+cy+' '+x2+' '+y2,fill:'none',stroke:C.objS,'stroke-width':1.8,'marker-end':'url(#m-arr)',opacity:0.85},layerArcs);
+    }
+  }
+}
+
+function drawData(pos,pp){
+  for(const p of state.dataProps){
+    const q=pp.get(p.id); if(!q) continue;
+    const c=pos.get(p.domain); if(!c) continue;
+    el('line',{x1:q.start.x,y1:q.start.y,x2:q.x-Math.sign(q.x-c.x)*q.rx*0.9,y2:q.y,stroke:C.dataS,'stroke-width':1.6,'marker-end':'url(#m-arr-red)',opacity:0.85},layerData);
+    const g=el('g',{'data-id':p.id,'data-kind':'data',cursor:'pointer'},layerData);
+    const sel=selIs('data',p.id);
+    el('ellipse',{cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.data,stroke:sel?C.sel:C.dataS,'stroke-width':sel?3:1.6},g);
+    const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#3d1414'},g); t.textContent=short(p.name,q.rx);
+    const t2=el('text',{x:q.x,y:q.y+q.ry+11,'text-anchor':'middle','font-size':9,fill:C.dataS},g); t2.textContent=p.type.replace('xsd:','');
+    const tt=el('title',{},g); tt.textContent=p.name+' : propriété de donnée de '+c.name+' ('+p.type+')';
+    g.addEventListener('mousedown',e=>nodeDown(e,'data',p.id));
+  }
+}
+
+function drawClasses(pos){
+  for(const c of state.classes){
+    const p=pos.get(c.id); if(!p) continue;
+    const par=c.parent&&classById(c.parent);
+    const g=el('g',{class:'node','data-id':c.id,'data-kind':'class',cursor:'pointer'},layerNodes);
+    const sel=selIs('class',c.id);
+    el('ellipse',{cx:p.x,cy:p.y,rx:p.rx,ry:p.ry,fill:C.cls,stroke:sel?C.sel:C.clsS,'stroke-width':sel?3.4:2},g);
+    const t=el('text',{x:p.x,y:p.y+4.5,'text-anchor':'middle','font-size':13,'font-weight':600,fill:'#10233f'},g); t.textContent=short(c.name,p.rx);
+    const tt=el('title',{},g); tt.textContent=c.name+(par?' (sous-classe de '+par.name+')':' (classe racine)');
+    g.addEventListener('mousedown',e=>nodeDown(e,'class',c.id));
+  }
+}
+
+function drawObjProps(pp){
+  for(const p of state.objProps){
+    const q=pp.get(p.id); if(!q) continue;
+    const g=el('g',{'data-id':p.id,'data-kind':'obj',cursor:'pointer'},layerProps);
+    const sel=selIs('obj',p.id);
+    const ea={cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.obj,stroke:sel?C.sel:C.objS,'stroke-width':sel?3:1.8};
+    if(p.functional) ea['stroke-dasharray']='5 3';
+    el('ellipse',ea,g);
+    const inv=p.inverseOf&&objById(p.inverseOf);
+    const label=short(p.name,q.rx)+(inv?' ⇄':'');
+    const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#26330d'},g); t.textContent=label;
+    const tt=el('title',{},g);
+    tt.textContent=p.name+' : objet, '+ (classById(p.domain)||{}).name +' → '+ (classById(p.range)||{}).name
+      +(p.transitive?' [transitive]':'')+(p.symmetric?' [symétrique]':'')+(p.functional?' [fonctionnelle]':'')+(inv?' [inverse de '+inv.name+']':'');
+    g.addEventListener('mousedown',e=>nodeDown(e,'obj',p.id));
+  }
+}
+
+function updateStats(){
+  const nC=state.classes.length, nO=state.objProps.length, nD=state.dataProps.length;
+  let t=nC+state.classes.filter(c=>c.parent).length+nO*3+nD*3
+    +state.objProps.filter(p=>p.transitive||p.symmetric||p.functional).length
+    +state.objProps.filter(p=>p.inverseOf).length;
+  $('#stats').textContent=nC+' classes · '+nO+' prop. objet · '+nD+' prop. donnée · ≈ '+t+' triples';
+}
+
+function setHover(id,on){
+  const g=layerNodes&&layerNodes.querySelector('g[data-id="'+id+'"]');
+  if(g) g.setAttribute('data-hover',on?'1':'0');
+}
+function updateGhost(w){
+  const p=lastPos.get(drag.id); if(!p) return;
+  ghostEl.setAttribute('x1',p.x); ghostEl.setAttribute('y1',p.y);
+  ghostEl.setAttribute('x2',w.x); ghostEl.setAttribute('y2',w.y);
+  ghostEl.setAttribute('visibility','visible');
+}
+function clearDragVisual(){
+  if(ghostEl) ghostEl.setAttribute('visibility','hidden');
+  if(drag&&drag.hover) setHover(drag.hover,false);
+}
+/* ================= OntoLab — partie 3 : interactions, panneau, démarrage ================= */
+function nodeDown(e,kind,id){
+  if(e.button!==0) return;
+  e.stopPropagation();
+  if(state.mode==='move'){
+    const cur=kind==='class'?lastPos.get(id):(kind==='obj'?lastObjPos.get(id):lastDataPos.get(id));
+    if(!cur) return;
+    const w=toWorld(e);
+    drag={kind:'move',nodeKind:kind,id,ox:w.x-cur.x,oy:w.y-cur.y,moved:false};
+    return;
+  }
+  if(kind==='obj'||kind==='data'){
+    if(!(state.sel&&state.sel.kind===kind&&state.sel.id===id)){ state.sel={kind,id}; save(); render(); }
+    return;
+  }
+  const w=toWorld(e);
+  drag={kind:'node',id,sx:w.x,sy:w.y,moved:false,hover:null};
+}
+
+svg.addEventListener('mousedown',e=>{
+  if(e.button!==0) return;
+  if(e.target===svg||e.target===world){
+    pan={sx:e.clientX,sy:e.clientY,ox:state.view.x,oy:state.view.y,moved:false};
+  }
+});
+window.addEventListener('mousemove',e=>{
+  if(pan){
+    const dx=e.clientX-pan.sx, dy=e.clientY-pan.sy;
+    if(Math.hypot(dx,dy)>3) pan.moved=true;
+    if(pan.moved){ state.view.x=pan.ox+dx; state.view.y=pan.oy+dy; applyView(); svg.classList.add('panning'); }
+  }
+  if(drag&&drag.kind==='move'){
+    const w=toWorld(e);
+    const elx=drag.nodeKind==='class'?classById(drag.id):(drag.nodeKind==='obj'?objById(drag.id):dataById(drag.id));
+    if(elx){ elx.mx=w.x-drag.ox; elx.my=w.y-drag.oy; elx.man=true; drag.moved=true; render(); }
+    return;
+  }
+  if(drag&&drag.kind==='node'){
+    const w=toWorld(e);
+    if(Math.hypot(w.x-drag.sx,w.y-drag.sy)>4/state.view.k) drag.moved=true;
+    if(drag.moved){
+      updateGhost(w);
+      const t=document.elementFromPoint(e.clientX,e.clientY);
+      const g=t&&t.closest?t.closest('[data-kind="class"]'):null;
+      const tid=g?g.getAttribute('data-id'):null;
+      if(tid!==drag.hover){ if(drag.hover) setHover(drag.hover,false); drag.hover=tid; if(tid) setHover(tid,true); }
+    }
+  }
+});
+window.addEventListener('mouseup',e=>{
+  if(pan){
+    const wasClick=!pan.moved; pan=null; svg.classList.remove('panning');
+    if(wasClick&&state.mode==='class') newClassAt();
+  }
+  if(drag){
+    const d=drag; drag=null; clearDragVisual();
+    if(d.kind==='move'){ save(); if(!d.moved){ state.sel={kind:d.nodeKind,id:d.id}; render(); } return; }
+    if(d.kind!=='node') return;
+    if(state.mode==='data'){
+      if(!d.moved) newDataProp(d.id);
+      return;
+    }
+    if(!d.moved){ state.sel={kind:'class',id:d.id}; save(); render(); return; }
+    const t=document.elementFromPoint(e.clientX,e.clientY);
+    const g=t&&t.closest?t.closest('[data-id]'):null;
+    const kind=g?g.getAttribute('data-kind'):null, id=g?g.getAttribute('data-id'):null;
+    if(state.mode==='class'){
+      if(kind==='class'&&id&&id!==d.id) setParent(d.id,id);
+      else if(kind!=='class') setParent(d.id,null);
+    } else if(state.mode==='obj'){
+      if(kind==='class'&&id) createObjProp(d.id,id);
+      else status('Glissez d\'une classe (domaine) jusqu\'à une classe (portée).',1);
+    }
+  }
+});
+svg.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=svg.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  const k2=Math.min(3,Math.max(0.2,state.view.k*Math.exp(-e.deltaY*0.0015)));
+  const f=k2/state.view.k;
+  state.view.x=mx-(mx-state.view.x)*f; state.view.y=my-(my-state.view.y)*f; state.view.k=k2;
+  applyView(); save();
+},{passive:false});
+
+function setMode(m){
+  state.mode=m;
+  document.querySelectorAll('.modes button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  save();
+  if(m==='class') status('Mode Classe : cliquez sur le fond pour créer une classe ; glissez-en une sur une autre pour en faire une sous-classe ; glissez sur le fond pour la détacher.');
+  if(m==='obj') status('Mode Propriété objet : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une ellipse verte pour la modifier.');
+  if(m==='data') status('Mode Propriété de donnée : cliquez sur une classe pour lui ajouter une propriété de donnée. Cliquez sur une ellipse rouge pour la modifier.');
+  if(m==='move') status('Mode Déplacer : glissez une classe ou une étiquette de propriété pour la repositionner ; glissez le fond pour déplacer la vue. « Réorganiser » recalcule la mise en page automatique.');
+  svg.classList.toggle('move',m==='move');
+}
+
+/* ---------- panneau latéral ---------- */
+function classOptions(selId,exclude){
+  return state.classes.filter(c=>c.id!==selId&&!exclude.has(c.id))
+    .map(c=>'<option value="'+c.id+'"'+(c.id===selId?' selected':'')+'>'+esc(c.name)+'</option>').join('');
+}
+function updatePanel(){
+  const p=$('#panel'), s=state.sel;
+  if(!s){
+    p.innerHTML='<h3>OntoLab</h3>'
+      +'<p class="hint" style="margin-top:0">Construisez une ontologie RDFS/OWL en trois temps :</p>'
+      +'<p class="hint"><b>① Classe</b> — cliquez sur le fond pour créer ; glissez une classe sur une autre pour <b>subClassOf</b>.</p>'
+      +'<p class="hint"><b>② Propriété objet</b> — glissez d\'une classe vers une autre (domaine → portée) ; cochez transitive / symétrique / fonctionnelle, définissez une paire inverse.</p>'
+      +'<p class="hint"><b>③ Propriété de donnée</b> — cliquez sur une classe ; choisissez le type XSD.</p>'
+      +'<p class="hint"><b>④ Déplacer</b> — glissez tout élément (classe, étiquette de propriété) pour le repositionner à la main ; le bouton <b>Réorganiser</b> recalcule la mise en page automatique.</p>'
+      +'<p class="hint">Raccourcis : <b>1/2/3/4</b> modes, <b>Suppr</b> élément sélectionné, <b>Échap</b> désélection. Molette : zoom, glisser le fond : déplacer la vue, double-clic sur le fond : recentrer.</p>'
+      +'<p class="hint">La sauvegarde est automatique (navigateur). « Exporter TTL » produit le fichier <b>.ttl</b> prêt à charger dans Jena/Fuseki.</p>';
+    return;
+  }
+  let h='';
+  if(s.kind==='class'){
+    const c=classById(s.id); if(!c){ state.sel=null; return updatePanel(); }
+    const desc=new Set();
+    (function walk(id){ state.classes.forEach(ch=>{ if(ch.parent===id){ desc.add(ch.id); walk(ch.id); } }); })(c.id);
+    h='<h3>Classe</h3>'
+      +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(c.name)+'" spellcheck="false"></label>'
+      +'<label class="fld"><span>Sous-classe de</span><select id="pf-parent"><option value="">— (aucune, classe racine)</option>'+classOptions(c.id,desc)+'</select></label>'
+      +'<button class="btn" id="pf-addchild">+ Ajouter une sous-classe</button>'
+      +'<button class="btn danger" id="pf-del">Supprimer la classe</button>'
+      +'<p class="hint">Astuce : glissez une classe sur une autre pour créer le subClassOf ; glissez sur le fond pour la détacher.</p>';
+    p.innerHTML=h;
+    $('#pf-name').onchange=e=>setCommonName('class',c.id,e.target.value);
+    $('#pf-parent').onchange=e=>setParent(c.id,e.target.value||null);
+    $('#pf-addchild').onclick=()=>addChildClass(c.id);
+    $('#pf-del').onclick=()=>deleteClass(c.id);
+  } else if(s.kind==='obj'){
+    const p2=objById(s.id); if(!p2){ state.sel=null; return updatePanel(); }
+    const cands=state.objProps.filter(x=>x.id!==p2.id&&x.domain===p2.range&&x.range===p2.domain);
+    if(p2.inverseOf&&!cands.some(x=>x.id===p2.inverseOf)){ const q=objById(p2.inverseOf); if(q) q.inverseOf=null; p2.inverseOf=null; }
+    h='<h3>Propriété objet</h3>'
+      +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p2.name)+'" spellcheck="false"></label>'
+      +'<label class="fld"><span>Domaine (rdfs:domain)</span><select id="pf-domain">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p2.domain?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
+      +'<label class="fld"><span>Portée (rdfs:range)</span><select id="pf-range">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p2.range?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
+      +'<label class="fld check"><span>Transitive</span><input type="checkbox" id="pf-trans"'+(p2.transitive?' checked':'')+'></label>'
+      +'<label class="fld check"><span>Symétrique</span><input type="checkbox" id="pf-sym"'+(p2.symmetric?' checked':'')+'></label>'
+      +'<label class="fld check"><span>Fonctionnelle</span><input type="checkbox" id="pf-func"'+(p2.functional?' checked':'')+'></label>'
+      +'<label class="fld"><span>Propriété inverse (owl:inverseOf)</span><select id="pf-inv"><option value="">— (aucune)</option>'
+        +cands.map(x=>'<option value="'+x.id+'"'+(x.id===p2.inverseOf?' selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select></label>'
+      +'<button class="btn danger" id="pf-del">Supprimer la propriété</button>';
+    p.innerHTML=h;
+    $('#pf-name').onchange=e=>setCommonName('obj',p2.id,e.target.value);
+    $('#pf-domain').onchange=e=>{ p2.domain=+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
+    $('#pf-range').onchange=e=>{ p2.range=+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
+    $('#pf-trans').onchange=e=>{ p2.transitive=e.target.checked; save(); render(); };
+    $('#pf-sym').onchange=e=>{ p2.symmetric=e.target.checked; save(); render(); };
+    $('#pf-func').onchange=e=>{ p2.functional=e.target.checked; save(); render(); };
+    $('#pf-inv').onchange=e=>{
+      const v=e.target.value||null;
+      if(v){
+        if(p2.inverseOf&&p2.inverseOf!==v){ const o=objById(p2.inverseOf); if(o) o.inverseOf=null; }
+        const q=objById(v); q.inverseOf=p2.id; p2.inverseOf=v;
+      } else { const o=objById(p2.inverseOf); if(o) o.inverseOf=null; p2.inverseOf=null; }
+      save(); render();
+    };
+    $('#pf-del').onclick=()=>deleteProp('obj',p2.id);
+  } else if(s.kind==='data'){
+    const p3=dataById(s.id); if(!p3){ state.sel=null; return updatePanel(); }
+    h='<h3>Propriété de donnée</h3>'
+      +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p3.name)+'" spellcheck="false"></label>'
+      +'<label class="fld"><span>Domaine (rdfs:domain)</span><select id="pf-domain">'+state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p3.domain?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'
+      +'<label class="fld"><span>Type XSD (rdfs:range)</span><select id="pf-type">'+XSD.map(t=>'<option value="'+t+'"'+(t===p3.type?' selected':'')+'>'+t+'</option>').join('')+'</select></label>'
+      +'<button class="btn danger" id="pf-del">Supprimer la propriété</button>';
+    p.innerHTML=h;
+    $('#pf-name').onchange=e=>setCommonName('data',p3.id,e.target.value);
+    $('#pf-domain').onchange=e=>{ p3.domain=+e.target.value; save(); render(); };
+    $('#pf-type').onchange=e=>{ p3.type=e.target.value; save(); render(); };
+    $('#pf-del').onclick=()=>deleteProp('data',p3.id);
+  }
+}
+
+/* ---------- clavier ---------- */
+document.addEventListener('keydown',e=>{
+  const tag=e.target&&e.target.tagName;
+  if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return;
+  if((e.key==='Delete'||e.key==='Backspace')&&state.sel){
+    e.preventDefault(); const s=state.sel;
+    if(s.kind==='class') deleteClass(s.id);
+    else deleteProp(s.kind==='obj'?'obj':'data',s.id);
+  }
+  if(e.key==='Escape'){ state.sel=null; save(); render(); }
+  if(e.key==='1') setMode('class');
+  if(e.key==='2') setMode('obj');
+  if(e.key==='3') setMode('data');
+  if(e.key==='4') setMode('move');
+});
+
+/* ---------- toolbar ---------- */
+document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+$('#b-example').onclick=()=>loadExample();
+$('#b-clear').onclick=()=>clearAll();
+$('#b-import').onclick=()=>importJSON();
+$('#b-json').onclick=()=>exportJSON();
+$('#b-ttl').onclick=()=>exportTTL();
+$('#b-layout').onclick=()=>{
+  state.classes.forEach(c=>{delete c.mx;delete c.my;delete c.man;});
+  state.objProps.forEach(p=>{delete p.mx;delete p.my;});
+  state.dataProps.forEach(p=>{delete p.mx;delete p.my;});
+  save(); render();
+  status('Mise en page automatique relancée — les positions manuelles ont été effacées.');
+};
+svg.addEventListener('dblclick',e=>{ if(e.target===svg||e.target===world) initView(); });
+
+/* ---------- démarrage ---------- */
+load();
+if(state.view.x==null) initView();
+render();
+setMode(state.mode||'class');
+</script>
+</body>
+</html>
