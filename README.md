@@ -194,6 +194,14 @@ Dans le panneau d'une propriété objet ou de donnée : **Équivalente à** (`ow
 Les relations sont symétriques (déclarées une fois par paire dans le Turtle) ; l'import lit aussi `owl:AllDisjointClasses`. En mode RDFS elles sont masquées et non exportées.
 « Vérifier l'ontologie » signale les classes insatisfiables (disjointe d'un ancêtre, ou héritant de deux classes disjointes).
 
+### Restrictions OWL (mode OWL)
+
+Section **Restrictions** du panneau d'une classe : une ligne par restriction (`rdfs:subClassOf [ a owl:Restriction … ]`, condition nécessaire) — type (**∃** some, **∀** only, **≥** min, **≤** max, **=** exactly), nombre pour les cardinalités,
+propriété (objet ou donnée) et classe ou type visé (vide = `owl:Thing` / `rdfs:Literal`, cardinalité non qualifiée). Les restrictions des super-classes sont listées en gris, avec un lien vers leur classe.
+Sur le graphe : une **flèche en tirets** de la classe vers la classe visée, avec une pastille (« ∃ possède », « ≥2 possède »…) ; une restriction sans classe visée (propriété de donnée, cardinalité non qualifiée) ne se lit que dans le panneau et l'infobulle.
+L'import reprend some / only / cardinalités (qualifiées ou non) ; `hasValue`, les propriétés ou classes inconnues et les classes définies par équivalence sont signalés. « Vérifier l'ontologie » repère les bornes contradictoires
+(au moins 3 et au plus 1…). Masquées et non exportées en mode RDFS.
+
 ### Version
 
 Le numéro de version est affiché à côté du copyright et dans l'en-tête des fichiers Turtle exportés ; l'historique est dans [`CHANGELOG.md`](CHANGELOG.md).

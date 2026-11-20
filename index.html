@@ -79,6 +79,7 @@ details.annot{margin:0 0 10px;font-size:12px;color:#516079;}details.annot summar
 .attr input{flex:1 1 100%;}.attr select{flex:1 1 90px;}
 #panel .attr .btn{width:auto;margin:0;padding:5px 9px;}
 #panel .btn.a-inh{background:none;border:none;padding:2px 0;margin-top:6px;color:#8a93a6;font-size:12px;text-align:left;text-decoration:underline;}
+.attr.rst .r-kind{flex:1 1 100%;}.attr.rst .r-n{flex:0 0 64px;}.attr.rst .r-prop,.attr.rst .r-fill{flex:1 1 110px;}
 .attr-inh{margin:0 0 6px;font-size:12px;color:#9aa3b5;line-height:1.5;}
 #legend{position:fixed;left:100px;bottom:54px;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:10px 12px;font-size:11.5px;color:#516079;z-index:1;line-height:1.8;box-shadow:0 2px 10px rgba(30,50,90,.08);max-width:330px;}
 .chip{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px;}
@@ -173,6 +174,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
   <div class="cmp-o">« ⊆ nom » sous la pastille : <b>rdfs:subPropertyOf</b> · flèche en tirets vers <b>?</b> : domaine ou portée à préciser</div>
   <div>Ligne pointillée à pointe creuse : <b>rdfs:subPropertyOf</b> (sous-propriété → parente)</div>
   <div class="owl-only"><b>Double bordure</b> + trait <b>≡</b> : classes <b>équivalentes</b> · trait pointillé <b>⊥</b> : classes <b>disjointes</b> · <b>≡</b> après un nom de propriété : propriétés équivalentes</div>
+  <div class="owl-only">Flèche en tirets + pastille <b>∃ ∀ ≥ ≤ =</b> : <b>restriction</b> OWL d'une classe (some, only, cardinalités)</div>
   <div class="owl-only">Doubles flèches : <b>symétrique</b> · symboles <b>⇄</b> : paire de propriétés <b>inverse</b></div>
 </div>
 <div id="status"></div>
@@ -184,7 +186,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <script>'use strict';
 /* ================= OntoLab — partie 1 : état, opérations, export ================= */
 /* Numéro de version : à faire évoluer à chaque modification (voir CHANGELOG.md : MINOR = fonction nouvelle, PATCH = correctif ou ajustement). */
-const VERSION='1.16.1';
+const VERSION='1.17.0';
 const SVGNS='http://www.w3.org/2000/svg';
 const LS_KEY='ontolab-v1';
 const C={cls:'#AEDBFC',clsS:'#2C5F9E',obj:'#D9E9A5',objS:'#5B7C29',data:'#F6CECE',dataS:'#8C2E2E',disj:'#7B5EA7',sel:'#E4572E'};
@@ -292,6 +294,7 @@ function sanitizeState(s){
   out.meta=cleanMeta(s.meta);
   [...out.classes,...out.objProps,...out.dataProps].forEach(x=>{ x.labels=cleanAnnots(x.labels); x.comments=cleanAnnots(x.comments); if(!x.labels.length) delete x.labels; if(!x.comments.length) delete x.comments; });
   cleanRels(out);
+  cleanRestrictions(out);
   cleanParents(out); // migre l'ancien champ `parent` (héritage simple) vers `parents` (héritage multiple)
   out.sel=null;
   return out;
@@ -527,6 +530,83 @@ function removeRel(kind,k,id,oid){
   if(b){ b[k]=relOf(b,k).filter(i=>i!==+id); if(!b[k].length) delete b[k]; }
   state.sel={kind,id:+id}; save(); render();
 }
+/* ---------- restrictions OWL (C4) ----------
+   `restrictions: [{kind, prop, n?, filler}]` sur une classe = rdfs:subClassOf [ a owl:Restriction ; owl:onProperty prop ; … ] (condition nécessaire).
+   kind : some (∃, someValuesFrom) · only (∀, allValuesFrom) · min (≥) · max (≤) · exactly (=) ; n = nombre (cardinalités).
+   filler : classe visée (id) pour une propriété objet, type XSD ('xsd:string') pour une propriété de donnée ; null = owl:Thing / rdfs:Literal
+   (pour une cardinalité : non qualifiée). OWL seulement : masquées et non exportées en mode RDFS, mais conservées. */
+const RST_KINDS=['some','only','min','max','exactly'], RST_SYM={some:'∃',only:'∀',min:'≥',max:'≤',exactly:'='};
+const rstCard=k=>k==='min'||k==='max'||k==='exactly';
+const propById=id=>objById(id)||dataById(id);
+function cleanRestrictions(st){
+  st=st||state;
+  const objIds=new Set(st.objProps.map(p=>p.id)), dataIds=new Set(st.dataProps.map(p=>p.id)), clsIds=new Set(st.classes.map(c=>c.id));
+  st.classes.forEach(c=>{
+    const out=[];
+    (Array.isArray(c.restrictions)?c.restrictions:[]).forEach(r=>{
+      if(!r||typeof r!=='object'||!RST_KINDS.includes(r.kind)) return;
+      const prop=+r.prop; if(!objIds.has(prop)&&!dataIds.has(prop)) return;          // propriété supprimée : restriction retirée
+      const o={kind:r.kind,prop};
+      if(rstCard(r.kind)){ const n=Math.floor(+r.n); o.n=(Number.isFinite(n)&&n>=0)?n:1; }
+      let fl=r.filler;
+      if(dataIds.has(prop)) fl=XSD.includes(fl)?fl:null;
+      else{ fl=(fl==null||fl==='')?null:+fl; if(fl!=null&&!clsIds.has(fl)) return; }   // classe visée supprimée : restriction retirée
+      o.filler=fl; out.push(o);
+    });
+    if(out.length) c.restrictions=out; else delete c.restrictions;
+  });
+}
+function restrictionText(r,max){
+  const p=propById(r.prop), isData=p&&!objById(r.prop);
+  const F=r.filler==null?'':(isData?String(r.filler).replace('xsd:',''):((classById(r.filler)||{}).name||'?'));
+  const t=RST_SYM[r.kind]+(rstCard(r.kind)?r.n:'')+' '+(p?p.name:'?')+(F?' '+F:'');
+  return max&&t.length>max?t.slice(0,max-1)+'…':t;
+}
+function ancestorsOf(id){ const seen=new Set(), st=[...parentsOf(classById(id))], out=[]; while(st.length){ const i=st.shift(); if(seen.has(i)) continue; seen.add(i); const a=classById(i); if(!a) continue; out.push(a); st.push(...parentsOf(a)); } return out; }
+function addRestriction(cid,r){
+  const c=classById(+cid); if(!c) return false;
+  c.restrictions=[...(c.restrictions||[]),r]; cleanRestrictions(); state.sel={kind:'class',id:c.id}; save(); render(); return true;
+}
+function defaultRestriction(){
+  const p=state.objProps[0]||state.dataProps[0]; if(!p) return null;
+  return {kind:'some',prop:p.id,filler:null};
+}
+/* Panneau d'une classe : restrictions propres (éditables sur place) puis héritées (grisées). */
+function restrBlock(c){
+  if(isRdfs()) return (c.restrictions||[]).length?'<p class="hint">Restrictions masquées (mode RDFS) : elles reviennent en mode OWL.</p>':'';
+  const KO=[['some','∃ some (au moins un)'],['only','∀ only (seulement)'],['min','≥ min'],['max','≤ max'],['exactly','= exactly']];
+  const props=[...state.objProps.map(p=>[p.id,p.name,'obj']),...state.dataProps.map(p=>[p.id,p.name,'data'])];
+  const rows=(c.restrictions||[]).map((r,i)=>{
+    const isData=!!dataById(r.prop);
+    const fill=isData?'<option value="">— (rdfs:Literal)</option>'+XSD.map(t=>'<option value="'+t+'"'+(r.filler===t?' selected':'')+'>'+t+'</option>').join('')
+      :'<option value="">— (owl:Thing)</option>'+state.classes.map(k=>'<option value="'+k.id+'"'+(r.filler===k.id?' selected':'')+'>'+esc(k.name)+'</option>').join('');
+    return '<div class="attr rst" data-i="'+i+'"><select class="r-kind" aria-label="Type de restriction">'+KO.map(([v,t])=>'<option value="'+v+'"'+(r.kind===v?' selected':'')+'>'+t+'</option>').join('')+'</select>'
+      +(rstCard(r.kind)?'<input class="r-n" type="number" min="0" step="1" value="'+r.n+'" aria-label="Nombre">':'')
+      +'<select class="r-prop" aria-label="Propriété">'+props.map(([id,n,k])=>'<option value="'+id+'"'+(r.prop===id?' selected':'')+'>'+esc(n)+(k==='data'?' (donnée)':'')+'</option>').join('')+'</select>'
+      +'<select class="r-fill" aria-label="Classe ou type visé">'+fill+'</select>'
+      +'<button class="btn r-del" title="Supprimer la restriction" aria-label="Supprimer la restriction">✕</button></div>';
+  }).join('');
+  let inh='';
+  ancestorsOf(c.id).forEach(a=>{ if(!(a.restrictions||[]).length) return;
+    inh+='<button class="btn a-inh" data-rcid="'+a.id+'" title="Aller à la classe « '+esc(a.name)+' »">héritées de « '+esc(a.name)+' »</button><div class="attr-inh">'+a.restrictions.map(r=>esc(restrictionText(r))).join('<br>')+'</div>'; });
+  return '<div class="attrs"><div class="attrs-h"><b>Restrictions</b> (owl:Restriction, conditions nécessaires)</div>'
+    +(rows||'<p class="hint" style="margin:0 0 6px">Aucune restriction propre.</p>')
+    +'<button class="btn" id="pf-addrst"'+(props.length?'':' disabled title="Créez d\'abord une propriété"')+'>+ restriction</button>'+inh+'</div>';
+}
+function wireRestr(c){
+  const pan=$('#panel');
+  pan.querySelectorAll('.rst').forEach(row=>{
+    const i=+row.dataset.i, r=(c.restrictions||[])[i]; if(!r) return;
+    const commit=()=>{ cleanRestrictions(); save(); render(); };
+    row.querySelector('.r-kind').onchange=e=>{ r.kind=e.target.value; if(rstCard(r.kind)){ if(!(r.n>=0)) r.n=1; } else delete r.n; commit(); };
+    const n=row.querySelector('.r-n'); if(n) n.onchange=e=>{ const v=Math.floor(+e.target.value); r.n=(Number.isFinite(v)&&v>=0)?v:1; commit(); };
+    row.querySelector('.r-prop').onchange=e=>{ r.prop=+e.target.value; r.filler=null; commit(); };
+    row.querySelector('.r-fill').onchange=e=>{ const v=e.target.value; r.filler=v===''?null:(dataById(r.prop)?v:+v); commit(); };
+    row.querySelector('.r-del').onclick=()=>{ c.restrictions.splice(i,1); commit(); };
+  });
+  pan.querySelectorAll('.a-inh[data-rcid]').forEach(b=>b.onclick=()=>{ state.sel={kind:'class',id:+b.dataset.rcid}; save(); render(); });
+  const add=$('#pf-addrst'); if(add) add.onclick=()=>{ const r=defaultRestriction(); if(r) addRestriction(c.id,r); };
+}
 /* Blocs du panneau : listes retirables + menu d'ajout ; masqués (avec un rappel) en mode RDFS. */
 function relBlock(kind,x,k,label){
   const cur=relOf(x,k), other=k==='disjoint'?'equivalent':'disjoint';
@@ -574,7 +654,7 @@ function deleteClass(id){
     state.classes=state.classes.filter(x=>x.id!==id);
     state.objProps=state.objProps.filter(p=>p.domain!==id&&p.range!==id);
     state.dataProps=state.dataProps.filter(p=>p.domain!==id);
-    cleanInverses(); cleanParents(); cleanRels(); state.sel=null; save(); render();
+    cleanInverses(); cleanParents(); cleanRels(); cleanRestrictions(); state.sel=null; save(); render();
   });
 }
 function deleteProp(kind,id){
@@ -583,7 +663,7 @@ function deleteProp(kind,id){
     if(!ok) return;
     if(kind==='obj'){ const q=p.inverseOf&&objById(p.inverseOf); if(q) q.inverseOf=null; state.objProps=state.objProps.filter(x=>x.id!==id); }
     else state.dataProps=state.dataProps.filter(x=>x.id!==id);
-    cleanParents(); cleanRels(); if(!(state.sel&&state.sel.kind==='class')) state.sel=null; save(); render(); // (suppression depuis la liste d'attributs : la classe reste sélectionnée)
+    cleanParents(); cleanRels(); cleanRestrictions(); if(!(state.sel&&state.sel.kind==='class')) state.sel=null; save(); render(); // (suppression depuis la liste d'attributs : la classe reste sélectionnée)
   });
 }
 
@@ -691,6 +771,15 @@ function toTTL(ns){
     const cp=[]; if(pars.length) cp.push('rdfs:subClassOf '+pars.map(q=>N(q)).join(', '));
     if(!isRdfs()) for(const [k,pred] of [['equivalent','owl:equivalentClass'],['disjoint','owl:disjointWith']]){ // une seule fois par paire (écrite sur la classe d'id le plus petit)
       const os=relOf(c,k).filter(i=>i>c.id&&byId.has(i)).map(i=>N(byId.get(i))); if(os.length) cp.push(pred+' '+os.join(', ')); }
+    if(!isRdfs()) (c.restrictions||[]).forEach(r=>{ // C4 : condition nécessaire, rdfs:subClassOf [ a owl:Restriction ; … ]
+      const pr=propById(r.prop); if(!pr) return;
+      const isData=!objById(r.prop), flt=r.filler!=null&&(isData||byId.get(r.filler));
+      const F=isData?(r.filler||'rdfs:Literal'):(flt?N(byId.get(r.filler)):'owl:Thing');
+      let body='a owl:Restriction ; owl:onProperty '+N(pr)+' ; ';
+      if(r.kind==='some') body+='owl:someValuesFrom '+F; else if(r.kind==='only') body+='owl:allValuesFrom '+F;
+      else{ const b={min:'min',max:'max',exactly:''}[r.kind], nm=flt?(b?b+'QualifiedCardinality':'qualifiedCardinality'):(b?b+'Cardinality':'cardinality');
+        body+='owl:'+nm+' "'+r.n+'"^^xsd:nonNegativeInteger'+(flt?' ; '+(isData?'owl:onDataRange ':'owl:onClass ')+F:''); }
+      cp.push('rdfs:subClassOf [ '+body+' ]'); });
     cp.push(...annPreds(c));
     L.push(N(c)+' rdf:type '+CT+(cp.length?' ;\n    '+cp.join(' ;\n    '):'')+' .');
   }
@@ -729,6 +818,7 @@ function exportTTL(){
     +'<p class="dlg-msg">Espace de noms de l\'ontologie : <code>'+esc(state.ns)+'</code> — modifiable par « ⋯ › Espaces de noms… ».</p>'
     +(isRdfs()?'<p class="dlg-msg"><b>Mode RDFS</b> : export en RDFS pur (<code>rdfs:Class</code>, <code>rdf:Property</code>, sans <code>owl:*</code>).'
       +(state.objProps.some(q=>owlList(q).length)?' Caractéristiques OWL non écrites : '+state.objProps.filter(q=>owlList(q).length).length+' propriété(s) concernée(s) (conservées dans l\'ontologie ; repasser en mode OWL pour les exporter).':'')
+      +(state.classes.some(c=>(c.restrictions||[]).length)?' Restrictions non écrites : '+state.classes.reduce((n,c)=>n+(c.restrictions||[]).length,0)+'.':'')
       +(()=>{ const n=state.classes.filter(c=>relOf(c,'disjoint').length||relOf(c,'equivalent').length).length+state.dataProps.filter(p=>relOf(p,'equivalent').length).length; return n?' Disjonctions / équivalences non écrites : '+n+' classe(s) ou propriété(s) de donnée concernée(s).':''; })()+'</p>':'')
     +'<pre id="ttl-pre"></pre>';
   const btns=document.createElement('div'); btns.className='dlg-btns';
@@ -771,7 +861,7 @@ function exportLegend(){
     ['func','Bordure en tirets : propriété fonctionnelle'],
     ['ifunc','Bordure en points : propriété fonctionnelle inverse']];
   if(isRdfs()) rows.splice(5,2); // mode RDFS : pas de marques OWL
-  else rows.push(['eqv','Double bordure + trait ≡ : owl:equivalentClass'],['dsj','Trait pointillé + ⊥ : owl:disjointWith']);
+  else rows.push(['eqv','Double bordure + trait ≡ : owl:equivalentClass'],['dsj','Trait pointillé + ⊥ : owl:disjointWith'],['rst','Flèche en tirets + ∃ ∀ ≥ ≤ = : restriction (owl:Restriction)']);
   const note=ui.cobj?(isRdfs()?'':'Pastilles : T transitive · S symétrique · ⇄ inverse · ')+'⊆ nom : sous-propriété · tirets vers « ? » : à préciser'
     :(isRdfs()?'':'Boucle verte : transitive · doubles flèches : symétrique · ⇄ : paire de propriétés inverses');
   const icon=k=>({
@@ -783,6 +873,7 @@ function exportLegend(){
     subp:'<line x1="2" y1="10" x2="38" y2="10" stroke="'+C.objS+'" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#m-subo)"/>',
     func:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.obj+'" stroke="'+C.objS+'" stroke-width="1.8" stroke-dasharray="5 3"/>',
     eqv:'<ellipse cx="20" cy="10" rx="15" ry="6.5" fill="'+C.cls+'" stroke="'+C.clsS+'" stroke-width="1.4"/><ellipse cx="20" cy="10" rx="18" ry="9" fill="none" stroke="'+C.clsS+'" stroke-width="1.4"/>',
+    rst:'<line x1="2" y1="10" x2="38" y2="10" stroke="'+C.objS+'" stroke-width="1.6" stroke-dasharray="7 4"/><rect x="9" y="2" width="22" height="16" rx="8" fill="#fff" stroke="'+C.objS+'" stroke-dasharray="4 2"/><text x="20" y="14" text-anchor="middle" font-size="10" fill="#26330d">∃ p</text>',
     dsj:'<line x1="2" y1="10" x2="38" y2="10" stroke="'+C.disj+'" stroke-width="1.5" stroke-dasharray="4 3"/><circle cx="20" cy="10" r="7" fill="#fff" stroke="'+C.disj+'" stroke-width="1.4"/><text x="20" y="14" text-anchor="middle" font-size="11" font-weight="700" fill="'+C.disj+'">⊥</text>',
     ifunc:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.obj+'" stroke="'+C.objS+'" stroke-width="1.8" stroke-dasharray="1.5 3" stroke-linecap="round"/>'})[k];
   const longest=Math.max(note.length,...rows.map(r=>r[1].length));
@@ -1067,9 +1158,7 @@ function ontologyFromTriples(T,prefixes){
       else if(!p) nExpr++;
     }
   });
-  const nRestr=[...ix.keys()].filter(s=>s[0]==='B'&&typesOf(s).includes(OWLN+'Restriction')).length;
-  if(nRestr) notes.push(nRestr+' restriction(s) OWL (someValuesFrom, cardinalités…) ignorée(s)');
-  else if(nExpr) notes.push(nExpr+' super-classe(s) anonyme(s) ignorée(s)');
+  const nRestrAll=[...ix.keys()].filter(s=>s[0]==='B'&&typesOf(s).includes(OWLN+'Restriction')).length; // les restrictions reprises sont décomptées plus bas (C4)
 
   // --- genre des propriétés
   const kindMemo=new Map();
@@ -1160,6 +1249,29 @@ function ontologyFromTriples(T,prefixes){
   const annotate=(x,term)=>{ const La=annotsOf(term,RDFSN+'label'), Co=annotsOf(term,RDFSN+'comment'); if(La.length) x.labels=La; if(Co.length) x.comments=Co; };
   classes.forEach(c=>{ const iri=civ.get(c.id); if(iri&&iri!==THING) annotate(c,'I'+iri); });
   for(const [iri,id] of pid) annotate(byIdP.get(id),'I'+iri);
+
+  // --- restrictions (C4) : rdfs:subClassOf [ a owl:Restriction ; owl:onProperty p ; owl:someValuesFrom / allValuesFrom / (min|max)?(Qualified)?Cardinality … ]
+  let nImported=0, nSubRestr=0;
+  const parseRestriction=b=>{
+    const p=iriOf(get(b,OWLN+'onProperty')[0]); if(!p||!pid.has(p)) return null;
+    const propId=pid.get(p), isData=kindById.get(propId)==='data';
+    const fillerOf=o=>{ if(!o) return {ok:true,f:null}; const q=iriOf(o); if(!q) return {ok:false};
+      if(isData){ if(q===RDFSN+'Literal') return {ok:true,f:null}; if(q.startsWith(XSDN)) return {ok:true,f:XSD_MAP[q.replace(XSDN,'')]||null}; return {ok:false}; }
+      if(q===THING) return {ok:true,f:null}; return cid.has(q)?{ok:true,f:cid.get(q)}:{ok:false}; };
+    const num=pred=>{ const o=get(b,pred)[0]; if(!o||o[0]!=='L') return null; const n=parseInt(litOf(o).text,10); return (Number.isFinite(n)&&n>=0)?n:null; };
+    for(const [pred,kind] of [[OWLN+'someValuesFrom','some'],[OWLN+'allValuesFrom','only']]){ const o=get(b,pred)[0]; if(o){ const fl=fillerOf(o); return fl.ok?{kind,prop:propId,filler:fl.f}:null; } }
+    for(const [k,un,qu] of [['min','minCardinality','minQualifiedCardinality'],['max','maxCardinality','maxQualifiedCardinality'],['exactly','cardinality','qualifiedCardinality']]){
+      let n=num(OWLN+un); if(n!=null) return {kind:k,prop:propId,n,filler:null};
+      n=num(OWLN+qu); if(n!=null){ const fl=fillerOf(get(b,isData?OWLN+'onDataRange':OWLN+'onClass')[0]); return fl.ok?{kind:k,prop:propId,n,filler:fl.f}:null; } }
+    return null;
+  };
+  classes.forEach(c=>{ const iri=civ.get(c.id); if(!iri||iri===THING) return;
+    for(const o of get('I'+iri,RDFSN+'subClassOf')){ if(o[0]!=='B'||!typesOf(o).includes(OWLN+'Restriction')) continue; nSubRestr++;
+      const r=parseRestriction(o); if(!r) continue;
+      c.restrictions=c.restrictions||[]; if(!c.restrictions.some(x=>JSON.stringify(x)===JSON.stringify(r))){ c.restrictions.push(r); nImported++; } }
+  });
+  if(nRestrAll-nImported>0) notes.push((nRestrAll-nImported)+' restriction(s) OWL non reprise(s) (hasValue, propriété ou classe inconnue, classe définie par équivalence…)');
+  if(nExpr-nSubRestr>0) notes.push((nExpr-nSubRestr)+' super-classe(s) anonyme(s) ignorée(s)');
 
   // --- disjonctions et équivalences (C1, C2)
   let nRelUnk=0, nEqExpr=0;
@@ -1278,7 +1390,7 @@ function dataCountOf(id){ return state.dataProps.filter(p=>dDom(p)===id).length;
 function selfCountOf(id){ return state.objProps.filter(p=>oDom(p)===id&&oRng(p)===id).length; }
 function computeLayout(){
   const cls=state.classes, pos=new Map(); if(!cls.length) return pos;
-  const key=JSON.stringify([cls.map(c=>[c.id,disp(c),parentsOf(c)]),state.objProps.map(p=>[oDom(p),oRng(p)]),state.dataProps.map(p=>dDom(p))]);
+  const key=JSON.stringify([cls.map(c=>[c.id,disp(c),parentsOf(c),isRdfs()?0:relOf(c,'equivalent'),isRdfs()?0:(c.restrictions||[]).map(r=>[r.prop,r.filler])]),state.objProps.map(p=>[oDom(p),oRng(p)]),state.dataProps.map(p=>dDom(p))]);
   let base;
   if(layoutCache.key===key) base=layoutCache.pos;
   else{ base=forceLayout(); layoutCache={key,pos:base}; }
@@ -1302,6 +1414,11 @@ function forceLayout(){
     const k=Math.min(oDom(p),oRng(p))+'|'+Math.max(oDom(p),oRng(p));
     if(pairs.has(k)) pairs.get(k).n++;
     else{ const l={a:oDom(p),b:oRng(p),sub:false,n:1}; pairs.set(k,l); links.push(l); union(oDom(p),oRng(p)); }
+  }
+  for(const c of cls) for(const r of (isRdfs()?[]:(c.restrictions||[]))){ // une restriction vers une classe est un lien comme une propriété objet
+    if(!objById(r.prop)||r.filler==null||!byId.has(r.filler)||r.filler===c.id) continue;
+    const k=Math.min(c.id,r.filler)+'|'+Math.max(c.id,r.filler);
+    if(pairs.has(k)) pairs.get(k).n++; else{ const l={a:c.id,b:r.filler,sub:false,n:1}; pairs.set(k,l); links.push(l); union(c.id,r.filler); }
   }
   for(const c of cls) for(const oid of relOf(c,'equivalent')) if(oid>c.id&&byId.has(oid)){ links.push({a:c.id,b:oid,sub:false,eq:true,n:1}); union(c.id,oid); } // équivalentes : proches
   // ordre DFS de la hiérarchie : voisins proches dans la disposition initiale
@@ -1645,6 +1762,7 @@ function render(){
   refinalizeProps(lastPos,pp.obj,pp.data);
   drawSubArcs(lastPos);
   drawClassRels(lastPos);
+  drawRestrictions(lastPos);
   drawSubProps(pp.obj,pp.data);
   drawObjArcs(lastPos,pp.obj);
   drawData(lastPos,pp.data);
@@ -1683,6 +1801,28 @@ function drawClassRels(pos){
   };
   draw('equivalent',C.clsS,null,'≡','est équivalente à');
   draw('disjoint',C.disj,'4 3','⊥','est disjointe de');
+}
+
+/* Restrictions (C4) : flèche en tirets de la classe vers la classe visée, pastille « ∃ p », « ∀ p », « ≥2 p »… (OWL seulement).
+   Une restriction sans classe visée (propriété de donnée, cardinalité non qualifiée) n'a pas de flèche : elle se lit dans le panneau et l'infobulle. */
+function drawRestrictions(pos){
+  if(isRdfs()) return;
+  const groups=new Map();
+  for(const c of state.classes) (c.restrictions||[]).forEach(r=>{
+    if(!objById(r.prop)||r.filler==null||r.filler===c.id||!pos.get(c.id)||!pos.get(r.filler)) return;
+    const k=Math.min(c.id,r.filler)+'|'+Math.max(c.id,r.filler); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push({c,r});
+  });
+  groups.forEach(list=>list.forEach(({c,r},i)=>{
+    const a=pos.get(c.id), b=pos.get(r.filler), dx=b.x-a.x, dy=b.y-a.y, L=Math.hypot(dx,dy)||1, off=(i-(list.length-1)/2)*26, nx=-dy/L*off, ny=dx/L*off;
+    const s0=edgePoint(a,{x:b.x+nx,y:b.y+ny}), t0=edgePoint(b,{x:a.x+nx,y:a.y+ny}), s={x:s0.x+nx,y:s0.y+ny}, t={x:t0.x+nx,y:t0.y+ny};
+    el('line',{x1:s.x,y1:s.y,x2:t.x,y2:t.y,stroke:C.objS,'stroke-width':1.6,'stroke-dasharray':'7 4','marker-end':'url(#m-arr)',opacity:0.9},layerArcs);
+    const txt=restrictionText({kind:r.kind,prop:r.prop,n:r.n,filler:null},22), w=Math.max(30,12+txt.length*6.2), mx=s.x+(t.x-s.x)*0.3, my=s.y+(t.y-s.y)*0.3; // à 30 % depuis la classe : le milieu est souvent occupé par l'étiquette d'une propriété objet
+    const g=el('g',{class:'rst',cursor:'pointer'},layerArcs);
+    el('rect',{x:mx-w/2,y:my-10,width:w,height:20,rx:10,fill:'#fff',stroke:C.objS,'stroke-width':1.4,'stroke-dasharray':'4 2'},g);
+    const tx=el('text',{x:mx,y:my+4,'text-anchor':'middle','font-size':11,fill:'#26330d'},g); tx.textContent=txt;
+    const tt=el('title',{},g); tt.textContent=disp(c)+' : '+restrictionText(r)+' (restriction OWL)';
+    g.addEventListener('pointerdown',e=>{ if(e.pointerType==='mouse'&&e.button!==0) return; e.stopPropagation(); state.sel={kind:'class',id:c.id}; ui.panel=true; saveUI(); save(); render(); });
+  }));
 }
 
 /* rdfs:subPropertyOf : ligne pointillée à pointe creuse, de la sous-propriété vers sa propriété parente. */
@@ -1765,7 +1905,7 @@ function drawClasses(pos){
     if(!isRdfs()&&relOf(c,'equivalent').length) el('ellipse',{cx:p.x,cy:p.y,rx:p.rx+5,ry:p.ry+5,fill:'none',stroke:(sel||hl)?C.sel:C.clsS,'stroke-width':1.4},g); // double bordure (VOWL) : classe équivalente
     el('ellipse',{cx:p.x,cy:p.y,rx:p.rx,ry:p.ry,fill:C.cls,stroke:(sel||hl)?C.sel:C.clsS,'stroke-width':sel?3.4:hl?2.6:2},g);
     const t=el('text',{x:p.x,y:p.y+4.5,'text-anchor':'middle','font-size':13,'font-weight':600,fill:'#10233f'},g); t.textContent=short(disp(c),p.rx);
-    const tt=el('title',{},g); tt.textContent=tipOf(c)+(pars.length?' (sous-classe de '+pars.map(q=>q.name).join(', ')+')':' (classe racine)')+relTip('class',c);
+    const tt=el('title',{},g); tt.textContent=tipOf(c)+(pars.length?' (sous-classe de '+pars.map(q=>q.name).join(', ')+')':' (classe racine)')+relTip('class',c)+(!isRdfs()&&(c.restrictions||[]).length?' — restrictions : '+c.restrictions.map(r=>restrictionText(r)).join(' ; '):'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'class',c.id));
     if(ui.cdata){ // mode compact : compteur « +N » des propriétés de donnée ; un clic ouvre la liste de ses attributs dans le panneau
       const own=state.dataProps.filter(q=>dDom(q)===c.id);
@@ -2365,6 +2505,7 @@ function renderPanelBody(){
       +annotBlock(c)
       +parentsBlock('class',c,'Sous-classe de (rdfs:subClassOf) — plusieurs possibles')
       +relBlocks('class',c)
+      +restrBlock(c)
       +(ui.cdata?attrsBlock(c):'')
       +'<button class="btn" id="pf-addchild">+ Ajouter une sous-classe</button>'
       +'<button class="btn danger" id="pf-del">Supprimer la classe</button>'
@@ -2373,7 +2514,7 @@ function renderPanelBody(){
     $('#pf-name').onchange=e=>setCommonName('class',c.id,e.target.value);
     $('#pf-ns').onchange=e=>onNsSelect('class',c.id,e.target.value);
     wireAnnot(c);
-    wireParents('class',c); wireRel('class',c);
+    wireParents('class',c); wireRel('class',c); wireRestr(c);
     $('#pf-addchild').onclick=()=>addChildClass(c.id);
     if(ui.cdata) wireAttrs(c);
     $('#pf-del').onclick=()=>deleteClass(c.id);
@@ -2558,6 +2699,17 @@ function checkOntology(){
     state.classes.forEach(c=>relOf(c,'equivalent').forEach(o=>{ if(o<c.id) return;
       if(relOf(c,'disjoint').includes(o)) add('warn','class',c.id,'Classes '+cn2(c.id)+' et '+cn2(o)+' à la fois équivalentes et disjointes : contradiction.');
       if(anc(c.id).has(o)||anc(o).has(c.id)) add('warn','class',c.id,'Classes '+cn2(c.id)+' et '+cn2(o)+' équivalentes, mais l\'une est sous-classe de l\'autre : la hiérarchie est redondante.'); }));
+  }
+  if(!isRdfs()){ // C4 : restrictions contradictoires (bornes incompatibles) et doublons
+    state.classes.forEach(c=>{ const own=c.restrictions||[]; if(!own.length) return;
+      const all=[...own,...ancestorsOf(c.id).flatMap(a=>a.restrictions||[])];
+      const seen=new Set();
+      own.forEach(r=>{ if(seen.has(r.prop)) return; seen.add(r.prop);
+        const rs=all.filter(x=>x.prop===r.prop); let lo=0, hi=Infinity;
+        rs.forEach(x=>{ if(x.kind==='some') lo=Math.max(lo,1); if(x.kind==='min'||x.kind==='exactly') lo=Math.max(lo,x.n); if(x.kind==='max'||x.kind==='exactly') hi=Math.min(hi,x.n); });
+        if(lo>hi) add('warn','class',c.id,'Classe « '+c.name+' » : restrictions contradictoires sur « '+((propById(r.prop)||{}).name||'?')+' » (au moins '+lo+' et au plus '+hi+') : aucune instance possible.'); });
+      own.forEach((r,i)=>{ if(own.findIndex(x=>JSON.stringify(x)===JSON.stringify(r))!==i) add('info','class',c.id,'Classe « '+c.name+' » : restriction en double ('+restrictionText(r)+').'); });
+    });
   }
   incompleteProps().forEach(q=>add('warn',q.kind,q.id,'Propriété « '+q.name+' » : '+q.why+' non défini(e) — elle n\'est pas (ou mal) dessinée.'));
   if(state.classes.length>1) state.classes.forEach(c=>{

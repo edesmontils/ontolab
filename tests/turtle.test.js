@@ -156,7 +156,7 @@ test('import : propriété sans domaine ni portée → « Thing » ; sous-propri
 test('import : signale ce qui n\'est pas représentable (restrictions, individus, caractéristiques non gérées)', () => {
   const t = load();
   const { notes } = importInto(t, `@prefix : <http://e/#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-    :A a owl:Class ; rdfs:subClassOf [ a owl:Restriction ; owl:onProperty :p ; owl:someValuesFrom :A ] . :p a owl:ObjectProperty, owl:AsymmetricProperty ; rdfs:domain :A ; rdfs:range :A .
+    :A a owl:Class ; rdfs:subClassOf [ a owl:Restriction ; owl:onProperty :p ; owl:hasValue :x ] . :p a owl:ObjectProperty, owl:AsymmetricProperty ; rdfs:domain :A ; rdfs:range :A .
     :x a owl:NamedIndividual, :A . :p owl:propertyDisjointWith :p2 . :p2 a owl:ObjectProperty .`);
   const txt = notes.join('\n');
   assert.match(txt, /restriction/i); assert.match(txt, /individu/i); assert.match(txt, /Asymmetric/); assert.match(txt, /propertyDisjointWith/);

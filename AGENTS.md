@@ -210,6 +210,12 @@ d'accueil « À compléter », compteur de `updateStats`). Panneau : `inhSelect(
 `inhWarn()` (avertissement non bloquant si la surcharge n'est pas une sous-classe de celle du parent). Import : `ontologyFromTriples` laisse
 null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux propriétés **sans parent**. Inverses : `invOK(p,q)` (valeurs effectives).
 
+## Restrictions (C4)
+`classe.restrictions=[{kind:'some'|'only'|'min'|'max'|'exactly', prop, n?, filler}]` (filler = id de classe pour une propriété objet, type `xsd:` pour une propriété de donnée, null = Thing / Literal), validé par `cleanRestrictions`
+(appelé par `sanitizeState` et aux suppressions : propriété ou classe visée supprimée ⇒ restriction retirée). Panneau : `restrBlock`/`wireRestr` (lignes `.attr.rst`) ; dessin : `drawRestrictions` (flèche en tirets, pastille à 30 %,
+parallèles décalées) ; `restrictionText` donne « ∃ p C » ; export dans `toTTL` (blocs `rdfs:subClassOf [ a owl:Restriction ; … ]`) ; import par `parseRestriction` ; A5 : bornes contradictoires héritées comprises.
+**Clé de cache de la mise en page** (`computeLayout`) : toute donnée qui change les liens (parents, propriétés, équivalences, restrictions) doit y figurer, sinon la disposition reste périmée.
+
 ## Disjonction / équivalence (C1, C2)
 `disjoint:[ids]` et `equivalent:[ids]` (classes), `equivalent:[ids]` (propriétés, même genre) : listes **symétriques** tenues par `cleanRels` (appelé par `sanitizeState` et à chaque suppression), manipulées par `addRel` / `removeRel`.
 Panneau : `relBlocks`/`wireRel` (attributs `data-reladd`, `data-relrm`, pas `data-rm` réservé aux parents). Dessin : `drawClassRels` (couche des arcs), double bordure dans `drawClasses`, `≡` dans `drawObjProps`/`drawData`, `relTip` pour les infobulles ;

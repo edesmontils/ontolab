@@ -5,6 +5,11 @@ Numéro **MAJEUR.MINEUR.CORRECTIF**, affiché à côté du copyright (constante 
 - À chaque modification de l'application : incrémenter `VERSION` **et** ajouter une entrée ici (en tête). Les commits qui ne touchent que la documentation ou la ROADMAP ne changent pas le numéro.
 - Les entrées jusqu'à 1.14.1 ont été attribuées après coup d'après l'historique git (le numéro n'était pas encore affiché).
 
+## 1.17.0 — 2026-11-20
+- C4 : restrictions OWL d'une classe (∃ some, ∀ only, ≥ min, ≤ max, = exactly ; cardinalités qualifiées ou non) : section « Restrictions » du panneau (édition sur place, héritées grisées), flèche en tirets + pastille vers la classe visée,
+  export `rdfs:subClassOf [ a owl:Restriction … ]`, import (some, only, cardinalités ; le reste est signalé), vérification A5 (bornes contradictoires, doublons). Masquées en mode RDFS.
+- Correctif : la mise en page n'était pas recalculée quand on déclarait une équivalence de classes (clé de cache incomplète).
+
 ## 1.16.1 — 2026-11-20
 - Zoom à la molette : delta normalisé (lignes / pages), pincement du trackpad amplifié, pas maximal par cran ; zoom centré sur le pointeur.
 

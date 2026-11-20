@@ -11,10 +11,10 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 
 Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
 
-### État au 2026-11-20 (v1.16.1, 71 tests)
-- **Fait** : A1–A3, A5, A6 ; B1, B2 ; C1, C2 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
-- **Reste** : A4 (S) ; C3–C5 ; D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
-- **Ordre conseillé pour la suite** : C4 (restrictions : le plus utile au cours OWL) ; performances sur grands graphes (mesures en « Dette connue », reporté
+### État au 2026-11-20 (v1.17.0, 84 tests)
+- **Fait** : A1–A3, A5, A6 ; B1, B2 ; C1, C2, C4 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
+- **Reste** : A4 (S) ; C3, C5 ; D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
+- **Ordre conseillé pour la suite** : A4 (court) ; C5 (classes anonymes, qui prolonge C4 : classes définies, unions) ; performances sur grands graphes (mesures en « Dette connue », reporté
   « plus tard » le 2026-11-20) ; A4 (court) quand on touche aux caractéristiques OWL. Retours iPad : aucun problème signalé pour l'instant.
 
 ---
@@ -113,7 +113,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 - **Cible** : plusieurs valeurs (intersection RDFS) ou `owl:unionOf` (classe anonyme).
 - **Dépend de** : C5 (classes anonymes), car un domaine peut être une expression.
 
-### C4. Restrictions et cardinalités — L
+### C4. Restrictions et cardinalités — L — **fait** (v1.17.0, 2026-11-20) : some/only/min/max/exactly (hasValue non géré), flèche en tirets + pastille, nécessaire seulement ; classes définies (suffisantes) et restrictions anonymes imbriquées restent à faire avec C5
 - `someValuesFrom`, `allValuesFrom`, `hasValue`, `minCardinality` / `maxCardinality` /
   `cardinality` (et les versions qualifiées) comme super-classe anonyme.
 - **Modèle** : `restrictions: [{prop, kind, filler|value, n}]` sur la classe ; panneau « Restrictions ».
