@@ -217,7 +217,11 @@ par `owlOn`/`OWL_FLAGS`/`owlList` et être omise de `toTTL` en mode RDFS.
 (lock > `?compact=data|none` > choix enregistré > `ONTOLAB_DEFAULTS.compact.data` > faux) ; clé `cdata` dans `ontolab-ui`. En compact, `computeProps` ne place
 aucun nœud de donnée (les autres fonctions de dessin les ignorent : absents de la table des positions) ; `drawClasses` dessine le compteur `.cnt`
 (clic = sélection de la classe + panneau) ; `attrsBlock`/`wireAttrs` rendent la liste éditable dans le panneau de classe. Le modèle et `mx/my` ne sont pas touchés.
-Les propriétés objet restent des nœuds (seconde livraison de G2 non faite).
+
+**Mode compact des propriétés objet (G2, 2e livraison)** : `ui.cobj` (+ `cobjSaved`, `lockO`), même priorité (`compact.obj`, `?compact=…,obj`). `objDim(p)` donne la taille de
+l'étiquette (pastille ou ellipse) ; le placement de `computeProps` (courbes décalées, boucles) est réutilisé, avec en plus des entrées `q.inc` (une seule extrémité : flèche vers
+un point libre `q.free`, finalisée dans `refinalizeProps`). `drawObjProps` dessine un `rect` arrondi + pastilles T/S/⇄ + « ⊆ parent » ; `arcHit` ajoute une zone de toucher sur le trait ;
+pas d'arc de sous-propriété ni de boucle transitive. La légende (`#legend > div`) combine les classes `owl-only`, `cmp-only`/`nrm-only` (données), `cmp-o`/`nrm-o` (objet).
 
 ## Historique, préférences d'affichage, export image
 

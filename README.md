@@ -173,7 +173,12 @@ Le bouton « + attribut » et le mode ③ (clic sur une classe) créent un attri
 sont identiques, les positions des nœuds sont conservées et reviennent au retour en mode normal. L'export image reflète l'affichage courant.
 L'enseignant peut régler le défaut (`ONTOLAB_DEFAULTS.compact:{data:true}`), le lien `…/ontolab/?compact=data` (ou `?compact=none`),
 et le verrouiller avec `lock:true`. Même priorité que le mode : verrou > lien > choix enregistré > défaut > normal.
-Les propriétés objet restent des nœuds (leur compactage en flèches est prévu dans une seconde livraison).
+
+**Propriétés objet compactes** (seconde case) : la propriété n'est plus une ellipse mais une **flèche** dont l'étiquette est une **pastille verte**
+(bordure en tirets : fonctionnelle, en points : fonctionnelle inverse). Pastilles lettrées **T** (transitive), **S** (symétrique, double pointe conservée),
+**⇄** (inverse ; les deux propriétés d'une paire gardent chacune leur flèche). Une sous-propriété n'a plus d'arc : « ⊆ parent » est écrit sous la pastille.
+Propriétés parallèles = courbes décalées, domaine = portée = boucle. Une propriété qui n'a qu'une extrémité est une flèche en tirets vers « ? »
+(elle figure aussi dans « À compléter »). En mode Déplacer, glisser la pastille courbe la flèche. Réglages enseignant : `compact:{data,obj}`, `?compact=data,obj`.
 
 ### Catalogue des espaces courants (pour l'enseignant)
 

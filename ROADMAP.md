@@ -255,7 +255,7 @@ retenue : réglage imposé > lien > choix enregistré > défaut.
   (export RDFS pur → import → export identique, objet/donnée correctement reclassés).
 - **Risque** : faible pour le graphe (conditions d'affichage), plus délicat pour l'export (perte d'information silencieuse).
 
-### G2. Mode compact — L (M pour les propriétés de donnée seules, en première livraison) — *1re livraison faite : propriétés de donnée ; flèches pour les propriétés objet restent à faire*
+### G2. Mode compact — L (M pour les propriétés de donnée seules, en première livraison) — *fait : propriétés de donnée (1re livraison) et propriétés objet (2e livraison)*
 - **Pourquoi** : les nœuds de propriétés de donnée encombrent le plus le graphe (VOWL les dessine comme des nœuds distincts).
   Les ranger dans le panneau de la classe rapproche l'outil d'un diagramme de classes (« une classe a des attributs »).
 - **Nature du changement** : un choix d'**affichage** — le modèle de données (`dataProps`, JSON, Turtle, import, historique) ne

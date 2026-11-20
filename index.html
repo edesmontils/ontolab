@@ -159,7 +159,9 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
   <div class="nrm-only"><span class="chip" style="background:var(--red);border:2px solid var(--redS)"></span>Propriété de donnée (XSD)</div>
   <div class="cmp-only"><span class="chip" style="background:var(--red);border:2px solid var(--redS);border-radius:8px"></span><b>+N</b> : propriétés de donnée de la classe (dans le panneau)</div>
   <div class="owl-only">Bordure en tirets : <b>fonctionnelle</b> · en points : <b>fonctionnelle inverse</b></div>
-  <div class="owl-only">Petite boucle verte : <b>transitive</b></div>
+  <div class="owl-only nrm-o">Petite boucle verte : <b>transitive</b></div>
+  <div class="owl-only cmp-o">Pastilles sur la flèche : <b>T</b> transitive · <b>S</b> symétrique · <b>⇄</b> paire inverse</div>
+  <div class="cmp-o">« ⊆ nom » sous la pastille : <b>rdfs:subPropertyOf</b> · flèche en tirets vers <b>?</b> : domaine ou portée à préciser</div>
   <div>Ligne pointillée à pointe creuse : <b>rdfs:subPropertyOf</b> (sous-propriété → parente)</div>
   <div class="owl-only">Doubles flèches : <b>symétrique</b> · symboles <b>⇄</b> : paire de propriétés <b>inverse</b></div>
 </div>
@@ -658,17 +660,18 @@ function exportLegend(){
   const rows=[
     ['cls','Classe'],
     ['sub','rdfs:subClassOf : sous-classe → super-classe'],
-    ['obj','Propriété objet (flèche : domaine → portée)'],
+    ['obj',ui.cobj?'Propriété objet (flèche étiquetée : domaine → portée)':'Propriété objet (flèche : domaine → portée)'],
     ui.cdata?['cnt','« +N » : propriétés de donnée de la classe (voir le panneau)']:['data','Propriété de donnée (type XSD sous l\'étiquette)'],
     ['subp','rdfs:subPropertyOf : sous-propriété → propriété parente'],
     ['func','Bordure en tirets : propriété fonctionnelle'],
     ['ifunc','Bordure en points : propriété fonctionnelle inverse']];
   if(isRdfs()) rows.splice(5,2); // mode RDFS : pas de marques OWL
-  const note=isRdfs()?'':'Boucle verte : transitive · doubles flèches : symétrique · ⇄ : paire de propriétés inverses';
+  const note=ui.cobj?(isRdfs()?'':'Pastilles : T transitive · S symétrique · ⇄ inverse · ')+'⊆ nom : sous-propriété · tirets vers « ? » : à préciser'
+    :(isRdfs()?'':'Boucle verte : transitive · doubles flèches : symétrique · ⇄ : paire de propriétés inverses');
   const icon=k=>({
     cls:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.cls+'" stroke="'+C.clsS+'" stroke-width="2"/>',
     sub:'<line x1="2" y1="10" x2="38" y2="10" stroke="'+C.clsS+'" stroke-width="1.8" marker-end="url(#m-sub)"/>',
-    obj:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.obj+'" stroke="'+C.objS+'" stroke-width="1.8"/>',
+    obj:ui.cobj?'<rect x="4" y="2" width="32" height="16" rx="8" fill="'+C.obj+'" stroke="'+C.objS+'" stroke-width="1.8"/>':'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.obj+'" stroke="'+C.objS+'" stroke-width="1.8"/>',
     data:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.data+'" stroke="'+C.dataS+'" stroke-width="1.6"/>',
     cnt:'<rect x="6" y="1" width="28" height="18" rx="9" fill="'+C.data+'" stroke="'+C.dataS+'" stroke-width="1.4"/><text x="20" y="14" text-anchor="middle" font-size="10.5" font-weight="600" fill="#3d1414">+N</text>',
     subp:'<line x1="2" y1="10" x2="38" y2="10" stroke="'+C.objS+'" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#m-subo)"/>',
@@ -1325,6 +1328,8 @@ function segHitsEllipse(p,rx,ry,s0,s1){
    boucles et propriétés de donnée : chaque position candidate autour de la classe est évaluée
    (chevauchement avec classes et étiquettes déjà posées, arêtes traversées, écart angulaire aux liens)
    et la moins coûteuse est retenue. */
+/* Taille de l'étiquette d'une propriété objet : ellipse (normal) ou pastille arrondie plus compacte (propriétés objet compactes). */
+function objDim(p){ return ui.cobj?{rx:Math.max(26,12+p.name.length*3.4),ry:11}:{rx:Math.max(36,14+p.name.length*3.4),ry:16}; }
 function computeProps(pos){
   const obj=new Map(), data=new Map();
   const occ=new Map(); pos.forEach((p,id)=>occ.set(id,[]));
@@ -1346,10 +1351,10 @@ function computeProps(pos){
       const d=pos.get(oDom(p)), r=pos.get(oRng(p));
       const lo=oDom(p)<oRng(p)?d:r, hi=oDom(p)<oRng(p)?r:d; // orientation canonique (arêtes opposées séparées)
       const dx=hi.x-lo.x, dy=hi.y-lo.y, L=Math.hypot(dx,dy)||1;
-      const off=(i-(arr.length-1)/2)*54;
+      const off=(i-(arr.length-1)/2)*(ui.cobj?40:54);
       let mid={x:(d.x+r.x)/2+(-dy/L)*off, y:(d.y+r.y)/2+(dx/L)*off};
       if(p.mx!=null) mid={x:p.mx,y:p.my};
-      obj.set(p.id,{x:mid.x,y:mid.y,rx:Math.max(36,14+p.name.length*3.4),ry:16,start:edgePoint(d,mid),end:edgePoint(r,mid)});
+      obj.set(p.id,{x:mid.x,y:mid.y,...objDim(p),start:edgePoint(d,mid),end:edgePoint(r,mid)});
     });
   });
   // obstacles : segments d'arêtes (hiérarchie, propriétés objet passant par leur étiquette) et ellipses déjà posées
@@ -1381,13 +1386,22 @@ function computeProps(pos){
   selfs.forEach((arr,id)=>{
     const c=pos.get(id);
     arr.forEach(p=>{
-      const lrx=Math.max(36,14+p.name.length*3.4), lry=16;
+      const {rx:lrx,ry:lry}=objDim(p);
       const s=placeAround(id,lrx,lry,26);
       occ.get(id).push(s.a); if(owlOn(p,'transitive')) occ.get(id).push(s.a+1.0);
       let mid={x:s.x,y:s.y}; if(p.mx!=null) mid={x:p.mx,y:p.my};
       const q={x:mid.x,y:mid.y,rx:lrx,ry:lry,start:{x:c.x,y:c.y},end:{x:c.x,y:c.y}};
       obj.set(p.id,q); placed.push(q);
     });
+  });
+  if(ui.cobj) state.objProps.forEach(p=>{ // propriété objet à une seule extrémité : flèche courte vers un point libre « ? »
+    const a=oDom(p), b=oRng(p); if((a==null)===(b==null)) return;
+    const cid=a!=null?a:b, c=pos.get(cid); if(!c) return;
+    const dm=objDim(p), s=placeAround(cid,dm.rx,dm.ry,50);
+    occ.get(cid).push(s.a);
+    let mid={x:s.x,y:s.y}; if(p.mx!=null) mid={x:p.mx,y:p.my};
+    const q={x:mid.x,y:mid.y,rx:dm.rx,ry:dm.ry,inc:true,cid,out:a!=null,start:{x:c.x,y:c.y},end:{x:c.x,y:c.y}};
+    obj.set(p.id,q); placed.push(q);
   });
   const byDom=new Map();
   (ui.cdata?[]:state.dataProps).forEach(p=>{ if(!pos.get(dDom(p))) return; if(!byDom.has(dDom(p))) byDom.set(dDom(p),[]); byDom.get(dDom(p)).push(p); });
@@ -1422,7 +1436,7 @@ function relax(pos,objP,dataP){
   // paires propriété–propriété parente : marge plus grande pour que la flèche pointillée reste visible
   const linkM=new Map(), SUBGAP=58;
   const lk=(a,b)=>a<b?a+'|'+b:b+'|'+a;
-  state.objProps.forEach(p=>parentsOf(p).forEach(q=>linkM.set(lk('o'+p.id,'o'+q),SUBGAP)));
+  if(!ui.cobj) state.objProps.forEach(p=>parentsOf(p).forEach(q=>linkM.set(lk('o'+p.id,'o'+q),SUBGAP)));
   state.dataProps.forEach(p=>parentsOf(p).forEach(q=>linkM.set(lk('d'+p.id,'d'+q),SUBGAP)));
   for(let it=0;it<150;it++){
     let any=false;
@@ -1453,6 +1467,7 @@ function relax(pos,objP,dataP){
 }
 function refinalizeProps(pos,objP,dataP){
   state.objProps.forEach(p=>{ const q=objP.get(p.id); if(!q)return;
+    if(q.inc){ const c=pos.get(q.cid); if(!c) return; const s0=edgePoint(c,q), fr={x:q.x+(q.x-s0.x),y:q.y+(q.y-s0.y)}; q.free=fr; if(q.out){ q.start=s0; q.end=fr; } else { q.start=fr; q.end=s0; } return; }
     const d=pos.get(oDom(p)), r=pos.get(oRng(p)); if(!d||!r)return;
     if(oDom(p)===oRng(p)){ // boucle : part et revient sur le bord de la classe, de part et d'autre de l'étiquette
       const a=Math.atan2(q.y-d.y,q.x-d.x); q.ang=a;
@@ -1507,12 +1522,28 @@ function drawSubProps(objP,dataP){
       el('line',{x1:s.x,y1:s.y,x2:t.x,y2:t.y,stroke,'stroke-width':selIs(kind,p.id)?2.8:1.6,'stroke-dasharray':'5 3','marker-end':'url(#'+marker+')',opacity:0.9},layerArcs);
     }
   };
-  one(state.objProps,objP,C.objS,'m-subo','obj'); one(state.dataProps,dataP,C.dataS,'m-subd','data');
+  if(!ui.cobj) one(state.objProps,objP,C.objS,'m-subo','obj'); // compact : sous-propriété notée « ⊆ parent » sur la pastille, pas d'arc
+  one(state.dataProps,dataP,C.dataS,'m-subd','data');
 }
 
+/* Zone de toucher élargie autour du trait d'une flèche (propriétés objet compactes). */
+function arcHit(pathD,id){
+  const g=el('g',{class:'node','data-id':id,'data-kind':'obj',cursor:'pointer'},layerArcs);
+  el('path',{d:pathD,fill:'none',stroke:'transparent','stroke-width':16},g);
+  g.addEventListener('pointerdown',e=>nodeDown(e,'obj',id));
+}
 function drawObjArcs(pos,pp){
   for(const p of state.objProps){
     const q=pp.get(p.id); if(!q) continue;
+    if(q.inc){ // une seule extrémité connue : flèche en tirets vers un point libre marqué « ? »
+      const pd='M'+q.start.x+' '+q.start.y+' L'+q.end.x+' '+q.end.y;
+      el('path',{d:pd,fill:'none',stroke:C.objS,'stroke-width':selIs('obj',p.id)?3.4:2,'stroke-dasharray':'6 4','marker-end':'url(#m-arr)',opacity:0.9},layerArcs);
+      arcHit(pd,p.id);
+      const g2=el('g',{'pointer-events':'none'},layerArcs);
+      el('circle',{cx:q.free.x,cy:q.free.y,r:8,fill:'#fff',stroke:C.objS,'stroke-width':1.4,'stroke-dasharray':'3 2'},g2);
+      const tq=el('text',{x:q.free.x,y:q.free.y+3.6,'text-anchor':'middle','font-size':11,'font-weight':700,fill:C.objS},g2); tq.textContent='?';
+      continue;
+    }
     const d=pos.get(oDom(p)), r=pos.get(oRng(p));
     // point de contrôle choisi pour que la courbe passe par le centre de l'étiquette
     const cpx=2*q.x-(q.start.x+q.end.x)/2, cpy=2*q.y-(q.start.y+q.end.y)/2;
@@ -1524,7 +1555,8 @@ function drawObjArcs(pos,pp){
     m['marker-end']='url(#m-arr)';
     Object.assign(attrs,m);
     el('path',attrs,layerArcs);
-    if(owlOn(p,'transitive')){ // petite boucle verte sur le domaine
+    if(ui.cobj) arcHit(pathD,p.id);
+    if(owlOn(p,'transitive')&&!ui.cobj){ // petite boucle verte sur le domaine
       const ang=Math.atan2(q.y-d.y,q.x-d.x)+(oDom(p)===oRng(p)?1.0:0); // boucle propre : décalée pour ne pas la recouvrir
       const a1=ang-0.45, a2=ang+0.45;
       const x1=d.x+(d.rx+4)*Math.cos(a1), y1=d.y+(d.ry+4)*Math.sin(a1);
@@ -1588,10 +1620,23 @@ function drawObjProps(pp){
     const sel=selIs('obj',p.id);
     const ea={cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.obj,stroke:sel?C.sel:C.objS,'stroke-width':sel?3:1.8};
     const dash=dashOf(p); if(dash) ea['stroke-dasharray']=dash; if(owlOn(p,'inverseFunctional')) ea['stroke-linecap']='round'; // points ronds
-    el('ellipse',ea,g);
+    if(ui.cobj){ // pastille arrondie + zone de toucher élargie
+      const ra={x:q.x-q.rx,y:q.y-q.ry,width:2*q.rx,height:2*q.ry,rx:q.ry}; for(const k of ['fill','stroke','stroke-width','stroke-dasharray','stroke-linecap']) if(ea[k]!==undefined) ra[k]=ea[k];
+      el('rect',{x:q.x-q.rx-6,y:q.y-q.ry-6,width:2*q.rx+12,height:2*q.ry+12,fill:'transparent'},g);
+      el('rect',ra,g);
+    } else el('ellipse',ea,g);
     const inv=!isRdfs()&&p.inverseOf&&objById(p.inverseOf);
-    const label=short(p.name,q.rx)+(inv?' ⇄':'');
+    const label=short(p.name,q.rx)+(inv&&!ui.cobj?' ⇄':'');
     const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#26330d'},g); t.textContent=label;
+    if(ui.cobj){
+      const badges=[owlOn(p,'transitive')&&['T','transitive'],owlOn(p,'symmetric')&&['S','symétrique'],inv&&['⇄','inverse de '+inv.name]].filter(Boolean);
+      badges.forEach((b,i)=>{ const bx=q.x+q.rx-6-i*16, by=q.y-q.ry, gb=el('g',{},g);
+        el('circle',{cx:bx,cy:by,r:7.5,fill:'#fff',stroke:C.objS,'stroke-width':1.2},gb);
+        const bt=el('text',{x:bx,y:by+3.2,'text-anchor':'middle','font-size':9,'font-weight':700,fill:'#26330d'},gb); bt.textContent=b[0];
+        const btt=el('title',{},gb); btt.textContent=b[1]; });
+      const ps=parentsOf(p).map(i=>(objById(i)||{}).name).filter(Boolean);
+      if(ps.length){ const cp=el('text',{x:q.x,y:q.y+q.ry+10,'text-anchor':'middle','font-size':9,fill:C.objS},g); cp.textContent='⊆ '+short(ps.join(', '),Math.max(q.rx,40)*1.6); }
+    }
     const tt=el('title',{},g);
     tt.textContent=p.name+' : objet, '+ ((classById(oDom(p))||{}).name||'?') +' → '+ ((classById(oRng(p))||{}).name||'?')
       +(owlOn(p,'transitive')?' [transitive]':'')+(owlOn(p,'symmetric')?' [symétrique]':'')+(owlOn(p,'functional')?' [fonctionnelle]':'')+(owlOn(p,'inverseFunctional')?' [fonctionnelle inverse]':'')+(inv?' [inverse de '+inv.name+']':'')+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(objById(i)||{}).name).join(', ')+']':'');
@@ -1774,7 +1819,8 @@ function setMode(m){
   document.querySelectorAll('#rail button').forEach(b=>{ b.classList.toggle('active',b.dataset.mode===m); b.setAttribute('aria-pressed',String(b.dataset.mode===m)); });
   save();
   if(m==='class') status('Mode Classe : cliquez sur le fond pour créer une classe (si un élément est sélectionné, un premier clic le désélectionne) ; glissez-en une sur une autre pour lui ajouter une super-classe (plusieurs possibles) ; glissez sur le fond pour retirer ses super-classes.');
-  if(m==='obj') status('Mode Propriété objet : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une ellipse verte pour la modifier ; glissez-la sur une autre ellipse verte pour en faire une sous-propriété (plusieurs parents possibles).');
+  if(m==='obj'&&ui.cobj) status('Mode Propriété objet (compact) : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une pastille verte (ou sur sa flèche) pour la modifier ; glissez-la sur une autre pastille pour en faire une sous-propriété (plusieurs parents possibles).');
+  else if(m==='obj') status('Mode Propriété objet : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une ellipse verte pour la modifier ; glissez-la sur une autre ellipse verte pour en faire une sous-propriété (plusieurs parents possibles).');
   if(m==='data'&&ui.cdata) status('Mode Propriété de donnée (compact) : cliquez sur une classe pour lui ajouter un attribut ; la liste des attributs est dans son panneau (compteur « +N » sur la classe).');
   else if(m==='data') status('Mode Propriété de donnée : cliquez sur une classe pour lui ajouter une propriété de donnée. Cliquez sur une ellipse rouge pour la modifier ; glissez-la sur une autre ellipse rouge pour en faire une sous-propriété (plusieurs parents possibles).');
   if(m==='move') status('Mode Déplacer : glissez une classe ou une étiquette de propriété pour la repositionner ; glissez le fond pour déplacer la vue. « Réorganiser » recalcule la mise en page automatique.');
@@ -1788,7 +1834,7 @@ const UI_KEY='ontolab-ui';
    réglage imposé (ONTOLAB_DEFAULTS.lock) > paramètre d'URL ?mode=rdfs > choix enregistré de l'utilisateur > défaut de
    namespaces.js (ONTOLAB_DEFAULTS.mode) > 'owl'. Seul un choix explicite (dialogue « Préférences ») est enregistré (`modeSaved`) :
    un lien ?mode=… ne remplace pas durablement la préférence. */
-const ui={panel:innerWidth>=900,legend:innerWidth>=900,mode:'owl',modeSaved:null,lock:false,cdata:false,cdataSaved:null,lockC:false,hiAttr:null};
+const ui={panel:innerWidth>=900,legend:innerWidth>=900,mode:'owl',modeSaved:null,lock:false,cdata:false,cdataSaved:null,lockC:false,cobj:false,cobjSaved:null,lockO:false,hiAttr:null};
 const boolOf=v=>typeof v==='boolean'?v:null;
 const validMode=m=>(m==='owl'||m==='rdfs')?m:null;
 const isRdfs=()=>ui.mode==='rdfs';
@@ -1796,23 +1842,23 @@ const owlOn=(p,k)=>!isRdfs()&&!!p[k]; // caractéristique OWL « visible » (aff
 const OWL_FLAGS=[['transitive','transitive'],['symmetric','symétrique'],['functional','fonctionnelle'],['inverseFunctional','fonctionnelle inverse']];
 const owlList=p=>OWL_FLAGS.filter(([k])=>p[k]).map(([,t])=>t).concat(p.inverseOf?['inverse']:[]); // caractéristiques OWL portées par une propriété objet
 function loadUI(){
-  try{ const u=JSON.parse(localStorage.getItem(UI_KEY)||'null'); if(u){ if(typeof u.panel==='boolean') ui.panel=u.panel; if(typeof u.legend==='boolean') ui.legend=u.legend; ui.modeSaved=validMode(u.mode); ui.cdataSaved=boolOf(u.cdata); } }catch(e){}
+  try{ const u=JSON.parse(localStorage.getItem(UI_KEY)||'null'); if(u){ if(typeof u.panel==='boolean') ui.panel=u.panel; if(typeof u.legend==='boolean') ui.legend=u.legend; ui.modeSaved=validMode(u.mode); ui.cdataSaved=boolOf(u.cdata); ui.cobjSaved=boolOf(u.cobj); } }catch(e){}
   const d=(window.ONTOLAB_DEFAULTS&&typeof window.ONTOLAB_DEFAULTS==='object')?window.ONTOLAB_DEFAULTS:{};
   let url=null; try{ url=validMode(new URLSearchParams(location.search).get('mode')); }catch(e){}
   ui.lock=!!d.lock&&!!validMode(d.mode);
   ui.mode=ui.lock?validMode(d.mode):(url||ui.modeSaved||validMode(d.mode)||'owl');
   // mode compact (propriétés de donnée) : même priorité — verrou > ?compact=data (ou none) > choix enregistré > défaut enseignant > normal
-  const dc=boolOf(d.compact&&typeof d.compact==='object'?d.compact.data:null);
-  let urlC=null; try{ const q=new URLSearchParams(location.search).get('compact'); if(q!==null) urlC=q.split(',').map(x=>x.trim()).includes('data'); }catch(e){}
-  ui.lockC=!!d.lock&&dc!==null;
-  ui.cdata=ui.lockC?dc:(urlC!==null?urlC:(ui.cdataSaved!==null?ui.cdataSaved:(dc!==null?dc:false)));
+  const cd=d.compact&&typeof d.compact==='object'?d.compact:{}, dc=boolOf(cd.data), dob=boolOf(cd.obj);
+  let urlD=null, urlO=null; try{ const q=new URLSearchParams(location.search).get('compact'); if(q!==null){ const t=q.split(',').map(x=>x.trim()); urlD=t.includes('data'); urlO=t.includes('obj'); } }catch(e){}
+  ui.lockC=!!d.lock&&dc!==null; ui.lockO=!!d.lock&&dob!==null;
+  ui.cdata=ui.lockC?dc:(urlD!==null?urlD:(ui.cdataSaved!==null?ui.cdataSaved:(dc!==null?dc:false)));
+  ui.cobj=ui.lockO?dob:(urlO!==null?urlO:(ui.cobjSaved!==null?ui.cobjSaved:(dob!==null?dob:false)));
 }
-function saveUI(){ try{ localStorage.setItem(UI_KEY,JSON.stringify({panel:ui.panel,legend:ui.legend,mode:ui.modeSaved,cdata:ui.cdataSaved})); }catch(e){} }
+function saveUI(){ try{ localStorage.setItem(UI_KEY,JSON.stringify({panel:ui.panel,legend:ui.legend,mode:ui.modeSaved,cdata:ui.cdataSaved,cobj:ui.cobjSaved})); }catch(e){} }
 function applyLegendUI(){
   $('#legend').style.display=ui.legend?'':'none';
-  document.querySelectorAll('#legend .owl-only').forEach(n=>{ n.style.display=isRdfs()?'none':''; });
-  document.querySelectorAll('#legend .cmp-only').forEach(n=>{ n.style.display=ui.cdata?'':'none'; });
-  document.querySelectorAll('#legend .nrm-only').forEach(n=>{ n.style.display=ui.cdata?'none':''; });
+  document.querySelectorAll('#legend > div').forEach(n=>{ const c=n.classList; // une ligne de légende peut cumuler plusieurs conditions
+    n.style.display=((c.contains('owl-only')&&isRdfs())||(c.contains('cmp-only')&&!ui.cdata)||(c.contains('nrm-only')&&ui.cdata)||(c.contains('cmp-o')&&!ui.cobj)||(c.contains('nrm-o')&&ui.cobj))?'none':''; });
   const b=$('#legend-pill'); b.textContent=ui.legend?'Masquer la légende':'ⓘ Légende'; b.setAttribute('aria-expanded',String(ui.legend));
 }
 function updatePanel(){ // le panneau se rouvre par le menu « ⋯ » (entrée « Panneau d'édition »)
@@ -2269,15 +2315,17 @@ function openPrefs(){
   if(!ui.lock) fields.push({key:'mode',label:'Vocabulaire proposé',type:'select',value:ui.mode,options:[
       {v:'owl',t:'OWL — complet (caractéristiques, propriétés inverses…)'},
       {v:'rdfs',t:'RDFS — restreint (classes, propriétés, domaine/portée, héritage)'}]});
+  if(!ui.lockO) fields.push({key:'cobj',label:'Propriétés objet compactes (flèches étiquetées d\'une pastille, sans ellipse)',type:'check',value:ui.cobj});
   if(!ui.lockC) fields.push({key:'cdata',label:'Propriétés de donnée compactes (attributs dans le panneau de la classe, compteur « +N » sur le graphe)',type:'check',value:ui.cdata});
-  if(!fields.length){ infoBox('Les préférences sont fixées par l\'enseignant : mode '+label(ui.mode)+', propriétés de donnée '+(ui.cdata?'compactes':'en nœuds')+'.','Préférences'); return; }
+  if(!fields.length){ infoBox('Les préférences sont fixées par l\'enseignant : mode '+label(ui.mode)+', propriétés de donnée '+(ui.cdata?'compactes':'en nœuds')+', propriétés objet '+(ui.cobj?'compactes':'en nœuds')+'.','Préférences'); return; }
   dialog('Préférences',fields,
-    'En mode RDFS, les éléments propres à OWL sont masqués et l\'export Turtle est du RDFS pur (rdfs:Class, rdf:Property). Les caractéristiques OWL déjà saisies sont conservées et reviennent en mode OWL.\nEn mode compact, les propriétés de donnée ne sont plus des nœuds : elles se lisent et s\'éditent dans le panneau de leur classe. Seul l\'affichage change (ontologie, export Turtle et JSON identiques) ; l\'export image reflète l\'affichage courant.'
+    'En mode RDFS, les éléments propres à OWL sont masqués et l\'export Turtle est du RDFS pur (rdfs:Class, rdf:Property). Les caractéristiques OWL déjà saisies sont conservées et reviennent en mode OWL.\nEn mode compact, les propriétés de donnée ne sont plus des nœuds : elles se lisent et s\'éditent dans le panneau de leur classe. Seul l\'affichage change (ontologie, export Turtle et JSON identiques) ; l\'export image reflète l\'affichage courant.\nPropriétés objet compactes : ce sont des flèches étiquetées d\'une pastille (T transitive, S symétrique, ⇄ inverse ; « ⊆ parent » pour une sous-propriété), sans arc de sous-propriété ni ellipse.'
   ).then(v=>{
     if(!v) return;
     const ch=[];
     if(!ui.lock&&v.mode&&v.mode!==ui.mode){ ui.mode=ui.modeSaved=validMode(v.mode)||'owl'; ch.push('Mode '+label(ui.mode)); }
     if(!ui.lockC&&v.cdata!==undefined&&!!v.cdata!==ui.cdata){ ui.cdata=ui.cdataSaved=!!v.cdata; ui.hiAttr=null; ch.push(ui.cdata?'Propriétés de donnée compactes':'Propriétés de donnée en nœuds'); }
+    if(!ui.lockO&&v.cobj!==undefined&&!!v.cobj!==ui.cobj){ ui.cobj=ui.cobjSaved=!!v.cobj; ch.push(ui.cobj?'Propriétés objet compactes':'Propriétés objet en nœuds'); }
     if(!ch.length) return;
     saveUI(); applyLegendUI(); render(); updatePanel(); setMode(state.mode);
     status(ch.join(' · ')+'.');
@@ -2289,7 +2337,7 @@ $('#b-more').onclick=()=>showMenu($('#b-more'),[
   '-',
   {label:'Panneau d\'édition',check:()=>ui.panel,run:()=>{ ui.panel=!ui.panel; saveUI(); updatePanel(); }},
   {label:'Espaces de noms…',run:openNamespaceEditor},
-  {label:'Préférences…',hint:(isRdfs()?'RDFS':'OWL')+(ui.cdata?' · compact':''),run:openPrefs},
+  {label:'Préférences…',hint:(isRdfs()?'RDFS':'OWL')+(ui.cdata||ui.cobj?' · compact':''),run:openPrefs},
   '-',
   {label:'Aide et raccourcis',run:showHelp}]);
 svg.addEventListener('dblclick',e=>{ if(e.target===svg||e.target===world) initView(); });
