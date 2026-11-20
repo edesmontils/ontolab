@@ -212,7 +212,12 @@ l'indicateur du panneau), `OWL_FLAGS`. **Le modèle de données ne dépend jamai
 `updateStats`) et `toTTL` (RDFS pur : `rdfs:Class`, `rdf:Property`, pas de `owl:Ontology` ni de `@prefix owl`) en tiennent compte.
 `loadExample` omet les caractéristiques en RDFS. Import : inchangé, indépendant du mode (`ontologyFromTriples` lit déjà
 `rdfs:Class`/`rdf:Property` et classe par la portée ; sans portée = propriété objet). Toute nouvelle caractéristique OWL (A4) doit passer
-par `owlOn`/`OWL_FLAGS`/`owlList` et être omise de `toTTL` en mode RDFS. Les préférences compactes (G2) viendront dans le même dialogue.
+par `owlOn`/`OWL_FLAGS`/`owlList` et être omise de `toTTL` en mode RDFS. 
+**Mode compact des propriétés de donnée (G2, 1re livraison)** : `ui.cdata` (+ `cdataSaved`, `lockC`, `hiAttr`), calculé dans `loadUI()` avec la même priorité
+(lock > `?compact=data|none` > choix enregistré > `ONTOLAB_DEFAULTS.compact.data` > faux) ; clé `cdata` dans `ontolab-ui`. En compact, `computeProps` ne place
+aucun nœud de donnée (les autres fonctions de dessin les ignorent : absents de la table des positions) ; `drawClasses` dessine le compteur `.cnt`
+(clic = sélection de la classe + panneau) ; `attrsBlock`/`wireAttrs` rendent la liste éditable dans le panneau de classe. Le modèle et `mx/my` ne sont pas touchés.
+Les propriétés objet restent des nœuds (seconde livraison de G2 non faite).
 
 ## Historique, préférences d'affichage, export image
 

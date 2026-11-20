@@ -164,6 +164,17 @@ L'IRI d'une classe ou d'une propriété = **espace de noms + nom**.
   (ne remplace pas durablement le choix enregistré), ou défaut / réglage imposé `ONTOLAB_DEFAULTS` dans `namespaces.js`
   (`lock:true` : l'étudiant ne peut plus le changer). Priorité : réglage imposé > lien > choix enregistré > défaut > OWL.
 
+### Préférences : propriétés de donnée compactes
+
+Case **« Propriétés de donnée compactes »** dans **⋯ › Préférences…**. Les propriétés de donnée ne sont alors plus des nœuds rouges :
+chaque classe porte un compteur **« +N »**, et ses attributs se lisent et s'éditent dans son panneau (nom et type XSD sur place,
+✕ pour supprimer, **Détails** pour le domaine, les parents et l'espace de noms ; ceux des classes ancêtres apparaissent en gris).
+Le bouton « + attribut » et le mode ③ (clic sur une classe) créent un attribut. Seul l'**affichage** change : ontologie, Turtle et JSON
+sont identiques, les positions des nœuds sont conservées et reviennent au retour en mode normal. L'export image reflète l'affichage courant.
+L'enseignant peut régler le défaut (`ONTOLAB_DEFAULTS.compact:{data:true}`), le lien `…/ontolab/?compact=data` (ou `?compact=none`),
+et le verrouiller avec `lock:true`. Même priorité que le mode : verrou > lien > choix enregistré > défaut > normal.
+Les propriétés objet restent des nœuds (leur compactage en flèches est prévu dans une seconde livraison).
+
 ### Catalogue des espaces courants (pour l'enseignant)
 
 La liste des espaces courants se maintient dans **`namespaces.js`**, à côté de `index.html` : une ligne par espace

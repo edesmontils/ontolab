@@ -63,6 +63,14 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 .iri code{font-size:11.5px;word-break:break-all;color:#41506b;}
 .hint{font-size:12px;color:#7b8aa5;margin:10px 0 0;line-height:1.5;}
 .hint.warn{color:#9a5b00;}
+.attrs{margin:12px 0 4px;}.attrs-h{font-size:12px;color:#516079;margin-bottom:5px;}
+.attr{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:6px;border:1px solid #f0d4d4;background:#fff7f7;border-radius:8px;margin-bottom:6px;}
+.attr.hi{border-color:#E4572E;box-shadow:0 0 0 2px rgba(228,87,46,.2);}
+.attr input,.attr select{box-sizing:border-box;border:1px solid #c9d4e6;border-radius:7px;padding:5px 7px;font-size:12.5px;color:#1c2333;min-width:0;background:#fff;}
+.attr input{flex:1 1 100%;}.attr select{flex:1 1 90px;}
+#panel .attr .btn{width:auto;margin:0;padding:5px 9px;}
+#panel .btn.a-inh{background:none;border:none;padding:2px 0;margin-top:6px;color:#8a93a6;font-size:12px;text-align:left;text-decoration:underline;}
+.attr-inh{margin:0 0 6px;font-size:12px;color:#9aa3b5;line-height:1.5;}
 #legend{position:fixed;left:100px;bottom:54px;background:#fff;border:1px solid #d8e0ec;border-radius:12px;padding:10px 12px;font-size:11.5px;color:#516079;z-index:1;line-height:1.8;box-shadow:0 2px 10px rgba(30,50,90,.08);max-width:330px;}
 .chip{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px;}
 #status{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#2c3a55;color:#fff;padding:7px 14px;border-radius:20px;font-size:13px;z-index:20;opacity:0;transition:opacity .25s;pointer-events:none;max-width:70vw;text-align:center;}
@@ -148,7 +156,8 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <div id="legend">
   <div><span class="chip" style="background:var(--blue);border:2px solid var(--blueS)"></span>Classe — hiérarchie = <b>rdfs:subClassOf</b></div>
   <div><span class="chip" style="background:var(--green);border:2px solid var(--greenS)"></span>Propriété objet — flèche : domaine → portée</div>
-  <div><span class="chip" style="background:var(--red);border:2px solid var(--redS)"></span>Propriété de donnée (XSD)</div>
+  <div class="nrm-only"><span class="chip" style="background:var(--red);border:2px solid var(--redS)"></span>Propriété de donnée (XSD)</div>
+  <div class="cmp-only"><span class="chip" style="background:var(--red);border:2px solid var(--redS);border-radius:8px"></span><b>+N</b> : propriétés de donnée de la classe (dans le panneau)</div>
   <div class="owl-only">Bordure en tirets : <b>fonctionnelle</b> · en points : <b>fonctionnelle inverse</b></div>
   <div class="owl-only">Petite boucle verte : <b>transitive</b></div>
   <div>Ligne pointillée à pointe creuse : <b>rdfs:subPropertyOf</b> (sous-propriété → parente)</div>
@@ -370,7 +379,9 @@ function newDataProp(domain){
     if(!v) return;
     if(nameTaken(v.name)){ status('Le nom « '+v.name+' » est déjà utilisé.',1); return; }
     const p={id:state.nextId++,name:v.name,domain,type:v.type};
-    state.dataProps.push(p); state.sel={kind:'data',id:p.id}; save(); render();
+    state.dataProps.push(p);
+    if(ui.cdata){ state.sel={kind:'class',id:domain}; ui.hiAttr=p.id; ui.panel=true; saveUI(); } else state.sel={kind:'data',id:p.id};
+    save(); render();
   });
 }
 function cleanInverses(){
@@ -485,7 +496,7 @@ function deleteProp(kind,id){
     if(!ok) return;
     if(kind==='obj'){ const q=p.inverseOf&&objById(p.inverseOf); if(q) q.inverseOf=null; state.objProps=state.objProps.filter(x=>x.id!==id); }
     else state.dataProps=state.dataProps.filter(x=>x.id!==id);
-    cleanParents(); state.sel=null; save(); render();
+    cleanParents(); if(!(state.sel&&state.sel.kind==='class')) state.sel=null; save(); render(); // (suppression depuis la liste d'attributs : la classe reste sélectionnée)
   });
 }
 
@@ -648,7 +659,7 @@ function exportLegend(){
     ['cls','Classe'],
     ['sub','rdfs:subClassOf : sous-classe → super-classe'],
     ['obj','Propriété objet (flèche : domaine → portée)'],
-    ['data','Propriété de donnée (type XSD sous l\'étiquette)'],
+    ui.cdata?['cnt','« +N » : propriétés de donnée de la classe (voir le panneau)']:['data','Propriété de donnée (type XSD sous l\'étiquette)'],
     ['subp','rdfs:subPropertyOf : sous-propriété → propriété parente'],
     ['func','Bordure en tirets : propriété fonctionnelle'],
     ['ifunc','Bordure en points : propriété fonctionnelle inverse']];
@@ -659,6 +670,7 @@ function exportLegend(){
     sub:'<line x1="2" y1="10" x2="38" y2="10" stroke="'+C.clsS+'" stroke-width="1.8" marker-end="url(#m-sub)"/>',
     obj:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.obj+'" stroke="'+C.objS+'" stroke-width="1.8"/>',
     data:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.data+'" stroke="'+C.dataS+'" stroke-width="1.6"/>',
+    cnt:'<rect x="6" y="1" width="28" height="18" rx="9" fill="'+C.data+'" stroke="'+C.dataS+'" stroke-width="1.4"/><text x="20" y="14" text-anchor="middle" font-size="10.5" font-weight="600" fill="#3d1414">+N</text>',
     subp:'<line x1="2" y1="10" x2="38" y2="10" stroke="'+C.objS+'" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#m-subo)"/>',
     func:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.obj+'" stroke="'+C.objS+'" stroke-width="1.8" stroke-dasharray="5 3"/>',
     ifunc:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.obj+'" stroke="'+C.objS+'" stroke-width="1.8" stroke-dasharray="1.5 3" stroke-linecap="round"/>'})[k];
@@ -1378,7 +1390,7 @@ function computeProps(pos){
     });
   });
   const byDom=new Map();
-  state.dataProps.forEach(p=>{ if(!pos.get(dDom(p))) return; if(!byDom.has(dDom(p))) byDom.set(dDom(p),[]); byDom.get(dDom(p)).push(p); });
+  (ui.cdata?[]:state.dataProps).forEach(p=>{ if(!pos.get(dDom(p))) return; if(!byDom.has(dDom(p))) byDom.set(dDom(p),[]); byDom.get(dDom(p)).push(p); });
   byDom.forEach((arr,dom)=>{
     const c=pos.get(dom);
     arr.forEach(p=>{
@@ -1545,10 +1557,25 @@ function drawClasses(pos){
     const pars=parentsOf(c).map(classById).filter(Boolean);
     const g=el('g',{class:'node','data-id':c.id,'data-kind':'class',cursor:'pointer'},layerNodes);
     const sel=selIs('class',c.id);
-    el('ellipse',{cx:p.x,cy:p.y,rx:p.rx,ry:p.ry,fill:C.cls,stroke:sel?C.sel:C.clsS,'stroke-width':sel?3.4:2},g);
+    const hl=!sel&&ui.cdata&&state.sel&&state.sel.kind==='data'&&dDom(dataById(state.sel.id)||{})===c.id; // classe de l'attribut en cours d'édition
+    el('ellipse',{cx:p.x,cy:p.y,rx:p.rx,ry:p.ry,fill:C.cls,stroke:(sel||hl)?C.sel:C.clsS,'stroke-width':sel?3.4:hl?2.6:2},g);
     const t=el('text',{x:p.x,y:p.y+4.5,'text-anchor':'middle','font-size':13,'font-weight':600,fill:'#10233f'},g); t.textContent=short(c.name,p.rx);
     const tt=el('title',{},g); tt.textContent=c.name+(pars.length?' (sous-classe de '+pars.map(q=>q.name).join(', ')+')':' (classe racine)');
     g.addEventListener('pointerdown',e=>nodeDown(e,'class',c.id));
+    if(ui.cdata){ // mode compact : compteur « +N » des propriétés de donnée ; un clic ouvre la liste de ses attributs dans le panneau
+      const own=state.dataProps.filter(q=>dDom(q)===c.id);
+      if(own.length){
+        const cx=p.x+p.rx*0.78, cy=p.y-p.ry*0.78, gp=el('g',{class:'cnt',cursor:'pointer'},layerNodes);
+        el('circle',{cx,cy,r:17,fill:'transparent'},gp); // zone de toucher élargie
+        el('rect',{x:cx-14,y:cy-9,width:28,height:18,rx:9,fill:C.data,stroke:C.dataS,'stroke-width':1.4},gp);
+        const tn=el('text',{x:cx,y:cy+3.7,'text-anchor':'middle','font-size':10.5,'font-weight':600,fill:'#3d1414'},gp); tn.textContent='+'+own.length;
+        const tp=el('title',{},gp); tp.textContent=own.map(q=>q.name+' : '+q.type.replace('xsd:','')).join('\n');
+        gp.addEventListener('pointerdown',e=>{
+          if(e.pointerType==='mouse'&&e.button!==0) return;
+          e.stopPropagation(); ui.hiAttr=null; ui.panel=true; saveUI(); state.sel={kind:'class',id:c.id}; save(); render();
+        });
+      }
+    }
   }
 }
 
@@ -1748,7 +1775,8 @@ function setMode(m){
   save();
   if(m==='class') status('Mode Classe : cliquez sur le fond pour créer une classe (si un élément est sélectionné, un premier clic le désélectionne) ; glissez-en une sur une autre pour lui ajouter une super-classe (plusieurs possibles) ; glissez sur le fond pour retirer ses super-classes.');
   if(m==='obj') status('Mode Propriété objet : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une ellipse verte pour la modifier ; glissez-la sur une autre ellipse verte pour en faire une sous-propriété (plusieurs parents possibles).');
-  if(m==='data') status('Mode Propriété de donnée : cliquez sur une classe pour lui ajouter une propriété de donnée. Cliquez sur une ellipse rouge pour la modifier ; glissez-la sur une autre ellipse rouge pour en faire une sous-propriété (plusieurs parents possibles).');
+  if(m==='data'&&ui.cdata) status('Mode Propriété de donnée (compact) : cliquez sur une classe pour lui ajouter un attribut ; la liste des attributs est dans son panneau (compteur « +N » sur la classe).');
+  else if(m==='data') status('Mode Propriété de donnée : cliquez sur une classe pour lui ajouter une propriété de donnée. Cliquez sur une ellipse rouge pour la modifier ; glissez-la sur une autre ellipse rouge pour en faire une sous-propriété (plusieurs parents possibles).');
   if(m==='move') status('Mode Déplacer : glissez une classe ou une étiquette de propriété pour la repositionner ; glissez le fond pour déplacer la vue. « Réorganiser » recalcule la mise en page automatique.');
   svg.classList.toggle('move',m==='move');
 }
@@ -1760,23 +1788,31 @@ const UI_KEY='ontolab-ui';
    réglage imposé (ONTOLAB_DEFAULTS.lock) > paramètre d'URL ?mode=rdfs > choix enregistré de l'utilisateur > défaut de
    namespaces.js (ONTOLAB_DEFAULTS.mode) > 'owl'. Seul un choix explicite (dialogue « Préférences ») est enregistré (`modeSaved`) :
    un lien ?mode=… ne remplace pas durablement la préférence. */
-const ui={panel:innerWidth>=900,legend:innerWidth>=900,mode:'owl',modeSaved:null,lock:false};
+const ui={panel:innerWidth>=900,legend:innerWidth>=900,mode:'owl',modeSaved:null,lock:false,cdata:false,cdataSaved:null,lockC:false,hiAttr:null};
+const boolOf=v=>typeof v==='boolean'?v:null;
 const validMode=m=>(m==='owl'||m==='rdfs')?m:null;
 const isRdfs=()=>ui.mode==='rdfs';
 const owlOn=(p,k)=>!isRdfs()&&!!p[k]; // caractéristique OWL « visible » (affichée, dessinée, comptée) dans le mode courant
 const OWL_FLAGS=[['transitive','transitive'],['symmetric','symétrique'],['functional','fonctionnelle'],['inverseFunctional','fonctionnelle inverse']];
 const owlList=p=>OWL_FLAGS.filter(([k])=>p[k]).map(([,t])=>t).concat(p.inverseOf?['inverse']:[]); // caractéristiques OWL portées par une propriété objet
 function loadUI(){
-  try{ const u=JSON.parse(localStorage.getItem(UI_KEY)||'null'); if(u){ if(typeof u.panel==='boolean') ui.panel=u.panel; if(typeof u.legend==='boolean') ui.legend=u.legend; ui.modeSaved=validMode(u.mode); } }catch(e){}
+  try{ const u=JSON.parse(localStorage.getItem(UI_KEY)||'null'); if(u){ if(typeof u.panel==='boolean') ui.panel=u.panel; if(typeof u.legend==='boolean') ui.legend=u.legend; ui.modeSaved=validMode(u.mode); ui.cdataSaved=boolOf(u.cdata); } }catch(e){}
   const d=(window.ONTOLAB_DEFAULTS&&typeof window.ONTOLAB_DEFAULTS==='object')?window.ONTOLAB_DEFAULTS:{};
   let url=null; try{ url=validMode(new URLSearchParams(location.search).get('mode')); }catch(e){}
   ui.lock=!!d.lock&&!!validMode(d.mode);
   ui.mode=ui.lock?validMode(d.mode):(url||ui.modeSaved||validMode(d.mode)||'owl');
+  // mode compact (propriétés de donnée) : même priorité — verrou > ?compact=data (ou none) > choix enregistré > défaut enseignant > normal
+  const dc=boolOf(d.compact&&typeof d.compact==='object'?d.compact.data:null);
+  let urlC=null; try{ const q=new URLSearchParams(location.search).get('compact'); if(q!==null) urlC=q.split(',').map(x=>x.trim()).includes('data'); }catch(e){}
+  ui.lockC=!!d.lock&&dc!==null;
+  ui.cdata=ui.lockC?dc:(urlC!==null?urlC:(ui.cdataSaved!==null?ui.cdataSaved:(dc!==null?dc:false)));
 }
-function saveUI(){ try{ localStorage.setItem(UI_KEY,JSON.stringify({panel:ui.panel,legend:ui.legend,mode:ui.modeSaved})); }catch(e){} }
+function saveUI(){ try{ localStorage.setItem(UI_KEY,JSON.stringify({panel:ui.panel,legend:ui.legend,mode:ui.modeSaved,cdata:ui.cdataSaved})); }catch(e){} }
 function applyLegendUI(){
   $('#legend').style.display=ui.legend?'':'none';
   document.querySelectorAll('#legend .owl-only').forEach(n=>{ n.style.display=isRdfs()?'none':''; });
+  document.querySelectorAll('#legend .cmp-only').forEach(n=>{ n.style.display=ui.cdata?'':'none'; });
+  document.querySelectorAll('#legend .nrm-only').forEach(n=>{ n.style.display=ui.cdata?'none':''; });
   const b=$('#legend-pill'); b.textContent=ui.legend?'Masquer la légende':'ⓘ Légende'; b.setAttribute('aria-expanded',String(ui.legend));
 }
 function updatePanel(){ // le panneau se rouvre par le menu « ⋯ » (entrée « Panneau d'édition »)
@@ -2020,6 +2056,36 @@ function inhWarn(kind,p){
   }
   return out.length?'<p class="hint warn">'+out.map(esc).join('<br>')+'</p>':'';
 }
+/* Mode compact : attributs (propriétés de donnée) d'une classe dans son panneau, éditables sur place ; ceux des classes ancêtres en gris. */
+function attrsBlock(c){
+  const own=state.dataProps.filter(p=>dDom(p)===c.id);
+  let h='<div class="attrs"><div class="attrs-h"><b>Attributs</b> (propriétés de donnée)</div>';
+  h+=own.length?own.map(p=>'<div class="attr'+(ui.hiAttr===p.id?' hi':'')+'" data-aid="'+p.id+'">'
+      +'<input class="a-name" value="'+esc(p.name)+'" spellcheck="false" aria-label="Nom de l\'attribut">'
+      +'<select class="a-type" aria-label="Type XSD">'+XSD.map(t=>'<option value="'+t+'"'+(t===p.type?' selected':'')+'>'+t+'</option>').join('')+'</select>'
+      +'<button class="btn a-del" title="Supprimer l\'attribut" aria-label="Supprimer l\'attribut">✕</button>'
+      +'<button class="btn a-det" title="Domaine, propriétés parentes, espace de noms">Détails</button></div>').join('')
+    :'<p class="hint" style="margin:0 0 6px">Aucun attribut propre.</p>';
+  h+='<button class="btn" id="pf-addattr">+ attribut</button>';
+  const seen=new Set(), stack=[...parentsOf(c)], anc=[];
+  while(stack.length){ const id=stack.shift(); if(seen.has(id)) continue; seen.add(id); const a=classById(id); if(!a) continue; anc.push(a); stack.push(...parentsOf(a)); }
+  anc.forEach(a=>{ const l=state.dataProps.filter(p=>dDom(p)===a.id); if(!l.length) return;
+    h+='<button class="btn a-inh" data-cid="'+a.id+'" title="Aller à la classe « '+esc(a.name)+' »">hérités de « '+esc(a.name)+' »</button>'
+      +'<div class="attr-inh">'+l.map(p=>esc(p.name)+' : '+esc(p.type.replace('xsd:',''))).join('<br>')+'</div>'; });
+  return h+'</div>';
+}
+function wireAttrs(c){
+  const pan=$('#panel');
+  pan.querySelectorAll('.attr').forEach(r=>{
+    const id=+r.dataset.aid, p=dataById(id); if(!p) return;
+    r.querySelector('.a-name').onchange=e=>{ ui.hiAttr=id; if(!setCommonName('data',id,e.target.value)) e.target.value=p.name; };
+    r.querySelector('.a-type').onchange=e=>{ p.type=e.target.value; ui.hiAttr=id; save(); render(); };
+    r.querySelector('.a-del').onclick=()=>deleteProp('data',id);
+    r.querySelector('.a-det').onclick=()=>{ state.sel={kind:'data',id}; save(); render(); };
+  });
+  pan.querySelectorAll('.a-inh').forEach(b=>b.onclick=()=>{ ui.hiAttr=null; state.sel={kind:'class',id:+b.dataset.cid}; save(); render(); });
+  $('#pf-addattr').onclick=()=>newDataProp(c.id);
+}
 function renderPanelBody(){
   const p=$('#panel'), s=state.sel;
   if(!s){
@@ -2047,6 +2113,7 @@ function renderPanelBody(){
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(c.name)+'" spellcheck="false"></label>'
       +nsBlock('class',c)
       +parentsBlock('class',c,'Sous-classe de (rdfs:subClassOf) — plusieurs possibles')
+      +(ui.cdata?attrsBlock(c):'')
       +'<button class="btn" id="pf-addchild">+ Ajouter une sous-classe</button>'
       +'<button class="btn danger" id="pf-del">Supprimer la classe</button>'
       +'<p class="hint">Astuce : glissez une classe sur une autre pour lui ajouter une super-classe (autant que voulu) ; glissez sur le fond pour les retirer toutes.</p>';
@@ -2055,6 +2122,7 @@ function renderPanelBody(){
     $('#pf-ns').onchange=e=>onNsSelect('class',c.id,e.target.value);
     wireParents('class',c);
     $('#pf-addchild').onclick=()=>addChildClass(c.id);
+    if(ui.cdata) wireAttrs(c);
     $('#pf-del').onclick=()=>deleteClass(c.id);
   } else if(s.kind==='obj'){
     const p2=objById(s.id); if(!p2){ state.sel=null; return renderPanelBody(); }
@@ -2099,7 +2167,9 @@ function renderPanelBody(){
     $('#pf-del').onclick=()=>deleteProp('obj',p2.id);
   } else if(s.kind==='data'){
     const p3=dataById(s.id); if(!p3){ state.sel=null; return renderPanelBody(); }
+    const dc=ui.cdata&&classById(dDom(p3));
     h='<h3>Propriété de donnée</h3>'
+      +(dc?'<button class="btn" id="pf-backcls">← Classe « '+esc(dc.name)+' »</button>':'')
       +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p3.name)+'" spellcheck="false"></label>'
       +nsBlock('data',p3)
       +inhSelect('data',p3,'domain','Domaine (rdfs:domain)','pf-domain')
@@ -2113,6 +2183,7 @@ function renderPanelBody(){
     wireParents('data',p3);
     $('#pf-domain').onchange=e=>{ p3.domain=e.target.value===''?null:+e.target.value; save(); render(); };
     $('#pf-type').onchange=e=>{ p3.type=e.target.value; save(); render(); };
+    if(dc) $('#pf-backcls').onclick=()=>{ ui.hiAttr=p3.id; state.sel={kind:'class',id:dc.id}; save(); render(); };
     $('#pf-del').onclick=()=>deleteProp('data',p3.id);
   }
 }
@@ -2194,16 +2265,22 @@ $('#b-exp').onclick=()=>showMenu($('#b-exp'),[
   {label:'Image (PNG, SVG)…',run:exportImage}]);
 function openPrefs(){
   const label=m=>m==='rdfs'?'RDFS':'OWL';
-  if(ui.lock){ infoBox('Le vocabulaire proposé est fixé par l\'enseignant : mode '+label(ui.mode)+'.','Préférences'); return; }
-  dialog('Préférences',[
-    {key:'mode',label:'Vocabulaire proposé',type:'select',value:ui.mode,options:[
+  const fields=[];
+  if(!ui.lock) fields.push({key:'mode',label:'Vocabulaire proposé',type:'select',value:ui.mode,options:[
       {v:'owl',t:'OWL — complet (caractéristiques, propriétés inverses…)'},
-      {v:'rdfs',t:'RDFS — restreint (classes, propriétés, domaine/portée, héritage)'}]}],
-    'En mode RDFS, les éléments propres à OWL sont masqués et l\'export Turtle est du RDFS pur (rdfs:Class, rdf:Property). Les caractéristiques OWL déjà saisies sont conservées dans l\'ontologie et reviennent en mode OWL.'
+      {v:'rdfs',t:'RDFS — restreint (classes, propriétés, domaine/portée, héritage)'}]});
+  if(!ui.lockC) fields.push({key:'cdata',label:'Propriétés de donnée compactes (attributs dans le panneau de la classe, compteur « +N » sur le graphe)',type:'check',value:ui.cdata});
+  if(!fields.length){ infoBox('Les préférences sont fixées par l\'enseignant : mode '+label(ui.mode)+', propriétés de donnée '+(ui.cdata?'compactes':'en nœuds')+'.','Préférences'); return; }
+  dialog('Préférences',fields,
+    'En mode RDFS, les éléments propres à OWL sont masqués et l\'export Turtle est du RDFS pur (rdfs:Class, rdf:Property). Les caractéristiques OWL déjà saisies sont conservées et reviennent en mode OWL.\nEn mode compact, les propriétés de donnée ne sont plus des nœuds : elles se lisent et s\'éditent dans le panneau de leur classe. Seul l\'affichage change (ontologie, export Turtle et JSON identiques) ; l\'export image reflète l\'affichage courant.'
   ).then(v=>{
-    if(!v||v.mode===ui.mode) return;
-    ui.mode=ui.modeSaved=validMode(v.mode)||'owl'; saveUI(); applyLegendUI(); render(); updatePanel();
-    status('Mode '+label(ui.mode)+'.');
+    if(!v) return;
+    const ch=[];
+    if(!ui.lock&&v.mode&&v.mode!==ui.mode){ ui.mode=ui.modeSaved=validMode(v.mode)||'owl'; ch.push('Mode '+label(ui.mode)); }
+    if(!ui.lockC&&v.cdata!==undefined&&!!v.cdata!==ui.cdata){ ui.cdata=ui.cdataSaved=!!v.cdata; ui.hiAttr=null; ch.push(ui.cdata?'Propriétés de donnée compactes':'Propriétés de donnée en nœuds'); }
+    if(!ch.length) return;
+    saveUI(); applyLegendUI(); render(); updatePanel(); setMode(state.mode);
+    status(ch.join(' · ')+'.');
   });
 }
 $('#b-more').onclick=()=>showMenu($('#b-more'),[
@@ -2212,7 +2289,7 @@ $('#b-more').onclick=()=>showMenu($('#b-more'),[
   '-',
   {label:'Panneau d\'édition',check:()=>ui.panel,run:()=>{ ui.panel=!ui.panel; saveUI(); updatePanel(); }},
   {label:'Espaces de noms…',run:openNamespaceEditor},
-  {label:'Préférences…',hint:isRdfs()?'RDFS':'OWL',run:openPrefs},
+  {label:'Préférences…',hint:(isRdfs()?'RDFS':'OWL')+(ui.cdata?' · compact':''),run:openPrefs},
   '-',
   {label:'Aide et raccourcis',run:showHelp}]);
 svg.addEventListener('dblclick',e=>{ if(e.target===svg||e.target===world) initView(); });
