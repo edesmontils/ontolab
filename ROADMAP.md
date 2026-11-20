@@ -301,6 +301,14 @@ retenue : réglage imposé > lien > choix enregistré > défaut.
      retour en normal ; aucun changement de données, bascule réversible sans perte.
   j. **Livraison** : d'abord les **propriétés de donnée seules** (compteur, panneau éditable, liste « à compléter » des données sans
      domaine) ; les flèches pour les propriétés objet viennent **après essai en conditions réelles**.
+- **Décisions prises (seconde livraison, propriétés objet, 2026-11-20)** :
+  k. **Paires d'inverses** : **deux flèches distinctes** (courbes décalées, décision c), chacune avec la pastille ⇄ renvoyant à l'autre ;
+     aucun cas particulier de tracé ni de sélection.
+  l. **Étiquette** : **pastille verte** (rectangle arrondi) centrée sur la courbe, plus compacte que l'ellipse actuelle ; elle porte
+     les bordures tirets / points (décision a) et la zone de toucher (décision f).
+  m. **Déplacement** : en mode Déplacer, glisser l'étiquette **courbe la flèche** ; la position `mx/my` reste dans le modèle et la
+     courbe passe par l'étiquette (comme l'ellipse aujourd'hui). « Réorganiser » l'efface.
+  n. **Symétrique** : la **double pointe** de flèche est conservée **et** la pastille S s'ajoute (légende / infobulle).
 - **Autres points** : l'export image reflète le mode courant (à signaler dans le dialogue) ; la légende s'adapte au mode (flèche
   au lieu de l'ellipse, compteur, pastilles T / S / ⇄, trait en tirets / en points) ; interaction avec G1 (mode RDFS : pas de symboles OWL à dessiner).
 - **Tests à prévoir** : disposition du graphe après disparition des nœuds (point faible de toutes les évolutions de mise en page),
