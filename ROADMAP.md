@@ -291,6 +291,16 @@ retenue : réglage imposé > lien > choix enregistré > défaut.
      listées dans le **panneau d'accueil**, avec les propriétés objet incomplètes de (d) : une seule liste « éléments à compléter ».
   f. **Au doigt** : **zone de toucher élargie** (≈ 22 px en tactile, comme pour les autres nœuds) autour du trait **et** de
      l'étiquette, l'étiquette étant la cible principale ; tap et double-tap comme ailleurs (sélection, puis panneau).
+- **Décisions prises (complément, 2026-11-20)** — points de réalisation :
+  g. **Activation** : dans Préférences, **une case par famille** (« propriétés de donnée compactes », « propriétés objet compactes »).
+     Valeur de départ posée par l'enseignant dans `ONTOLAB_DEFAULTS` (`compact:{data:…, obj:…}`), lien `?compact=data,obj`, et
+     verrouillage possible, avec la **même priorité** que le mode RDFS/OWL (lock > URL > choix enregistré > défauts).
+  h. **Sélection** : cliquer le compteur « +N » sélectionne la **classe** et ouvre la liste de ses attributs ; l'attribut touché est
+     **surligné** dans cette liste ; « Détails » sélectionne la **propriété** (panneau complet) en gardant la classe mise en évidence.
+  i. **Bascule compact ↔ normal** : les positions `mx/my` des nœuds de propriété sont **conservées dans le modèle** et réappliquées au
+     retour en normal ; aucun changement de données, bascule réversible sans perte.
+  j. **Livraison** : d'abord les **propriétés de donnée seules** (compteur, panneau éditable, liste « à compléter » des données sans
+     domaine) ; les flèches pour les propriétés objet viennent **après essai en conditions réelles**.
 - **Autres points** : l'export image reflète le mode courant (à signaler dans le dialogue) ; la légende s'adapte au mode (flèche
   au lieu de l'ellipse, compteur, pastilles T / S / ⇄, trait en tirets / en points) ; interaction avec G1 (mode RDFS : pas de symboles OWL à dessiner).
 - **Tests à prévoir** : disposition du graphe après disparition des nœuds (point faible de toutes les évolutions de mise en page),
