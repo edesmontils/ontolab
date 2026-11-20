@@ -127,7 +127,7 @@ L'IRI d'une classe ou d'une propriété = **espace de noms + nom**.
   supplémentaires, chacun avec son **préfixe** (`foaf`, `skos`…). On peut les ajouter à la main, ou
   choisir dans une liste d'**espaces courants** : FOAF, Dublin Core (terms et elements), SKOS,
   schema.org, ORG, PROV-O, OWL-Time, WGS84, vCard, DCAT, SIOC, BIBO, SHACL, DBpedia (ontologie et
-  ressources), Wikidata. Les préfixes `rdf`, `rdfs`, `owl`, `xsd` sont réservés ; chaque préfixe et chaque
+  ressources), Wikidata (liste modifiable par l'enseignant, voir ci-dessous). Les préfixes `rdf`, `rdfs`, `owl`, `xsd` sont réservés ; chaque préfixe et chaque
   IRI doit être unique. Retirer un espace utilisé demande confirmation (ses éléments reviennent à l'espace
   par défaut) ; modifier son IRI met à jour ses éléments.
 - **Panneau d'édition** : sous le nom, un **sélecteur « Espace de noms »** propose l'espace par défaut,
@@ -139,6 +139,18 @@ L'IRI d'une classe ou d'une propriété = **espace de noms + nom**.
   avec le préfixe qu'il avait dans le fichier ; le `@prefix :` du fichier devient l'espace par défaut.
 - Annuler / rétablir couvre aussi les espaces de noms ; « Charger l'exemple » et « Vider » remettent la
   liste à zéro (l'espace par défaut est conservé).
+
+### Catalogue des espaces courants (pour l'enseignant)
+
+La liste des espaces courants se maintient dans **`namespaces.js`**, à côté de `index.html` : une ligne par espace
+(`{prefix, iri, label, group}`), le format est détaillé en tête du fichier. Pas d'autre fichier à toucher ;
+vérifiez une IRI sur <https://prefix.cc> avant de l'ajouter. Une ligne erronée est ignorée et signalée en bas de
+l'éditeur d'espaces de noms ; si le fichier manque, OntoLab retombe sur sa liste intégrée (rien ne casse hors ligne).
+Pour publier : modifier, commiter, `./deploy.sh`.
+
+**Première installation sur le Pi** (ou si Caddy ne sert pas `namespaces.js`) : `./install-pi.sh` (ou
+`./install-pi.sh --check` pour seulement voir l'état). Il vérifie le clone git et ajoute `/namespaces.js` aux
+fichiers servis par Caddy, avec sauvegarde du Caddyfile, validation et retour arrière si la configuration est refusée.
 
 ## Export Turtle
 

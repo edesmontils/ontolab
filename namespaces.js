@@ -1,0 +1,46 @@
+/* OntoLab — catalogue des espaces de noms proposés aux étudiants.
+ *
+ * Ce fichier est le seul à modifier pour enrichir la liste « Espaces courants » (éditeur ⋯ › Espaces de noms…
+ * et sélecteur « Espace de noms » du panneau). Aucun autre changement de code n'est nécessaire.
+ *
+ * Une entrée = une ligne :
+ *   {prefix:'foaf', iri:'http://xmlns.com/foaf/0.1/', label:'FOAF — personnes, relations', group:'Vocabulaires généraux'},
+ *   - prefix : préfixe Turtle, lettres/chiffres/_ . - (rdf, rdfs, owl, xsd sont réservés), unique dans la liste ;
+ *   - iri    : IRI absolue de l'espace de noms. Elle doit finir par # ou / (sinon # est ajouté) ;
+ *   - label  : texte affiché après le préfixe (facultatif, l'IRI par défaut) ;
+ *   - group  : titre du groupe dans les listes (facultatif, « Espaces courants » par défaut). Les groupes
+ *              s'affichent dans l'ordre de leur première apparition ici.
+ *
+ * Vérifier une IRI avant de l'ajouter : https://prefix.cc (donne l'IRI usuelle d'un préfixe).
+ * Une entrée invalide est ignorée sans bloquer les autres ; l'éditeur d'espaces de noms indique laquelle.
+ * Si ce fichier est absent, illisible ou ne contient aucune entrée valide, OntoLab utilise sa liste intégrée.
+ *
+ * Mise à jour : éditer, commiter, puis ./deploy.sh. Les navigateurs qui ont mis la page en cache la prennent
+ * au rechargement (mise à jour forcée : Maj + recharger).
+ */
+window.ONTOLAB_NAMESPACES=[
+  /* ---- Vocabulaires généraux ---- */
+  {prefix:'foaf',    iri:'http://xmlns.com/foaf/0.1/',                 label:'FOAF — personnes, relations',     group:'Vocabulaires généraux'},
+  {prefix:'dcterms', iri:'http://purl.org/dc/terms/',                  label:'Dublin Core terms — métadonnées', group:'Vocabulaires généraux'},
+  {prefix:'dc',      iri:'http://purl.org/dc/elements/1.1/',           label:'Dublin Core elements',            group:'Vocabulaires généraux'},
+  {prefix:'skos',    iri:'http://www.w3.org/2004/02/skos/core#',       label:'SKOS — thésaurus, concepts',      group:'Vocabulaires généraux'},
+  {prefix:'schema',  iri:'https://schema.org/',                        label:'schema.org — web, personnes, lieux', group:'Vocabulaires généraux'},
+  {prefix:'org',     iri:'http://www.w3.org/ns/org#',                  label:'ORG — organisations',             group:'Vocabulaires généraux'},
+  {prefix:'prov',    iri:'http://www.w3.org/ns/prov#',                 label:'PROV-O — provenance',             group:'Vocabulaires généraux'},
+  {prefix:'time',    iri:'http://www.w3.org/2006/time#',               label:'OWL-Time — temps',                group:'Vocabulaires généraux'},
+  {prefix:'geo',     iri:'http://www.w3.org/2003/01/geo/wgs84_pos#',   label:'WGS84 — coordonnées',             group:'Vocabulaires généraux'},
+  {prefix:'vcard',   iri:'http://www.w3.org/2006/vcard/ns#',           label:'vCard — contacts',                group:'Vocabulaires généraux'},
+  {prefix:'dcat',    iri:'http://www.w3.org/ns/dcat#',                 label:'DCAT — catalogues de données',    group:'Vocabulaires généraux'},
+  {prefix:'sioc',    iri:'http://rdfs.org/sioc/ns#',                   label:'SIOC — communautés en ligne',     group:'Vocabulaires généraux'},
+  {prefix:'bibo',    iri:'http://purl.org/ontology/bibo/',             label:'BIBO — bibliographie',            group:'Vocabulaires généraux'},
+  {prefix:'sh',      iri:'http://www.w3.org/ns/shacl#',                label:'SHACL — contraintes',             group:'Vocabulaires généraux'},
+
+  /* ---- Bases de connaissances ---- */
+  {prefix:'dbo',     iri:'http://dbpedia.org/ontology/',               label:'DBpedia ontology',                group:'Bases de connaissances'},
+  {prefix:'dbr',     iri:'http://dbpedia.org/resource/',               label:'DBpedia resources',               group:'Bases de connaissances'},
+  {prefix:'wd',      iri:'http://www.wikidata.org/entity/',            label:'Wikidata — entités',              group:'Bases de connaissances'}
+
+  /* ---- Exemple : espaces propres au cours (décommenter / adapter, sans oublier la virgule à la ligne précédente) ----
+  ,{prefix:'cours', iri:'http://example.org/cours#', label:'Espace de noms du cours', group:'Cours'}
+  */
+];

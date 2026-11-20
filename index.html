@@ -150,6 +150,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <input type="file" id="f-ttl" class="hidden-file" tabindex="-1" aria-hidden="true">
 <input type="file" id="f-json" class="hidden-file" accept=".json,application/json" tabindex="-1" aria-hidden="true">
 <div id="stats"></div>
+<script src="namespaces.js"></script>
 <script>'use strict';
 /* ================= OntoLab — partie 1 : état, opérations, export ================= */
 const SVGNS='http://www.w3.org/2000/svg';
@@ -1650,7 +1651,7 @@ function updatePanel(){ // le panneau se rouvre par le menu « ⋯ » (entrée �
    `state.nsList` = autres espaces de noms déclarés [{prefix, iri}] ; un élément en choisit un dans son panneau (`x.ns` = IRI).
    Ils se gèrent dans l'éditeur « ⋯ › Espaces de noms… », et se complètent par un catalogue d'espaces courants. */
 const RESERVED_PREFIXES=['rdf','rdfs','owl','xsd'];
-const FREQUENT_NS=[
+const BUILTIN_NS=[
   {prefix:'foaf',iri:'http://xmlns.com/foaf/0.1/',label:'FOAF — personnes, relations'},
   {prefix:'dcterms',iri:'http://purl.org/dc/terms/',label:'Dublin Core terms — métadonnées'},
   {prefix:'dc',iri:'http://purl.org/dc/elements/1.1/',label:'Dublin Core elements'},
@@ -1668,6 +1669,41 @@ const FREQUENT_NS=[
   {prefix:'dbo',iri:'http://dbpedia.org/ontology/',label:'DBpedia ontology'},
   {prefix:'dbr',iri:'http://dbpedia.org/resource/',label:'DBpedia resources'},
   {prefix:'wd',iri:'http://www.wikidata.org/entity/',label:'Wikidata — entités'}];
+const NS_GROUP_DEFAULT='Espaces courants';
+
+/* Catalogue des espaces courants : `namespaces.js` (à côté de index.html, maintenu par l'enseignant) définit
+   `window.ONTOLAB_NAMESPACES=[{prefix,iri,label,group?}]`. Les lignes invalides sont ignorées (et signalées dans
+   l'éditeur d'espaces de noms) ; fichier absent, vide ou sans aucune ligne valide : liste intégrée BUILTIN_NS. */
+const NS_CATALOGUE={source:'intégré',problems:[]};
+function loadNsCatalogue(){
+  const raw=window.ONTOLAB_NAMESPACES;
+  if(raw===undefined) return BUILTIN_NS; // pas de fichier (ou chargement impossible, ex. serveur qui ne le sert pas)
+  const bad=NS_CATALOGUE.problems;
+  if(!Array.isArray(raw)){ bad.push('namespaces.js : ONTOLAB_NAMESPACES doit être un tableau'); return BUILTIN_NS; }
+  const out=[], seen=new Set();
+  raw.forEach((e,i)=>{
+    const where='namespaces.js, entrée '+(i+1)+(e&&e.prefix?' (« '+e.prefix+' »)':'')+' : ';
+    if(!e||typeof e!=='object'){ bad.push(where+'objet attendu'); return; }
+    const prefix=String(e.prefix==null?'':e.prefix).trim();
+    if(!/^[A-Za-z][A-Za-z0-9_.\-]*$/.test(prefix)){ bad.push(where+'préfixe invalide'); return; }
+    if(RESERVED_PREFIXES.includes(prefix)){ bad.push(where+'préfixe réservé'); return; }
+    if(seen.has(prefix)){ bad.push(where+'préfixe en double'); return; }
+    const v=validateNs(e.iri==null?'':e.iri); if(v.err){ bad.push(where+v.err); return; }
+    seen.add(prefix);
+    out.push({prefix,iri:v.iri,label:String(e.label||v.iri),group:String(e.group||NS_GROUP_DEFAULT)});
+  });
+  if(!out.length){ bad.push('namespaces.js : aucune entrée valide, liste intégrée utilisée'); return BUILTIN_NS; }
+  NS_CATALOGUE.source='namespaces.js';
+  return out;
+}
+const FREQUENT_NS=loadNsCatalogue();
+/* <optgroup> des espaces courants, regroupés par `group` dans l'ordre d'apparition ; `valPrefix` précède le préfixe dans value. */
+function nsCatalogueOptions(list,valPrefix){
+  const groups=new Map();
+  list.forEach(f=>{ const g=f.group||NS_GROUP_DEFAULT; if(!groups.has(g)) groups.set(g,[]); groups.get(g).push(f); });
+  let h=''; groups.forEach((fs,g)=>{ h+='<optgroup label="'+esc(g)+'">'+fs.map(f=>'<option value="'+valPrefix+esc(f.prefix)+'">'+esc(f.prefix)+': — '+esc(f.label)+'</option>').join('')+'</optgroup>'; });
+  return h;
+}
 
 /* Valide une IRI d'espace de noms : {iri} (avec « # » ajouté si elle ne finit ni par # ni par /) ou {err}. */
 function validateNs(v){
@@ -1722,7 +1758,7 @@ function nsBlock(kind,x){
   let o='<option value=""'+(cur?'':' selected')+'>: (par défaut) — '+esc(state.ns)+'</option>';
   o+=decl.map(e=>'<option value="'+esc(e.iri)+'"'+(cur===e.iri?' selected':'')+'>'+esc(e.prefix)+': — '+esc(e.iri)+'</option>').join('');
   const freq=FREQUENT_NS.filter(f=>!have.has(f.iri)&&f.iri!==state.ns);
-  if(freq.length) o+='<optgroup label="Espaces courants (ajoutés en les choisissant)">'+freq.map(f=>'<option value="@'+esc(f.prefix)+'">'+esc(f.prefix)+': — '+esc(f.label)+'</option>').join('')+'</optgroup>';
+  if(freq.length) o+=nsCatalogueOptions(freq,'@');
   o+='<option value="@@edit">Gérer les espaces de noms…</option>';
   const iri=(cur||state.ns)+localName(x.name);
   return '<label class="fld"><span>Espace de noms</span><select id="pf-ns">'+o+'</select></label>'
@@ -1748,7 +1784,9 @@ function openNamespaceEditor(){
          +(r.orig&&nsUsage(r.orig)?'<div class="nsuse">utilisé par '+nsUsage(r.orig)+' élément(s)</div>':'')).join('')
       +'<div class="nsrow nsadd"><button class="btn" id="ns-add">+ Ajouter</button>'
       +'<select id="ns-freq"><option value="">Ajouter un espace courant…</option>'
-        +FREQUENT_NS.filter(f=>!rows.some(r=>r.iri===f.iri)&&f.iri!==def.iri).map(f=>'<option value="'+esc(f.prefix)+'">'+esc(f.prefix)+': — '+esc(f.label)+'</option>').join('')+'</select><span></span></div>'
+        +nsCatalogueOptions(FREQUENT_NS.filter(f=>!rows.some(r=>r.iri===f.iri)&&f.iri!==def.iri),'')+'</select><span></span></div>'
+      +'<div class="hint nscat">Catalogue : '+(NS_CATALOGUE.source==='intégré'?'liste intégrée':'<code>'+NS_CATALOGUE.source+'</code> ('+FREQUENT_NS.length+' espaces)')+'.'
+        +(NS_CATALOGUE.problems.length?'<br><span class="nserr">'+NS_CATALOGUE.problems.map(esc).join('<br>')+'</span>':'')+'</div>'
       +'<div id="ns-err" class="nserr"></div>'
       +'<div class="dlg-btns"><button class="btn" id="ns-cancel">Annuler</button><button class="btn primary" id="ns-ok">OK</button></div>';
     box.querySelector('#ns-def').oninput=e=>{ def.iri=e.target.value; };

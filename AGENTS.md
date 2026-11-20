@@ -179,7 +179,14 @@ lien avec le reste du cours ; un export cassé est un incident pédagogique.
 des éléments si une IRI change, confirmation si on retire un espace utilisé. Panneau : `nsBlock(kind,x)` = `<select id="pf-ns">`
 (par défaut, déclarés, groupe `FREQUENT_NS`, `@@edit`) ; `onNsSelect()` déclare un espace courant au premier choix
 (`declareNs()`). L'export Turtle (`toTTL`) émet un `@prefix` par entrée de `nsList` et `préfixe:Nom` ; plus aucune saisie
-d'espace de noms dans la fenêtre d'export. `FREQUENT_NS` : ajouter une entrée = une ligne `{prefix, iri, label}`.
+d'espace de noms dans la fenêtre d'export. **Catalogue** : `FREQUENT_NS=loadNsCatalogue()` lit `window.ONTOLAB_NAMESPACES` défini par **`namespaces.js`**
+(chargé par `<script src="namespaces.js">` avant le script principal : un `.js` et non un `.json`, car `fetch` est bloqué en
+`file://`). Entrée `{prefix,iri,label,group?}` ; entrées invalides ignorées et listées dans `NS_CATALOGUE.problems` (affichées
+dans l'éditeur) ; fichier absent / sans entrée valide : repli sur `BUILTIN_NS` (liste intégrée, à garder alignée avec
+`namespaces.js` si on la modifie). `nsCatalogueOptions()` produit les `<optgroup>` par `group`. C'est l'enseignant qui
+édite `namespaces.js` : ne pas y mettre de logique. Côté Pi, Caddy ne sert que `/`, `/index.html` et `/namespaces.js`
+(matcher `@page`) ; `install-pi.sh` (idempotent, `--check`) vérifie/corrige cela. Tout nouveau fichier à servir doit être
+ajouté à ce matcher **et** à `install-pi.sh`.
 
 ## Historique, préférences d'affichage, export image
 
