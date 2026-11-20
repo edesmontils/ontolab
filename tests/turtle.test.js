@@ -159,7 +159,7 @@ test('import : signale ce qui n\'est pas représentable (restrictions, individus
     :A a owl:Class ; rdfs:subClassOf [ a owl:Restriction ; owl:onProperty :p ; owl:hasValue :x ] . :p a owl:ObjectProperty, owl:AsymmetricProperty ; rdfs:domain :A ; rdfs:range :A .
     :x a owl:NamedIndividual, :A . :p owl:propertyDisjointWith :p2 . :p2 a owl:ObjectProperty .`);
   const txt = notes.join('\n');
-  assert.match(txt, /restriction/i); assert.match(txt, /individu/i); assert.match(txt, /Asymmetric/); assert.match(txt, /propertyDisjointWith/);
+  assert.match(txt, /restriction/i); assert.match(txt, /individu/i); assert.ok(!/Asymmetric/.test(txt), 'AsymmetricProperty est désormais repris (A4)'); assert.match(txt, /propertyDisjointWith/);
 });
 
 test('import : plusieurs rdfs:label par langue, doublons éliminés', () => {
@@ -184,6 +184,7 @@ function findRiot() {
 const RIOT = findRiot();
 test('Jena riot --validate accepte les exports (OWL, RDFS, annotations)', { skip: RIOT ? false : 'Jena (riot) introuvable : définir JENA_RIOT pour activer' }, () => {
   const t = load(); t.run('loadExample()');
+  t.run('state.objProps[0].asymmetric=true; state.objProps[1].reflexive=true; state.objProps[2].irreflexive=true; state.dataProps[0].functional=true');
   t.run(`addRel('class','disjoint',state.classes[1].id,state.classes[2].id); addRel('class','equivalent',state.classes[3].id,state.classes[4].id); addRel('obj','equivalent',state.objProps[1].id,state.objProps[2].id)`);
   t.run(`state.classes[0].labels=[{lang:'fr',text:'P "x"'}]; state.meta={iri:'',title:'T',description:'',lang:'fr',version:'1',creators:['A'],imports:['http://purl.org/dc/terms/']}`);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ontolab-')); 

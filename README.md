@@ -202,6 +202,13 @@ Sur le graphe : une **flèche en tirets** de la classe vers la classe visée, av
 L'import reprend some / only / cardinalités (qualifiées ou non) ; `hasValue`, les propriétés ou classes inconnues et les classes définies par équivalence sont signalés. « Vérifier l'ontologie » repère les bornes contradictoires
 (au moins 3 et au plus 1…). Masquées et non exportées en mode RDFS.
 
+### Caractéristiques OWL des propriétés
+
+Propriétés objet (cases du panneau et du dialogue de création) : transitive, symétrique, **asymétrique**, **réflexive**, **irréflexive**, fonctionnelle, fonctionnelle inverse, et propriété inverse. Propriétés de donnée : **fonctionnelle**.
+Sur le graphe : bordure en tirets (fonctionnelle, objet ou donnée), en points (fonctionnelle inverse), boucle verte (transitive), double flèche (symétrique) ; en mode compact des propriétés objet, pastilles **T S A R I ⇄ ≡**
+(A, R, I = asymétrique, réflexive, irréflexive) ; en mode normal, l'infobulle les liste. « Vérifier l'ontologie » signale les combinaisons contradictoires (asymétrique + symétrique, réflexive + irréflexive, réflexive + asymétrique)
+et celles que OWL 2 DL interdit (transitive avec asymétrique, irréflexive ou fonctionnelle). Masquées et non exportées en mode RDFS.
+
 ### Version
 
 Le numéro de version est affiché à côté du copyright et dans l'en-tête des fichiers Turtle exportés ; l'historique est dans [`CHANGELOG.md`](CHANGELOG.md).

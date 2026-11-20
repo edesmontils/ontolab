@@ -11,10 +11,10 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 
 Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
 
-### État au 2026-11-20 (v1.17.0, 84 tests)
-- **Fait** : A1–A3, A5, A6 ; B1, B2 ; C1, C2, C4 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
-- **Reste** : A4 (S) ; C3, C5 ; D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
-- **Ordre conseillé pour la suite** : A4 (court) ; C5 (classes anonymes, qui prolonge C4 : classes définies, unions) ; performances sur grands graphes (mesures en « Dette connue », reporté
+### État au 2026-11-20 (v1.18.0, 92 tests)
+- **Fait** : A1–A6 ; B1, B2 ; C1, C2, C4 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
+- **Reste** : C3, C5 ; D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
+- **Ordre conseillé pour la suite** : C5 (classes anonymes, qui prolonge C4 : classes définies, unions) ; performances sur grands graphes (mesures en « Dette connue », reporté
   « plus tard » le 2026-11-20) ; A4 (court) quand on touche aux caractéristiques OWL. Retours iPad : aucun problème signalé pour l'instant.
 
 ---
@@ -24,7 +24,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 > Déjà réalisés (v1.x) : **A1** annuler/rétablir, **A2** panneau et légende repliables, **A3** export image
 > SVG/PNG — voir `README.md` et `AGENTS.md`. Restent A4 et A5 (A6 fait).
 
-### A4. Caractéristiques OWL supplémentaires — S
+### A4. Caractéristiques OWL supplémentaires — S — **fait** (v1.18.0, 2026-11-20)
 - *Fait* : `owl:InverseFunctionalProperty` (propriétés objet : case à cocher, bordure en points, Turtle, import).
 - *Reste* : `AsymmetricProperty`, `ReflexiveProperty`, `IrreflexiveProperty` pour les propriétés objet ;
   `owl:FunctionalProperty` pour les propriétés de donnée.

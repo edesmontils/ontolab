@@ -5,6 +5,10 @@ Numéro **MAJEUR.MINEUR.CORRECTIF**, affiché à côté du copyright (constante 
 - À chaque modification de l'application : incrémenter `VERSION` **et** ajouter une entrée ici (en tête). Les commits qui ne touchent que la documentation ou la ROADMAP ne changent pas le numéro.
 - Les entrées jusqu'à 1.14.1 ont été attribuées après coup d'après l'historique git (le numéro n'était pas encore affiché).
 
+## 1.18.0 — 2026-11-20
+- A4 : propriétés objet asymétrique / réflexive / irréflexive (`owl:AsymmetricProperty`, `ReflexiveProperty`, `IrreflexiveProperty`) et propriété de donnée fonctionnelle (`owl:FunctionalProperty`) :
+  cases du panneau et des dialogues de création, export, import, pastilles A / R / I en mode compact, bordure en tirets pour une donnée fonctionnelle, vérification A5 (contradictions, restriction OWL 2 DL). Masqué en mode RDFS.
+
 ## 1.17.0 — 2026-11-20
 - C4 : restrictions OWL d'une classe (∃ some, ∀ only, ≥ min, ≤ max, = exactly ; cardinalités qualifiées ou non) : section « Restrictions » du panneau (édition sur place, héritées grisées), flèche en tirets + pastille vers la classe visée,
   export `rdfs:subClassOf [ a owl:Restriction … ]`, import (some, only, cardinalités ; le reste est signalé), vérification A5 (bornes contradictoires, doublons). Masquées en mode RDFS.

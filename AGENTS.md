@@ -210,6 +210,10 @@ d'accueil « À compléter », compteur de `updateStats`). Panneau : `inhSelect(
 `inhWarn()` (avertissement non bloquant si la surcharge n'est pas une sous-classe de celle du parent). Import : `ontologyFromTriples` laisse
 null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux propriétés **sans parent**. Inverses : `invOK(p,q)` (valeurs effectives).
 
+## Caractéristiques OWL (A4)
+Nouvelle caractéristique ⇒ l'ajouter à `OWL_FLAGS` (compte, `owlList`, statistiques), au dialogue de création et au panneau (cases masquées en RDFS), à `toTTL` (OWL seulement), à `ontologyFromTriples` (type reconnu **et** retiré des « axiomes non représentables »),
+au dessin (infobulle, pastille, bordure), à la légende et à `checkOntology`. Pour une propriété de donnée seule `functional` existe ; `transitive`/`symmetric`… sur une donnée sont signalées à l'import.
+
 ## Restrictions (C4)
 `classe.restrictions=[{kind:'some'|'only'|'min'|'max'|'exactly', prop, n?, filler}]` (filler = id de classe pour une propriété objet, type `xsd:` pour une propriété de donnée, null = Thing / Literal), validé par `cleanRestrictions`
 (appelé par `sanitizeState` et aux suppressions : propriété ou classe visée supprimée ⇒ restriction retirée). Panneau : `restrBlock`/`wireRestr` (lignes `.attr.rst`) ; dessin : `drawRestrictions` (flèche en tirets, pastille à 30 %,

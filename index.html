@@ -168,9 +168,9 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
   <div><span class="chip" style="background:var(--green);border:2px solid var(--greenS)"></span>Propriété objet — flèche : domaine → portée</div>
   <div class="nrm-only"><span class="chip" style="background:var(--red);border:2px solid var(--redS)"></span>Propriété de donnée (XSD)</div>
   <div class="cmp-only"><span class="chip" style="background:var(--red);border:2px solid var(--redS);border-radius:8px"></span><b>+N</b> : propriétés de donnée de la classe (dans le panneau)</div>
-  <div class="owl-only">Bordure en tirets : <b>fonctionnelle</b> · en points : <b>fonctionnelle inverse</b></div>
+  <div class="owl-only">Bordure en tirets : <b>fonctionnelle</b> (propriété objet ou de donnée) · en points : <b>fonctionnelle inverse</b></div>
   <div class="owl-only nrm-o">Petite boucle verte : <b>transitive</b></div>
-  <div class="owl-only cmp-o">Pastilles sur la flèche : <b>T</b> transitive · <b>S</b> symétrique · <b>⇄</b> paire inverse</div>
+  <div class="owl-only cmp-o">Pastilles sur la flèche : <b>T</b> transitive · <b>S</b> symétrique · <b>A</b> asymétrique · <b>R</b> réflexive · <b>I</b> irréflexive · <b>⇄</b> paire inverse</div>
   <div class="cmp-o">« ⊆ nom » sous la pastille : <b>rdfs:subPropertyOf</b> · flèche en tirets vers <b>?</b> : domaine ou portée à préciser</div>
   <div>Ligne pointillée à pointe creuse : <b>rdfs:subPropertyOf</b> (sous-propriété → parente)</div>
   <div class="owl-only"><b>Double bordure</b> + trait <b>≡</b> : classes <b>équivalentes</b> · trait pointillé <b>⊥</b> : classes <b>disjointes</b> · <b>≡</b> après un nom de propriété : propriétés équivalentes</div>
@@ -186,7 +186,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <script>'use strict';
 /* ================= OntoLab — partie 1 : état, opérations, export ================= */
 /* Numéro de version : à faire évoluer à chaque modification (voir CHANGELOG.md : MINOR = fonction nouvelle, PATCH = correctif ou ajustement). */
-const VERSION='1.17.0';
+const VERSION='1.18.0';
 const SVGNS='http://www.w3.org/2000/svg';
 const LS_KEY='ontolab-v1';
 const C={cls:'#AEDBFC',clsS:'#2C5F9E',obj:'#D9E9A5',objS:'#5B7C29',data:'#F6CECE',dataS:'#8C2E2E',disj:'#7B5EA7',sel:'#E4572E'};
@@ -403,11 +403,14 @@ function createObjProp(domain,range){
      {key:'transitive',label:'Transitive (owl:TransitiveProperty)',type:'check'},
      {key:'symmetric',label:'Symétrique (owl:SymmetricProperty)',type:'check'},
      {key:'functional',label:'Fonctionnelle (une seule valeur, owl:FunctionalProperty)',type:'check'},
+     {key:'asymmetric',label:'Asymétrique (si p(x,y) alors jamais p(y,x), owl:AsymmetricProperty)',type:'check'},
+     {key:'reflexive',label:'Réflexive (p(x,x) pour tout x, owl:ReflexiveProperty)',type:'check'},
+     {key:'irreflexive',label:'Irréflexive (jamais p(x,x), owl:IrreflexiveProperty)',type:'check'},
      {key:'inverseFunctional',label:'Fonctionnelle inverse (valeur identifiant le sujet, owl:InverseFunctionalProperty)',type:'check'}])
   ).then(v=>{
     if(!v) return;
     if(nameTaken(v.name)){ status('Le nom « '+v.name+' » est déjà utilisé.',1); return; }
-    const p={id:state.nextId++,name:v.name,domain,range,transitive:!!v.transitive,symmetric:!!v.symmetric,functional:!!v.functional,inverseFunctional:!!v.inverseFunctional,inverseOf:null};
+    const p={id:state.nextId++,name:v.name,domain,range,transitive:!!v.transitive,symmetric:!!v.symmetric,functional:!!v.functional,inverseFunctional:!!v.inverseFunctional,asymmetric:!!v.asymmetric,reflexive:!!v.reflexive,irreflexive:!!v.irreflexive,inverseOf:null};
     state.objProps.push(p); state.sel={kind:'obj',id:p.id}; save(); render();
   });
 }
@@ -415,11 +418,12 @@ function newDataProp(domain){
   domain=+domain;
   dialog('Nouvelle propriété de donnée',
     [{key:'name',label:'Nom de la propriété',value:''},
-     {key:'type',label:'Type XSD de la valeur',type:'select',options:XSD.map(t=>({v:t,t})),value:'xsd:string'}]
+     {key:'type',label:'Type XSD de la valeur',type:'select',options:XSD.map(t=>({v:t,t})),value:'xsd:string'}].concat(isRdfs()?[]:[
+     {key:'functional',label:'Fonctionnelle (une seule valeur, owl:FunctionalProperty)',type:'check'}])
   ).then(v=>{
     if(!v) return;
     if(nameTaken(v.name)){ status('Le nom « '+v.name+' » est déjà utilisé.',1); return; }
-    const p={id:state.nextId++,name:v.name,domain,type:v.type};
+    const p={id:state.nextId++,name:v.name,domain,type:v.type}; if(v.functional) p.functional=true;
     state.dataProps.push(p);
     if(ui.cdata){ state.sel={kind:'class',id:domain}; ui.hiAttr=p.id; ui.panel=true; saveUI(); } else state.sel={kind:'data',id:p.id};
     save(); render();
@@ -790,6 +794,9 @@ function toTTL(ns){
     if(!isRdfs()){
       if(p.transitive) types.push('owl:TransitiveProperty');
       if(p.symmetric) types.push('owl:SymmetricProperty');
+      if(p.asymmetric) types.push('owl:AsymmetricProperty');
+      if(p.reflexive) types.push('owl:ReflexiveProperty');
+      if(p.irreflexive) types.push('owl:IrreflexiveProperty');
       if(p.functional) types.push('owl:FunctionalProperty');
       if(p.inverseFunctional) types.push('owl:InverseFunctionalProperty');
     }
@@ -807,7 +814,7 @@ function toTTL(ns){
     const pars=parentsOf(p).map(dataById).filter(Boolean); if(pars.length) preds.push('rdfs:subPropertyOf '+pars.map(q=>N(q)).join(', '));
     if(!isRdfs()){ const os=relOf(p,'equivalent').filter(i=>i>p.id).map(dataById).filter(Boolean).map(N); if(os.length) preds.push('owl:equivalentProperty '+os.join(', ')); }
     preds.push(...annPreds(p));
-    L.push(N(p)+' a '+(isRdfs()?'rdf:Property':'owl:DatatypeProperty')+' ;\n    '+preds.join(' ;\n    ')+' .');
+    L.push(N(p)+' a '+(isRdfs()?'rdf:Property':'owl:DatatypeProperty'+(p.functional?', owl:FunctionalProperty':''))+' ;\n    '+preds.join(' ;\n    ')+' .');
   }
   return L.join('\n')+'\n';
 }
@@ -817,7 +824,7 @@ function exportTTL(){
   box.innerHTML='<h3>Export — Turtle (TTL)</h3>'
     +'<p class="dlg-msg">Espace de noms de l\'ontologie : <code>'+esc(state.ns)+'</code> — modifiable par « ⋯ › Espaces de noms… ».</p>'
     +(isRdfs()?'<p class="dlg-msg"><b>Mode RDFS</b> : export en RDFS pur (<code>rdfs:Class</code>, <code>rdf:Property</code>, sans <code>owl:*</code>).'
-      +(state.objProps.some(q=>owlList(q).length)?' Caractéristiques OWL non écrites : '+state.objProps.filter(q=>owlList(q).length).length+' propriété(s) concernée(s) (conservées dans l\'ontologie ; repasser en mode OWL pour les exporter).':'')
+      +([...state.objProps,...state.dataProps].some(q=>owlList(q).length)?' Caractéristiques OWL non écrites : '+[...state.objProps,...state.dataProps].filter(q=>owlList(q).length).length+' propriété(s) concernée(s) (conservées dans l\'ontologie ; repasser en mode OWL pour les exporter).':'')
       +(state.classes.some(c=>(c.restrictions||[]).length)?' Restrictions non écrites : '+state.classes.reduce((n,c)=>n+(c.restrictions||[]).length,0)+'.':'')
       +(()=>{ const n=state.classes.filter(c=>relOf(c,'disjoint').length||relOf(c,'equivalent').length).length+state.dataProps.filter(p=>relOf(p,'equivalent').length).length; return n?' Disjonctions / équivalences non écrites : '+n+' classe(s) ou propriété(s) de donnée concernée(s).':''; })()+'</p>':'')
     +'<pre id="ttl-pre"></pre>';
@@ -862,7 +869,7 @@ function exportLegend(){
     ['ifunc','Bordure en points : propriété fonctionnelle inverse']];
   if(isRdfs()) rows.splice(5,2); // mode RDFS : pas de marques OWL
   else rows.push(['eqv','Double bordure + trait ≡ : owl:equivalentClass'],['dsj','Trait pointillé + ⊥ : owl:disjointWith'],['rst','Flèche en tirets + ∃ ∀ ≥ ≤ = : restriction (owl:Restriction)']);
-  const note=ui.cobj?(isRdfs()?'':'Pastilles : T transitive · S symétrique · ⇄ inverse · ')+'⊆ nom : sous-propriété · tirets vers « ? » : à préciser'
+  const note=ui.cobj?(isRdfs()?'':'Pastilles : T transitive · S symétrique · A asymétrique · R réflexive · I irréflexive · ⇄ inverse · ')+'⊆ nom : sous-propriété · tirets vers « ? » : à préciser'
     :(isRdfs()?'':'Boucle verte : transitive · doubles flèches : symétrique · ⇄ : paire de propriétés inverses');
   const icon=k=>({
     cls:'<ellipse cx="20" cy="10" rx="17" ry="8" fill="'+C.cls+'" stroke="'+C.clsS+'" stroke-width="2"/>',
@@ -1167,7 +1174,7 @@ function ontologyFromTriples(T,prefixes){
     stack=stack||new Set(); if(stack.has(p)) return 'obj'; stack.add(p);
     const ts=typesOf('I'+p); let k=null;
     if(ts.includes(OWLN+'DatatypeProperty')) k='data';
-    else if(ts.includes(OWLN+'ObjectProperty')||ts.includes(OWLN+'TransitiveProperty')||ts.includes(OWLN+'SymmetricProperty')||ts.includes(OWLN+'InverseFunctionalProperty')) k='obj';
+    else if(ts.includes(OWLN+'ObjectProperty')||ts.includes(OWLN+'TransitiveProperty')||ts.includes(OWLN+'SymmetricProperty')||ts.includes(OWLN+'InverseFunctionalProperty')||ts.includes(OWLN+'AsymmetricProperty')||ts.includes(OWLN+'ReflexiveProperty')||ts.includes(OWLN+'IrreflexiveProperty')) k='obj';
     else{
       const rs=get('I'+p,RDFSN+'range').map(iriOf).filter(Boolean);
       if(rs.some(isDT)) k='data'; else if(rs.length) k='obj';
@@ -1197,13 +1204,14 @@ function ontologyFromTriples(T,prefixes){
     if(kind==='obj'){
       const rng=pick(p,RDFSN+'range');
       objProps.push(Object.assign(base,{domain:dom,range:rng,transitive:ts.includes(OWLN+'TransitiveProperty'),symmetric:ts.includes(OWLN+'SymmetricProperty'),
-        functional:ts.includes(OWLN+'FunctionalProperty'),inverseFunctional:ts.includes(OWLN+'InverseFunctionalProperty'),inverseOf:null}));
+        functional:ts.includes(OWLN+'FunctionalProperty'),inverseFunctional:ts.includes(OWLN+'InverseFunctionalProperty'),
+        asymmetric:ts.includes(OWLN+'AsymmetricProperty'),reflexive:ts.includes(OWLN+'ReflexiveProperty'),irreflexive:ts.includes(OWLN+'IrreflexiveProperty'),inverseOf:null}));
     } else{
       let type='xsd:string';
       const r=get('I'+p,RDFSN+'range').map(iriOf).find(x=>x&&isDT(x));
       if(r){ const loc=r.replace(XSDN,''); const m=r.startsWith(XSDN)&&XSD_MAP[loc]; type=m||'xsd:string'; if(!m||('xsd:'+loc)!==m) nApprox++; }
       else nApprox++;
-      dataProps.push(Object.assign(base,{domain:dom,type}));
+      dataProps.push(Object.assign(base,{domain:dom,type},ts.includes(OWLN+'FunctionalProperty')?{functional:true}:{}));
     }
   });
   if(nApprox) notes.push(nApprox+' type(s) de donnée ramené(s) au plus proche type XSD géré (xsd:string par défaut)');
@@ -1321,7 +1329,7 @@ function ontologyFromTriples(T,prefixes){
       skip(iri.replace(/^.*[#\/]/,''),os.length);
     }
     if(kindMemo.get(s)==='data'&&typesOf('I'+s).includes(OWLN+'InverseFunctionalProperty')) skip('InverseFunctionalProperty sur une propriété de donnée');
-    for(const t of typesOf('I'+s)) if([OWLN+'AsymmetricProperty',OWLN+'ReflexiveProperty',OWLN+'IrreflexiveProperty'].includes(t)) skip(t.replace(OWLN,''));
+    if(kindMemo.get(s)==='data') for(const t of typesOf('I'+s)) if([OWLN+'AsymmetricProperty',OWLN+'ReflexiveProperty',OWLN+'IrreflexiveProperty',OWLN+'TransitiveProperty',OWLN+'SymmetricProperty'].includes(t)) skip(t.replace(OWLN,'')+' sur une propriété de donnée');
   }
   if(ign.size) notes.push('axiomes non représentables ignorés : '+[...ign].map(([k,v])=>k+(v>1?' ×'+v:'')).join(', '));
   if(nAnn) notes.push(nAnn+' autre(s) annotation(s) (rdfs:seeAlso…) non conservée(s)');
@@ -1887,10 +1895,11 @@ function drawData(pos,pp){
     el('line',{x1:q.start.x,y1:q.start.y,x2:te.x,y2:te.y,stroke:C.dataS,'stroke-width':1.6,'marker-end':'url(#m-arr-red)',opacity:0.85},layerData);
     const g=el('g',{class:'node','data-id':p.id,'data-kind':'data',cursor:'pointer'},layerData);
     const sel=selIs('data',p.id);
-    el('ellipse',{cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.data,stroke:sel?C.sel:C.dataS,'stroke-width':sel?3:1.6},g);
+    const de={cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.data,stroke:sel?C.sel:C.dataS,'stroke-width':sel?3:1.6}; if(owlOn(p,'functional')) de['stroke-dasharray']='5 3'; // tirets = fonctionnelle (comme les propriétés objet)
+    el('ellipse',de,g);
     const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#3d1414'},g); t.textContent=short(disp(p),q.rx)+(!isRdfs()&&relOf(p,'equivalent').length?' ≡':'');
     const t2=el('text',{x:q.x,y:q.y+q.ry+11,'text-anchor':'middle','font-size':9,fill:C.dataS},g); t2.textContent=p.type.replace('xsd:','');
-    const tt=el('title',{},g); tt.textContent=tipOf(p)+relTip('data',p)+' : propriété de donnée de '+disp(c)+' ('+p.type+')'+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(dataById(i)||{}).name).join(', ')+']':'');
+    const tt=el('title',{},g); tt.textContent=tipOf(p)+relTip('data',p)+(owlOn(p,'functional')?' [fonctionnelle]':'')+' : propriété de donnée de '+disp(c)+' ('+p.type+')'+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(dataById(i)||{}).name).join(', ')+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'data',p.id));
   }
 }
@@ -1943,7 +1952,7 @@ function drawObjProps(pp){
     const label=short(disp(p),q.rx)+(inv&&!ui.cobj?' ⇄':'')+(eqv&&!ui.cobj?' ≡':'');
     const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#26330d'},g); t.textContent=label;
     if(ui.cobj){
-      const badges=[owlOn(p,'transitive')&&['T','transitive'],owlOn(p,'symmetric')&&['S','symétrique'],inv&&['⇄','inverse de '+inv.name],eqv&&['≡','équivalente à '+relOf(p,'equivalent').map(i=>(objById(i)||{}).name).filter(Boolean).join(', ')]].filter(Boolean);
+      const badges=[owlOn(p,'transitive')&&['T','transitive'],owlOn(p,'symmetric')&&['S','symétrique'],owlOn(p,'asymmetric')&&['A','asymétrique'],owlOn(p,'reflexive')&&['R','réflexive'],owlOn(p,'irreflexive')&&['I','irréflexive'],inv&&['⇄','inverse de '+inv.name],eqv&&['≡','équivalente à '+relOf(p,'equivalent').map(i=>(objById(i)||{}).name).filter(Boolean).join(', ')]].filter(Boolean);
       badges.forEach((b,i)=>{ const bx=q.x+q.rx-6-i*16, by=q.y-q.ry, gb=el('g',{},g);
         el('circle',{cx:bx,cy:by,r:7.5,fill:'#fff',stroke:C.objS,'stroke-width':1.2},gb);
         const bt=el('text',{x:bx,y:by+3.2,'text-anchor':'middle','font-size':9,'font-weight':700,fill:'#26330d'},gb); bt.textContent=b[0];
@@ -1953,7 +1962,7 @@ function drawObjProps(pp){
     }
     const tt=el('title',{},g);
     tt.textContent=tipOf(p)+relTip('obj',p)+' : objet, '+ ((classById(oDom(p))||{}).name||'?') +' → '+ ((classById(oRng(p))||{}).name||'?')
-      +(owlOn(p,'transitive')?' [transitive]':'')+(owlOn(p,'symmetric')?' [symétrique]':'')+(owlOn(p,'functional')?' [fonctionnelle]':'')+(owlOn(p,'inverseFunctional')?' [fonctionnelle inverse]':'')+(inv?' [inverse de '+inv.name+']':'')+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(objById(i)||{}).name).join(', ')+']':'');
+      +(owlOn(p,'transitive')?' [transitive]':'')+(owlOn(p,'symmetric')?' [symétrique]':'')+(owlOn(p,'asymmetric')?' [asymétrique]':'')+(owlOn(p,'reflexive')?' [réflexive]':'')+(owlOn(p,'irreflexive')?' [irréflexive]':'')+(owlOn(p,'functional')?' [fonctionnelle]':'')+(owlOn(p,'inverseFunctional')?' [fonctionnelle inverse]':'')+(inv?' [inverse de '+inv.name+']':'')+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(objById(i)||{}).name).join(', ')+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'obj',p.id));
   }
 }
@@ -1961,7 +1970,7 @@ function drawObjProps(pp){
 function updateStats(){
   const nC=state.classes.length, nO=state.objProps.length, nD=state.dataProps.length, nInc=incompleteProps().length;
   let t=nC+state.classes.reduce((n,c)=>n+parentsOf(c).length,0)+nO*3+nD*3
-    +state.objProps.reduce((n,p)=>n+OWL_FLAGS.filter(([k])=>owlOn(p,k)).length,0)
+    +state.objProps.reduce((n,p)=>n+OWL_FLAGS.filter(([k])=>owlOn(p,k)).length,0)+state.dataProps.filter(p=>owlOn(p,'functional')).length
     +(isRdfs()?0:state.objProps.filter(p=>p.inverseOf).length)
     +state.objProps.reduce((n,p)=>n+parentsOf(p).length,0)+state.dataProps.reduce((n,p)=>n+parentsOf(p).length,0);
   $('#stats').textContent=nC+' classes · '+nO+' prop. objet · '+nD+' prop. donnée · ≈ '+t+' triples'+(nInc?' · '+nInc+' à compléter':'');
@@ -2159,7 +2168,7 @@ const boolOf=v=>typeof v==='boolean'?v:null;
 const validMode=m=>(m==='owl'||m==='rdfs')?m:null;
 const isRdfs=()=>ui.mode==='rdfs';
 const owlOn=(p,k)=>!isRdfs()&&!!p[k]; // caractéristique OWL « visible » (affichée, dessinée, comptée) dans le mode courant
-const OWL_FLAGS=[['transitive','transitive'],['symmetric','symétrique'],['functional','fonctionnelle'],['inverseFunctional','fonctionnelle inverse']];
+const OWL_FLAGS=[['transitive','transitive'],['symmetric','symétrique'],['asymmetric','asymétrique'],['reflexive','réflexive'],['irreflexive','irréflexive'],['functional','fonctionnelle'],['inverseFunctional','fonctionnelle inverse']];
 const owlList=p=>OWL_FLAGS.filter(([k])=>p[k]).map(([,t])=>t).concat(p.inverseOf?['inverse']:[]).concat(relOf(p,'equivalent').length?['équivalente']:[]); // caractéristiques OWL portées par une propriété objet
 function loadUI(){
   try{ const u=JSON.parse(localStorage.getItem(UI_KEY)||'null'); if(u){ if(typeof u.panel==='boolean') ui.panel=u.panel; if(typeof u.legend==='boolean') ui.legend=u.legend; ui.modeSaved=validMode(u.mode); ui.cdataSaved=boolOf(u.cdata); ui.cobjSaved=boolOf(u.cobj); } }catch(e){}
@@ -2533,6 +2542,9 @@ function renderPanelBody(){
         ?(owlList(p2).length?'<p class="hint">Caractéristiques OWL masquées (mode RDFS) : '+owlList(p2).map(esc).join(', ')+'. Elles reviennent en mode OWL.</p>':'')
         :'<label class="fld check"><span>Transitive</span><input type="checkbox" id="pf-trans"'+(p2.transitive?' checked':'')+'></label>'
         +'<label class="fld check"><span>Symétrique</span><input type="checkbox" id="pf-sym"'+(p2.symmetric?' checked':'')+'></label>'
+        +'<label class="fld check"><span>Asymétrique</span><input type="checkbox" id="pf-asym"'+(p2.asymmetric?' checked':'')+'></label>'
+        +'<label class="fld check"><span>Réflexive</span><input type="checkbox" id="pf-refl"'+(p2.reflexive?' checked':'')+'></label>'
+        +'<label class="fld check"><span>Irréflexive</span><input type="checkbox" id="pf-irr"'+(p2.irreflexive?' checked':'')+'></label>'
         +'<label class="fld check"><span>Fonctionnelle</span><input type="checkbox" id="pf-func"'+(p2.functional?' checked':'')+'></label>'
         +'<label class="fld check"><span>Fonctionnelle inverse</span><input type="checkbox" id="pf-ifunc"'+(p2.inverseFunctional?' checked':'')+'></label>'
         +'<label class="fld"><span>Propriété inverse (owl:inverseOf)</span><select id="pf-inv"><option value="">— (aucune)</option>'
@@ -2550,6 +2562,9 @@ function renderPanelBody(){
     if(!isRdfs()){
     $('#pf-trans').onchange=e=>{ p2.transitive=e.target.checked; save(); render(); };
     $('#pf-sym').onchange=e=>{ p2.symmetric=e.target.checked; save(); render(); };
+    $('#pf-asym').onchange=e=>{ p2.asymmetric=e.target.checked; save(); render(); };
+    $('#pf-refl').onchange=e=>{ p2.reflexive=e.target.checked; save(); render(); };
+    $('#pf-irr').onchange=e=>{ p2.irreflexive=e.target.checked; save(); render(); };
     $('#pf-func').onchange=e=>{ p2.functional=e.target.checked; save(); render(); };
     $('#pf-ifunc').onchange=e=>{ p2.inverseFunctional=e.target.checked; save(); render(); };
     $('#pf-inv').onchange=e=>{
@@ -2572,6 +2587,8 @@ function renderPanelBody(){
       +annotBlock(p3)
       +inhSelect('data',p3,'domain','Domaine (rdfs:domain)','pf-domain')
       +inhWarn('data',p3)
+      +(isRdfs()?(owlList(p3).length?'<p class="hint">Caractéristiques OWL masquées (mode RDFS) : '+owlList(p3).map(esc).join(', ')+'. Elles reviennent en mode OWL.</p>':'')
+        :'<label class="fld check"><span>Fonctionnelle (owl:FunctionalProperty)</span><input type="checkbox" id="pf-dfunc"'+(p3.functional?' checked':'')+'></label>')
       +'<label class="fld"><span>Type XSD (rdfs:range)</span><select id="pf-type">'+XSD.map(t=>'<option value="'+t+'"'+(t===p3.type?' selected':'')+'>'+t+'</option>').join('')+'</select></label>'
       +parentsBlock('data',p3,'Sous-propriété de (rdfs:subPropertyOf)')
       +relBlocks('data',p3)
@@ -2583,6 +2600,7 @@ function renderPanelBody(){
     wireParents('data',p3); wireRel('data',p3);
     $('#pf-domain').onchange=e=>{ p3.domain=e.target.value===''?null:+e.target.value; save(); render(); };
     $('#pf-type').onchange=e=>{ p3.type=e.target.value; save(); render(); };
+    if(!isRdfs()) $('#pf-dfunc').onchange=e=>{ p3.functional=e.target.checked; save(); render(); };
     if(dc) $('#pf-backcls').onclick=()=>{ ui.hiAttr=p3.id; state.sel={kind:'class',id:dc.id}; save(); render(); };
     $('#pf-del').onclick=()=>deleteProp('data',p3.id);
   }
@@ -2722,6 +2740,11 @@ function checkOntology(){
       if(p.transitive&&p.functional) add('warn','obj',p.id,'« '+p.name+' » est à la fois fonctionnelle et transitive : OWL 2 DL l\'interdit (une propriété transitive ne peut pas porter de contrainte de cardinalité).');
       if((p.symmetric||p.transitive)&&d!=null&&r!=null&&d!==r&&!isAncestor('class',d,r)&&!isAncestor('class',r,d))
         add('warn','obj',p.id,'« '+p.name+' » est '+(p.symmetric?'symétrique':'transitive')+' mais son domaine « '+cn(d)+' » et sa portée « '+cn(r)+' » ne sont pas la même classe (ni apparentées) : ses valeurs sortent de ces classes.');
+      if(p.asymmetric&&p.symmetric) add('warn','obj',p.id,'« '+p.name+' » est à la fois asymétrique et symétrique : contradiction.');
+      if(p.reflexive&&p.irreflexive) add('warn','obj',p.id,'« '+p.name+' » est à la fois réflexive et irréflexive : contradiction.');
+      if(p.reflexive&&p.asymmetric) add('warn','obj',p.id,'« '+p.name+' » est à la fois réflexive et asymétrique : contradiction (p(x,x) serait vrai et interdit).');
+      if((p.asymmetric||p.irreflexive)&&p.transitive) add('warn','obj',p.id,'« '+p.name+' » est '+(p.asymmetric?'asymétrique':'irréflexive')+' et transitive : OWL 2 DL l\'interdit (une propriété transitive n\'est pas « simple »).');
+      if(p.reflexive&&d!=null&&r!=null&&d!==r&&!isAncestor('class',d,r)&&!isAncestor('class',r,d)) add('warn','obj',p.id,'« '+p.name+' » est réflexive mais son domaine « '+cn(d)+' » et sa portée « '+cn(r)+' » ne sont pas la même classe (ni apparentées).');
       if(p.inverseOf){ const q=objById(p.inverseOf);
         if(!q) add('warn','obj',p.id,'« '+p.name+' » : propriété inverse introuvable.');
         else if(!invOK(p,q)) add('warn','obj',p.id,'« '+p.name+' » et son inverse « '+q.name+' » : domaine et portée ne sont pas croisés.');
