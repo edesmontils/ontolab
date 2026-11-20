@@ -5,6 +5,9 @@ Numéro **MAJEUR.MINEUR.CORRECTIF**, affiché à côté du copyright (constante 
 - À chaque modification de l'application : incrémenter `VERSION` **et** ajouter une entrée ici (en tête). Les commits qui ne touchent que la documentation ou la ROADMAP ne changent pas le numéro.
 - Les entrées jusqu'à 1.14.1 ont été attribuées après coup d'après l'historique git (le numéro n'était pas encore affiché).
 
+## 1.16.1 — 2026-11-20
+- Zoom à la molette : delta normalisé (lignes / pages), pincement du trackpad amplifié, pas maximal par cran ; zoom centré sur le pointeur.
+
 ## 1.16.0 — 2026-11-20
 - C1 : classes disjointes (`owl:disjointWith`) : listes dans le panneau, trait pointillé + pastille ⊥ sur le graphe, export, import (y compris `owl:AllDisjointClasses`).
 - C2 : classes équivalentes (`owl:equivalentClass` : double bordure + trait ≡, rapprochées par la mise en page) et propriétés équivalentes (`owl:equivalentProperty` : pastille ≡), export et import.

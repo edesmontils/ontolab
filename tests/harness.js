@@ -33,7 +33,8 @@ const norm = v => (v && typeof v === 'object') ? JSON.parse(JSON.stringify(v)) :
 function load(opts = {}) {
   const ls = new Map(Object.entries(opts.storage || {}));
   const elements = new Map(), created = [];
-  const byId = sel => { if (!elements.has(sel)) elements.set(sel, makeStub({ __sel: sel })); return elements.get(sel); };
+  const listeners = new Map(); // « sélecteur|type » → fonctions enregistrées par addEventListener
+  const byId = sel => { if (!elements.has(sel)) elements.set(sel, makeStub({ __sel: sel, addEventListener: (type, fn) => { const k = sel + '|' + type; if (!listeners.has(k)) listeners.set(k, []); listeners.get(k).push(fn); } })); return elements.get(sel); };
   const doc = {
     querySelector: byId,
     querySelectorAll: () => [],
@@ -75,6 +76,8 @@ function load(opts = {}) {
     /* Éléments SVG créés par el() depuis le dernier created.length = 0 : [{tag, attrs}] */
     created: () => created.map(e => ({ tag: e.tag, attrs: e.attrs })),
     resetCreated: () => { created.length = 0; },
+    /* Déclenche les écouteurs enregistrés sur un élément : fire('#canvas', 'wheel', {deltaY: 100, clientX: 10, clientY: 10}) */
+    fire: (sel, type, ev = {}) => { for (const fn of listeners.get(sel + '|' + type) || []) fn(Object.assign({ preventDefault() {}, stopPropagation() {}, deltaMode: 0, clientX: 0, clientY: 0 }, ev)); },
     panelHTML: () => byId('#panel').innerHTML || '',
     run: expr => norm(vm.runInContext(expr, ctx)),
     /* Évalue une fonction JS (source) dans le contexte et renvoie son résultat. */
