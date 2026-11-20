@@ -11,11 +11,10 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 
 Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
 
-### État au 2026-11-20 (v1.22.0, 148 tests)
-- **Fait** : A1–A6 ; B1, B2 ; C1–C5 (C5 sans `oneOf`) ; F1, F4, F5 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
-- **Reste** : D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
-- **Ordre conseillé pour la suite** : D1 (individus, qui débloque `oneOf` et `hasValue`) ; performances sur grands graphes (mesures en « Dette connue », reporté
-  « plus tard » le 2026-11-20) ; A4 (court) quand on touche aux caractéristiques OWL. Retours iPad : aucun problème signalé pour l'instant.
+### État au 2026-11-20 (v1.23.1, 158 tests)
+- **Fait** : A1–A6 ; B1, B2 ; C1–C5 (C5 sans `oneOf`) ; F1, F4, F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version, projets multiples (nom = titre de l'ontologie), épingles.
+- **Reste** : D1 (individus) ; E1–E3 (VOWL JSON, import avec fusion / RDF/XML, gros fichiers) ; F2 (navigation), F3 (sélection multiple), F6 (accessibilité, anglais).
+- **Ordre conseillé pour la suite** : D1 (débloque `oneOf` et `hasValue`) ; F2 ; E1. **En attente** : déploiement de la v1.23.1 sur le Pi (depuis le réseau de la maison : `./deploy.sh`) ; retours iPad à consigner.
 
 ---
 
@@ -328,7 +327,7 @@ de G1 et les décisions 1 à 4 de G2 **avant** de coder.
 - **Mode compact** (v1.12–1.13) : zones de toucher des pastilles, des « +N » et des flèches, et listes d'attributs dans le panneau : à confirmer sur iPad (retours de l'utilisateur à consigner) ;
   placement des pastilles testé seulement sur de petites ontologies (étiquettes qui se frôlent avec beaucoup de propriétés entre deux mêmes classes).
 - **Régressions** : deux fonctions supprimées par erreur lors d'un remaniement (v1.14.0) ne se sont vues qu'en usage ; d'où la priorité de F5.
-- **Cache navigateur** : après un déploiement, une ancienne page peut rester affichée ; envisager `Cache-Control: no-cache` côté Caddy pour `index.html` et `namespaces.js`.
+- **Cache navigateur** : réglé sur le serveur `asql.ls2n.fr` (`Cache-Control: no-cache`) ; **pas encore sur le Pi** (ajouter le même en-tête à son Caddyfile, `install-pi.sh`).
 - **Historique** : non conservé au rechargement de la page.
 - **Étiquettes** : avec beaucoup de propriétés de donnée sur une même classe, une légende de type
   peut être partiellement masquée par une flèche voisine.
