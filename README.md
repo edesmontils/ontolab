@@ -225,6 +225,14 @@ Sur le graphe, une expression **simple** (union, intersection de classes nommée
 les expressions imbriquées ou avec restrictions se lisent dans le panneau et l'infobulle. Une restriction simple saisie comme « sous-classe de » est rangée dans **Restrictions**. `owl:oneOf` attend les individus (D1) ; `owl:hasValue` aussi.
 Export : `owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( … ) ]` ; l'import relit les expressions imbriquées et signale ce qu'il ne reprend pas. Masquées et non exportées en mode RDFS.
 
+### Domaine et portée multiples ou en expression
+
+Dans le panneau d'une propriété, le domaine et la portée se choisissent dans la liste (une classe, ou « hérité » de la propriété parente) ; l'option **« ✎ Expression… »** ouvre un champ de saisie à la Manchester (comme les classes anonymes) :
+`Chat or Chien` (union), `Roue and Vivant` (intersection), `not Chat`… Une classe seule se choisit dans la liste. Sur le graphe, la propriété garde **une étiquette** ; pour une union, **une flèche par classe** part de (ou arrive à) cette étiquette,
+et une marque **∪ / ∩ / ¬** suit le nom (pastille en mode compact des propriétés objet). Intersection ou expression complexe : la flèche est ancrée sur la première classe nommée.
+Turtle : plusieurs `rdfs:domain` / `rdfs:range` = intersection (valide en RDFS) ; `owl:unionOf` et les autres expressions sont écrites en OWL seulement. L'import reprend les valeurs multiples (intersection) et les unions ; ce qu'il ne comprend pas est signalé.
+Supprimer une classe citée dans une expression supprime la propriété, comme pour une classe simple.
+
 ### Version
 
 Le numéro de version est affiché à côté du copyright et dans l'en-tête des fichiers Turtle exportés ; l'historique est dans [`CHANGELOG.md`](CHANGELOG.md).

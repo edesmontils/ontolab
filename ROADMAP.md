@@ -11,10 +11,10 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 
 Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
 
-### État au 2026-11-20 (v1.19.0, 108 tests)
-- **Fait** : A1–A6 ; B1, B2 ; C1, C2, C4, C5 (sauf `oneOf`) ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
-- **Reste** : C3 (domaines / portées multiples, expressions comme domaine) ; D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
-- **Ordre conseillé pour la suite** : C3 (qui s'appuie sur C5) ; D1 (individus, qui débloque `oneOf` et `hasValue`) ; performances sur grands graphes (mesures en « Dette connue », reporté
+### État au 2026-11-20 (v1.20.0, 122 tests)
+- **Fait** : A1–A6 ; B1, B2 ; C1–C5 (C5 sans `oneOf`) ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
+- **Reste** : D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
+- **Ordre conseillé pour la suite** : D1 (individus, qui débloque `oneOf` et `hasValue`) ; performances sur grands graphes (mesures en « Dette connue », reporté
   « plus tard » le 2026-11-20) ; A4 (court) quand on touche aux caractéristiques OWL. Retours iPad : aucun problème signalé pour l'instant.
 
 ---
@@ -107,7 +107,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 - **VOWL** : classes équivalentes fusionnées visuellement (double bordure).
 - **Modèle** : `equivalent: [ids]`, symétrique. Import/export. La mise en page doit les garder proches.
 
-### C3. Domaines et portées multiples, unions — L
+### C3. Domaines et portées multiples, unions — L — **fait** (v1.20.0, 2026-11-20) : classe, intersection ou expression (Manchester), une flèche par classe d'une union ; pas de nœud ∪ intermédiaire
 - **Aujourd'hui** : un seul domaine et une seule portée par propriété ; les autres sont ignorés à
   l'import avec un message.
 - **Cible** : plusieurs valeurs (intersection RDFS) ou `owl:unionOf` (classe anonyme).
@@ -341,7 +341,7 @@ de G1 et les décisions 1 à 4 de G2 **avant** de coder.
 - **Historique** : non conservé au rechargement de la page.
 - **Étiquettes** : avec beaucoup de propriétés de donnée sur une même classe, une légende de type
   peut être partiellement masquée par une flèche voisine.
-- **Une seule valeur de domaine/portée** par propriété ; **types XSD** limités à la liste de
+- **Domaine / portée en expression** (C3) : l'ancrage est la 1re classe nommée ; une union dessine une flèche par classe depuis la même étiquette (pas de nœud ∪) ; **types XSD** limités à la liste de
   `XSD` (les autres sont ramenés au plus proche à l'import).
 - **Noms** : unicité testée sur le nom local d'IRI (`localName()`), les noms de classes et de
   propriétés partagent le même espace (cf. `nameTaken()`).

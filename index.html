@@ -177,6 +177,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
   <div class="owl-only"><b>Double bordure</b> + trait <b>≡</b> : classes <b>équivalentes</b> · trait pointillé <b>⊥</b> : classes <b>disjointes</b> · <b>≡</b> après un nom de propriété : propriétés équivalentes</div>
   <div class="owl-only">Flèche en tirets + pastille <b>∃ ∀ ≥ ≤ =</b> : <b>restriction</b> OWL d'une classe (some, only, cardinalités)</div>
   <div class="owl-only">Nœud <b>∩ ∪ ¬</b> : classe anonyme (intersection, union, complément) · trait plein : <b>équivalente</b>, flèche creuse : <b>sous-classe</b>, pointillés : opérandes</div>
+  <div class="owl-only"><b>∪ ∩ ¬</b> après le nom d'une propriété : domaine ou portée en expression (union : une flèche par classe)</div>
   <div class="owl-only">Doubles flèches : <b>symétrique</b> · symboles <b>⇄</b> : paire de propriétés <b>inverse</b></div>
 </div>
 <div id="status"></div>
@@ -188,7 +189,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <script>'use strict';
 /* ================= OntoLab — partie 1 : état, opérations, export ================= */
 /* Numéro de version : à faire évoluer à chaque modification (voir CHANGELOG.md : MINOR = fonction nouvelle, PATCH = correctif ou ajustement). */
-const VERSION='1.19.0';
+const VERSION='1.20.0';
 const SVGNS='http://www.w3.org/2000/svg';
 const LS_KEY='ontolab-v1';
 const C={cls:'#AEDBFC',clsS:'#2C5F9E',obj:'#D9E9A5',objS:'#5B7C29',data:'#F6CECE',dataS:'#8C2E2E',disj:'#7B5EA7',sel:'#E4572E'};
@@ -289,8 +290,9 @@ function sanitizeState(s){
   // ids toujours numériques (répare les états enregistrés avec des ids en chaînes)
   const num=v=>(v==null||v==='')?null:+v;
   out.classes.forEach(c=>{ c.id=+c.id; });
-  out.objProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); p.range=num(p.range); p.inverseOf=num(p.inverseOf); });
-  out.dataProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); });
+  const endVal=v=>(v&&typeof v==='object')?v:num(v); // classe (id) ou expression (validée par cleanEnds)
+  out.objProps.forEach(p=>{ p.id=+p.id; p.domain=endVal(p.domain); p.range=endVal(p.range); p.inverseOf=num(p.inverseOf); });
+  out.dataProps.forEach(p=>{ p.id=+p.id; p.domain=endVal(p.domain); });
   [...out.classes,...out.objProps,...out.dataProps].forEach(x=>{ if(typeof x.ns!=='string'||!x.ns.trim()) delete x.ns; else x.ns=x.ns.trim(); }); // espace de noms propre (facultatif)
   out.nsList=Array.isArray(s.nsList)?s.nsList.map(e=>Object.assign({},e)):[]; syncNsList(out); // espaces de noms déclarés (+ ceux utilisés)
   out.meta=cleanMeta(s.meta);
@@ -298,6 +300,7 @@ function sanitizeState(s){
   cleanRels(out);
   cleanRestrictions(out);
   cleanDefs(out);
+  cleanEnds(out);
   cleanParents(out); // migre l'ancien champ `parent` (héritage simple) vers `parents` (héritage multiple)
   out.sel=null;
   return out;
@@ -462,15 +465,34 @@ function effField(p,field,lookup,seen){
     const e=effField(q,field,lookup,new Set(seen));
     if(e.conflict) e.conflict.forEach(id=>vals.push({id,from:q.id})); else if(e.id!=null) vals.push({id:e.id,from:e.from||q.id});
   }
-  const ids=[...new Set(vals.map(v=>v.id))];
-  if(!ids.length) return {id:null,from:null,conflict:null};
-  if(ids.length===1) return {id:ids[0],from:vals[0].from,conflict:null};
-  return {id:null,from:null,conflict:ids};
+  const uniq=new Map(); vals.forEach(v=>{ const k=keyV(v.id); if(!uniq.has(k)) uniq.set(k,v); }); // les valeurs (id de classe ou expression) se comparent par leur clé JSON
+  const list=[...uniq.values()];
+  if(!list.length) return {id:null,from:null,conflict:null};
+  if(list.length===1) return {id:list[0].id,from:list[0].from,conflict:null};
+  return {id:null,from:null,conflict:list.map(v=>v.id)};
 }
-function oDom(p){ return effField(p,'domain',objById).id; }
-function oRng(p){ return effField(p,'range',objById).id; }
-function dDom(p){ return effField(p,'domain',dataById).id; }
-const invOK=(p,q)=>oDom(p)!=null&&oRng(p)!=null&&oDom(p)===oRng(q)&&oRng(p)===oDom(q); // deux propriétés objet peuvent être inverses (domaine/portée croisés)
+/* Domaine / portée (C3) : `domain` / `range` = id de classe, expression de classe (arbre de C5) ou null (hérité).
+   oDomV / oRngV / dDomV = valeur effective (classe ou expression) ; oDom / oRng / dDom = classe d'ANCRAGE (celle où part ou arrive la flèche) :
+   la classe elle-même, ou la 1re classe nommée d'une expression. endClasses = toutes les classes dessinées pour cette extrémité (union : une par opérande). */
+const keyV=v=>v==null?'':(typeof v==='object'?JSON.stringify(v):String(v));
+function endClasses(e){
+  if(e==null) return [];
+  if(typeof e==='number') return [e];
+  if(e.t==='class') return [e.id];
+  if(e.t==='or'){ const out=[]; e.args.forEach(a=>endClasses(a).forEach(i=>{ if(!out.includes(i)) out.push(i); })); return out; }
+  const c=exprClasses(e); return c.length?[c[0]]:[];
+}
+const anchorOf=v=>{ const l=endClasses(v); return l.length?l[0]:null; };
+const refsClass=(v,id)=>v===id||(!!v&&typeof v==='object'&&exprClasses(v).includes(id));
+const endMark=v=>(v&&typeof v==='object')?({or:'∪',and:'∩',not:'¬'}[v.t]||'∗'):'';
+const endText=v=>v==null?'?':(typeof v==='number'?((classById(v)||{}).name||'?'):exprToText(v));
+function oDomV(p){ return effField(p,'domain',objById).id; }
+function oRngV(p){ return effField(p,'range',objById).id; }
+function dDomV(p){ return effField(p,'domain',dataById).id; }
+function oDom(p){ return anchorOf(oDomV(p)); }
+function oRng(p){ return anchorOf(oRngV(p)); }
+function dDom(p){ return anchorOf(dDomV(p)); }
+const invOK=(p,q)=>oDomV(p)!=null&&oRngV(p)!=null&&keyV(oDomV(p))===keyV(oRngV(q))&&keyV(oRngV(p))===keyV(oDomV(q)); // deux propriétés objet peuvent être inverses (domaine/portée croisés)
 function incompleteProps(){ // propriétés sans domaine ou portée effectif (donc non dessinables) : [{kind,id,name,why}]
   const out=[];
   state.objProps.forEach(p=>{ const a=oDom(p)==null, b=oRng(p)==null; if(a||b) out.push({kind:'obj',id:p.id,name:p.name,why:a&&b?'domaine et portée':a?'domaine':'portée'}); });
@@ -596,6 +618,12 @@ function cleanExpr(e,ids,depth){
     return o;
   }
   return null;
+}
+function cleanEnds(st){ // domaines / portées en expression : validés (une expression invalide devient « hérité »), une classe seule redevient un id
+  st=st||state;
+  const ids={cls:new Set(st.classes.map(c=>c.id)),obj:new Set(st.objProps.map(p=>p.id)),data:new Set(st.dataProps.map(p=>p.id))};
+  const fix=(p,f)=>{ const v=p[f]; if(!v||typeof v!=='object') return; const e=cleanExpr(v,ids,0); p[f]=e?(e.t==='class'?e.id:e):null; };
+  st.objProps.forEach(p=>{ fix(p,'domain'); fix(p,'range'); }); st.dataProps.forEach(p=>fix(p,'domain'));
 }
 function cleanDefs(st){
   st=st||state;
@@ -794,14 +822,14 @@ function wireParents(kind,x){
 }
 function deleteClass(id){
   const c=classById(id);
-  const nObj=state.objProps.filter(p=>p.domain===id||p.range===id).length;
-  const nData=state.dataProps.filter(p=>p.domain===id).length;
+  const nObj=state.objProps.filter(p=>refsClass(p.domain,id)||refsClass(p.range,id)).length;
+  const nData=state.dataProps.filter(p=>refsClass(p.domain,id)).length;
   const extra='\nLes sous-classes perdront cette super-classe.'+((nObj||nData)?'\n'+nObj+' propriété(s) objet et '+nData+' propriété(s) donnée(s) qui lui sont liées seront supprimées.':'');
   confirmBox('Supprimer la classe « '+c.name+' » ?'+extra,'Supprimer').then(ok=>{
     if(!ok) return;
     state.classes=state.classes.filter(x=>x.id!==id);
-    state.objProps=state.objProps.filter(p=>p.domain!==id&&p.range!==id);
-    state.dataProps=state.dataProps.filter(p=>p.domain!==id);
+    state.objProps=state.objProps.filter(p=>!refsClass(p.domain,id)&&!refsClass(p.range,id));
+    state.dataProps=state.dataProps.filter(p=>!refsClass(p.domain,id));
     cleanInverses(); cleanParents(); cleanRels(); cleanRestrictions(); cleanDefs(); state.sel=null; save(); render();
   });
 }
@@ -902,6 +930,24 @@ function toTTL(ns){
     } else if(mp.length){ L.push(oiri+' '+mp.join(' ;\n    ')+' .'); L.push(''); }
   }
   const byId=new Map(state.classes.map(c=>[c.id,c]));
+  const X=e=>{
+        if(e.t==='class') return N(byId.get(e.id)); if(e.t==='dt') return e.v;
+        if(e.t==='and') return '[ a owl:Class ; owl:intersectionOf ( '+e.args.map(X).join(' ')+' ) ]';
+        if(e.t==='or') return '[ a owl:Class ; owl:unionOf ( '+e.args.map(X).join(' ')+' ) ]';
+        if(e.t==='not') return '[ a owl:Class ; owl:complementOf '+X(e.arg)+' ]';
+        const pr=propById(e.prop), isData=!objById(e.prop), F=e.filler?X(e.filler):(isData?'rdfs:Literal':'owl:Thing');
+        let body='a owl:Restriction ; owl:onProperty '+N(pr)+' ; ';
+        if(e.kind==='some') body+='owl:someValuesFrom '+F; else if(e.kind==='only') body+='owl:allValuesFrom '+F;
+        else{ const b={min:'min',max:'max',exactly:''}[e.kind], q=!!e.filler, nm=q?(b?b+'QualifiedCardinality':'qualifiedCardinality'):(b?b+'Cardinality':'cardinality');
+          body+='owl:'+nm+' "'+e.n+'"^^xsd:nonNegativeInteger'+(q?' ; '+(isData?'owl:onDataRange ':'owl:onClass ')+F:''); }
+        return '[ '+body+' ]'; };
+  /* Domaine / portée (C3) : intersection de classes = plusieurs rdfs:domain (RDFS valide) ; union et autres expressions = OWL seulement. */
+  const endPreds=(pred,v)=>{
+    if(v==null) return [];
+    if(typeof v==='number'){ const c=byId.get(v); return c?[pred+' '+N(c)]:[]; }
+    if(v.t==='and'&&v.args.every(a=>a.t==='class')) return v.args.map(a=>pred+' '+N(byId.get(a.id)));
+    return isRdfs()?[]:[pred+' '+X(v)];
+  };
   // ordre hiérarchique : une classe n'est émise qu'après toutes ses super-classes
   const order=[], done=new Set();
   const visit=id=>{
@@ -929,17 +975,6 @@ function toTTL(ns){
         body+='owl:'+nm+' "'+r.n+'"^^xsd:nonNegativeInteger'+(flt?' ; '+(isData?'owl:onDataRange ':'owl:onClass ')+F:''); }
       cp.push('rdfs:subClassOf [ '+body+' ]'); });
     if(!isRdfs()){ // C5 : classes anonymes (owl:equivalentClass / rdfs:subClassOf + expression)
-      const X=e=>{
-        if(e.t==='class') return N(byId.get(e.id)); if(e.t==='dt') return e.v;
-        if(e.t==='and') return '[ a owl:Class ; owl:intersectionOf ( '+e.args.map(X).join(' ')+' ) ]';
-        if(e.t==='or') return '[ a owl:Class ; owl:unionOf ( '+e.args.map(X).join(' ')+' ) ]';
-        if(e.t==='not') return '[ a owl:Class ; owl:complementOf '+X(e.arg)+' ]';
-        const pr=propById(e.prop), isData=!objById(e.prop), F=e.filler?X(e.filler):(isData?'rdfs:Literal':'owl:Thing');
-        let body='a owl:Restriction ; owl:onProperty '+N(pr)+' ; ';
-        if(e.kind==='some') body+='owl:someValuesFrom '+F; else if(e.kind==='only') body+='owl:allValuesFrom '+F;
-        else{ const b={min:'min',max:'max',exactly:''}[e.kind], q=!!e.filler, nm=q?(b?b+'QualifiedCardinality':'qualifiedCardinality'):(b?b+'Cardinality':'cardinality');
-          body+='owl:'+nm+' "'+e.n+'"^^xsd:nonNegativeInteger'+(q?' ; '+(isData?'owl:onDataRange ':'owl:onClass ')+F:''); }
-        return '[ '+body+' ]'; };
       (c.defs||[]).forEach(d=>cp.push((d.kind==='equiv'?'owl:equivalentClass ':'rdfs:subClassOf ')+X(d.expr)));
     }
     cp.push(...annPreds(c));
@@ -947,7 +982,7 @@ function toTTL(ns){
   }
   if(state.classes.length) L.push('');
   for(const p of state.objProps){
-    const d=p.domain!=null?classById(p.domain):null, r=p.range!=null?classById(p.range):null; // null = hérité de la propriété parente : rien à écrire
+    // domaine / portée null = hérités de la propriété parente : rien à écrire
     const types=[isRdfs()?'rdf:Property':'owl:ObjectProperty'];
     if(!isRdfs()){
       if(p.transitive) types.push('owl:TransitiveProperty');
@@ -958,7 +993,7 @@ function toTTL(ns){
       if(p.functional) types.push('owl:FunctionalProperty');
       if(p.inverseFunctional) types.push('owl:InverseFunctionalProperty');
     }
-    const preds=[]; if(d) preds.push('rdfs:domain '+N(d)); if(r) preds.push('rdfs:range '+N(r));
+    const preds=[...endPreds('rdfs:domain',p.domain),...endPreds('rdfs:range',p.range)];
     const pars=parentsOf(p).map(objById).filter(Boolean); if(pars.length) preds.push('rdfs:subPropertyOf '+pars.map(q=>N(q)).join(', '));
     const q=!isRdfs()&&p.inverseOf&&objById(p.inverseOf); if(q) preds.push('owl:inverseOf '+N(q));
     if(!isRdfs()){ const os=relOf(p,'equivalent').filter(i=>i>p.id).map(objById).filter(Boolean).map(N); if(os.length) preds.push('owl:equivalentProperty '+os.join(', ')); }
@@ -967,8 +1002,7 @@ function toTTL(ns){
   }
   if(state.objProps.length) L.push('');
   for(const p of state.dataProps){
-    const d=p.domain!=null?classById(p.domain):null;
-    const preds=[]; if(d) preds.push('rdfs:domain '+N(d)); preds.push('rdfs:range '+p.type);
+    const preds=[...endPreds('rdfs:domain',p.domain)]; preds.push('rdfs:range '+p.type);
     const pars=parentsOf(p).map(dataById).filter(Boolean); if(pars.length) preds.push('rdfs:subPropertyOf '+pars.map(q=>N(q)).join(', '));
     if(!isRdfs()){ const os=relOf(p,'equivalent').filter(i=>i>p.id).map(dataById).filter(Boolean).map(N); if(os.length) preds.push('owl:equivalentProperty '+os.join(', ')); }
     preds.push(...annPreds(p));
@@ -985,6 +1019,7 @@ function exportTTL(){
       +([...state.objProps,...state.dataProps].some(q=>owlList(q).length)?' Caractéristiques OWL non écrites : '+[...state.objProps,...state.dataProps].filter(q=>owlList(q).length).length+' propriété(s) concernée(s) (conservées dans l\'ontologie ; repasser en mode OWL pour les exporter).':'')
       +(state.classes.some(c=>(c.restrictions||[]).length)?' Restrictions non écrites : '+state.classes.reduce((n,c)=>n+(c.restrictions||[]).length,0)+'.':'')
       +(state.classes.some(c=>(c.defs||[]).length)?' Classes anonymes non écrites : '+state.classes.reduce((n,c)=>n+(c.defs||[]).length,0)+'.':'')
+      +(()=>{ const bad=v=>v&&typeof v==='object'&&!(v.t==='and'&&v.args.every(a=>a.t==='class')); const n=state.objProps.filter(p=>bad(p.domain)||bad(p.range)).length+state.dataProps.filter(p=>bad(p.domain)).length; return n?' Domaines / portées en expression non écrits : '+n+' propriété(s).':''; })()
       +(()=>{ const n=state.classes.filter(c=>relOf(c,'disjoint').length||relOf(c,'equivalent').length).length+state.dataProps.filter(p=>relOf(p,'equivalent').length).length; return n?' Disjonctions / équivalences non écrites : '+n+' classe(s) ou propriété(s) de donnée concernée(s).':''; })()+'</p>':'')
     +'<pre id="ttl-pre"></pre>';
   const btns=document.createElement('div'); btns.className='dlg-btns';
@@ -1375,8 +1410,6 @@ function ontologyFromTriples(T,prefixes){
     }
   });
   if(nApprox) notes.push(nApprox+' type(s) de donnée ramené(s) au plus proche type XSD géré (xsd:string par défaut)');
-  if(nMultiDom) notes.push(nMultiDom+' domaine(s)/portée(s) supplémentaire(s) ignoré(s) (une seule valeur par propriété)');
-  if(nComplex) notes.push(nComplex+' domaine(s)/portée(s) complexe(s) (unionOf, restriction…) ignoré(s) : remplacé(s) par « Thing »');
 
   // --- héritage de propriétés (même genre uniquement)
   const kindById=new Map([...objProps.map(p=>[p.id,'obj']),...dataProps.map(p=>[p.id,'data'])]);
@@ -1392,6 +1425,25 @@ function ontologyFromTriples(T,prefixes){
   }
   if(nCross) notes.push(nCross+' sous-propriété(s) entre une propriété objet et une propriété de donnée ignorée(s)');
 
+  // --- domaines / portées multiples ou complexes (C3) : plusieurs valeurs = intersection ; owl:unionOf et autres expressions de classe sont reprises
+  let nEndBad=0;
+  const endOf=(iri,pred)=>{
+    const vals=get('I'+iri,pred); if(!vals.length) return undefined;
+    const parts=[]; let bad=false;
+    vals.forEach(o=>{ const q=iriOf(o); if(q===THING||q===RDFSN+'Resource') return;
+      if(o[0]==='I'){ if(cid.has(q)) parts.push({t:'class',id:cid.get(q)}); else if(!isDT(q)) bad=true; return; }
+      const e=exprOf(o,0); if(e) parts.push(e); else bad=true; });
+    if(bad) nEndBad++;
+    if(!parts.length) return undefined;
+    const flat=[]; parts.forEach(x=>{ if(x.t==='and') flat.push(...x.args); else flat.push(x); });
+    const e=flat.length>1?{t:'and',args:flat}:flat[0];
+    return e.t==='class'?e.id:e;
+  };
+  for(const [iri,id] of pid){ const me=byIdP.get(id), isObj=kindById.get(id)==='obj';
+    const dv=endOf(iri,RDFSN+'domain'); if(dv!==undefined) me.domain=dv;
+    if(isObj){ const rv=endOf(iri,RDFSN+'range'); if(rv!==undefined) me.range=rv; } }
+  if(nEndBad) notes.push(nEndBad+' domaine(s) / portée(s) non repris (expression non représentable : owl:oneOf, hasValue, classe inconnue…) : remplacé(s) par « Thing » ou hérité(s)');
+
   // --- domaine / portée absents : hérités d'une propriété parente (laissés à null) ; une propriété sans parente reçoit « Thing »
   const E=(p,f)=>effField(p,f,id=>byIdP.get(id)).id;
   const fieldsOf=p=>p.range!==undefined?['domain','range']:['domain']; // propriété objet : domaine et portée ; propriété de donnée : domaine
@@ -1406,7 +1458,7 @@ function ontologyFromTriples(T,prefixes){
     const p=byIdP.get(a), q=byIdP.get(b);
     if(kindById.get(a)!=='obj'||kindById.get(b)!=='obj'||a===b) return;
     if(p.inverseOf||q.inverseOf){ if(p.inverseOf!==b) nInv++; return; }
-    if(E(p,'domain')!=null&&E(p,'domain')===E(q,'range')&&E(p,'range')===E(q,'domain')){ p.inverseOf=b; q.inverseOf=a; } else nInv++;
+    if(E(p,'domain')!=null&&keyV(E(p,'domain'))===keyV(E(q,'range'))&&keyV(E(p,'range'))===keyV(E(q,'domain'))){ p.inverseOf=b; q.inverseOf=a; } else nInv++;
   });
   if(nInv) notes.push(nInv+' owl:inverseOf ignoré(s) (domaine/portée non croisés ou propriété déjà appariée)');
 
@@ -1446,7 +1498,7 @@ function ontologyFromTriples(T,prefixes){
     for(const o of get('I'+iri,OWLN+'disjointWith')){ const q=iriOf(o); if(q&&cid.has(q)) addRelT(c,'disjoint',cid.get(q)); else nRelUnk++; }
     for(const o of get('I'+iri,OWLN+'equivalentClass')){ const q=iriOf(o); if(q&&cid.has(q)) addRelT(c,'equivalent',cid.get(q)); else if(o[0]!=='B') nRelUnk++; }
   });
-  const listOf=t=>{ const out=[]; let cur=t, guard=0; while(cur&&cur!=='I'+RDFN+'nil'&&guard++<10000){ const fi=get(cur,RDFN+'first')[0]; if(fi) out.push(fi); cur=get(cur,RDFN+'rest')[0]; } return out; };
+  function listOf(t){ const out=[]; let cur=t, guard=0; while(cur&&cur!=='I'+RDFN+'nil'&&guard++<10000){ const fi=get(cur,RDFN+'first')[0]; if(fi) out.push(fi); cur=get(cur,RDFN+'rest')[0]; } return out; };
   for(const s0 of ix.keys()) if(s0[0]==='B'&&typesOf(s0).includes(OWLN+'AllDisjointClasses')){ // owl:AllDisjointClasses [ owl:members (A B C) ] : disjointes deux à deux
     const ids=listOf(get(s0,OWLN+'members')[0]).map(iriOf).filter(q=>q&&cid.has(q)).map(q=>cid.get(q));
     ids.forEach(a=>ids.forEach(b=>{ if(a!==b) addRelT(classes.find(x=>x.id===a),'disjoint',b); }));
@@ -1458,7 +1510,7 @@ function ontologyFromTriples(T,prefixes){
 
   // --- classes anonymes (C5) : owl:unionOf, intersectionOf, complementOf, restrictions à classe visée complexe, en super-classe ou en équivalence
   let nExprBad=0;
-  const rstExprOf=(b,depth)=>{
+  function rstExprOf(b,depth){
     const p=iriOf(get(b,OWLN+'onProperty')[0]); if(!p||!pid.has(p)) return null;
     const propId=pid.get(p), isData=kindById.get(propId)==='data';
     const flt=oo=>{ if(!oo) return {ok:true,f:null}; const q=iriOf(oo);
@@ -1591,7 +1643,7 @@ function dataCountOf(id){ return state.dataProps.filter(p=>dDom(p)===id).length;
 function selfCountOf(id){ return state.objProps.filter(p=>oDom(p)===id&&oRng(p)===id).length; }
 function computeLayout(){
   const cls=state.classes, pos=new Map(); if(!cls.length) return pos;
-  const key=JSON.stringify([cls.map(c=>[c.id,disp(c),parentsOf(c),isRdfs()?0:relOf(c,'equivalent'),isRdfs()?0:(c.restrictions||[]).map(r=>[r.prop,r.filler]),isRdfs()?0:(c.defs||[]).map(d=>flatOperands(d.expr))]),state.objProps.map(p=>[oDom(p),oRng(p)]),state.dataProps.map(p=>dDom(p))]);
+  const key=JSON.stringify([cls.map(c=>[c.id,disp(c),parentsOf(c),isRdfs()?0:relOf(c,'equivalent'),isRdfs()?0:(c.restrictions||[]).map(r=>[r.prop,r.filler]),isRdfs()?0:(c.defs||[]).map(d=>flatOperands(d.expr))]),state.objProps.map(p=>[endClasses(oDomV(p)),endClasses(oRngV(p))]),state.dataProps.map(p=>endClasses(dDomV(p)))]);
   let base;
   if(layoutCache.key===key) base=layoutCache.pos;
   else{ base=forceLayout(); layoutCache={key,pos:base}; }
@@ -1615,6 +1667,12 @@ function forceLayout(){
     const k=Math.min(oDom(p),oRng(p))+'|'+Math.max(oDom(p),oRng(p));
     if(pairs.has(k)) pairs.get(k).n++;
     else{ const l={a:oDom(p),b:oRng(p),sub:false,n:1}; pairs.set(k,l); links.push(l); union(oDom(p),oRng(p)); }
+  }
+  for(const p of state.objProps){ // domaine / portée en expression : les classes de l'union sont liées à l'autre extrémité
+    const D=endClasses(oDomV(p)), R=endClasses(oRngV(p)); if(D.length<2&&R.length<2) continue;
+    for(const d of D) for(const r of R){ if((d===D[0]&&r===R[0])||d===r||!byId.has(d)||!byId.has(r)) continue;
+      const k=Math.min(d,r)+'|'+Math.max(d,r);
+      if(pairs.has(k)) pairs.get(k).n++; else{ const l={a:d,b:r,sub:false,n:1}; pairs.set(k,l); links.push(l); union(d,r); } }
   }
   for(const c of cls) for(const r of (isRdfs()?[]:(c.restrictions||[]))){ // une restriction vers une classe est un lien comme une propriété objet
     if(!objById(r.prop)||r.filler==null||!byId.has(r.filler)||r.filler===c.id) continue;
@@ -2096,6 +2154,12 @@ function drawObjArcs(pos,pp){
     Object.assign(attrs,m);
     el('path',attrs,layerArcs);
     if(ui.cobj) arcHit(pathD,p.id);
+    for(const [side,list] of [['d',endClasses(oDomV(p)).slice(1)],['r',endClasses(oRngV(p)).slice(1)]]) for(const cid of list){ // union : une flèche par classe, partant de (ou arrivant à) l'étiquette
+      const ce=pos.get(cid); if(!ce) continue;
+      const a0=edgePoint(ce,q), b0=edgePoint(q,ce);
+      const ln=side==='d'?{x1:a0.x,y1:a0.y,x2:b0.x,y2:b0.y}:{x1:b0.x,y1:b0.y,x2:a0.x,y2:a0.y};
+      Object.assign(ln,{stroke:C.objS,'stroke-width':2,opacity:0.9}); if(side==='r') ln['marker-end']='url(#m-arr)';
+      el('line',ln,layerArcs); }
     if(owlOn(p,'transitive')&&!ui.cobj){ // petite boucle verte sur le domaine
       const ang=Math.atan2(q.y-d.y,q.x-d.x)+(oDom(p)===oRng(p)?1.0:0); // boucle propre : décalée pour ne pas la recouvrir
       const a1=ang-0.45, a2=ang+0.45;
@@ -2113,11 +2177,13 @@ function drawData(pos,pp){
     const c=pos.get(dDom(p)); if(!c) continue;
     const te=edgePoint(q,q.start); // la flèche s'arrête sur le bord de l'ellipse rouge
     el('line',{x1:q.start.x,y1:q.start.y,x2:te.x,y2:te.y,stroke:C.dataS,'stroke-width':1.6,'marker-end':'url(#m-arr-red)',opacity:0.85},layerData);
+    for(const cid of endClasses(dDomV(p)).slice(1)){ const ce=pos.get(cid); if(!ce) continue; // domaine en union : une flèche par classe
+      const s2=edgePoint(ce,q), t2=edgePoint(q,ce); el('line',{x1:s2.x,y1:s2.y,x2:t2.x,y2:t2.y,stroke:C.dataS,'stroke-width':1.6,'marker-end':'url(#m-arr-red)',opacity:0.85},layerData); }
     const g=el('g',{class:'node','data-id':p.id,'data-kind':'data',cursor:'pointer'},layerData);
     const sel=selIs('data',p.id);
     const de={cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.data,stroke:sel?C.sel:C.dataS,'stroke-width':sel?3:1.6}; if(owlOn(p,'functional')) de['stroke-dasharray']='5 3'; // tirets = fonctionnelle (comme les propriétés objet)
     el('ellipse',de,g);
-    const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#3d1414'},g); t.textContent=short(disp(p),q.rx)+(!isRdfs()&&relOf(p,'equivalent').length?' ≡':'');
+    const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#3d1414'},g); t.textContent=short(disp(p),q.rx)+(!isRdfs()&&relOf(p,'equivalent').length?' ≡':'')+(!isRdfs()?(' '+endMark(dDomV(p))).trimEnd():'');
     const t2=el('text',{x:q.x,y:q.y+q.ry+11,'text-anchor':'middle','font-size':9,fill:C.dataS},g); t2.textContent=p.type.replace('xsd:','');
     const tt=el('title',{},g); tt.textContent=tipOf(p)+relTip('data',p)+(owlOn(p,'functional')?' [fonctionnelle]':'')+' : propriété de donnée de '+disp(c)+' ('+p.type+')'+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(dataById(i)||{}).name).join(', ')+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'data',p.id));
@@ -2169,10 +2235,11 @@ function drawObjProps(pp){
     } else el('ellipse',ea,g);
     const inv=!isRdfs()&&p.inverseOf&&objById(p.inverseOf);
     const eqv=!isRdfs()&&relOf(p,'equivalent').length;
-    const label=short(disp(p),q.rx)+(inv&&!ui.cobj?' ⇄':'')+(eqv&&!ui.cobj?' ≡':'');
+    const em=!isRdfs()?(endMark(oDomV(p))||endMark(oRngV(p))):'';
+    const label=short(disp(p),q.rx)+(inv&&!ui.cobj?' ⇄':'')+(eqv&&!ui.cobj?' ≡':'')+(em&&!ui.cobj?' '+em:'');
     const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#26330d'},g); t.textContent=label;
     if(ui.cobj){
-      const badges=[owlOn(p,'transitive')&&['T','transitive'],owlOn(p,'symmetric')&&['S','symétrique'],owlOn(p,'asymmetric')&&['A','asymétrique'],owlOn(p,'reflexive')&&['R','réflexive'],owlOn(p,'irreflexive')&&['I','irréflexive'],inv&&['⇄','inverse de '+inv.name],eqv&&['≡','équivalente à '+relOf(p,'equivalent').map(i=>(objById(i)||{}).name).filter(Boolean).join(', ')]].filter(Boolean);
+      const badges=[owlOn(p,'transitive')&&['T','transitive'],owlOn(p,'symmetric')&&['S','symétrique'],owlOn(p,'asymmetric')&&['A','asymétrique'],owlOn(p,'reflexive')&&['R','réflexive'],owlOn(p,'irreflexive')&&['I','irréflexive'],inv&&['⇄','inverse de '+inv.name],eqv&&['≡','équivalente à '+relOf(p,'equivalent').map(i=>(objById(i)||{}).name).filter(Boolean).join(', ')],em&&[em,'domaine ou portée en expression : '+endText(oDomV(p))+' → '+endText(oRngV(p))]].filter(Boolean);
       badges.forEach((b,i)=>{ const bx=q.x+q.rx-6-i*16, by=q.y-q.ry, gb=el('g',{},g);
         el('circle',{cx:bx,cy:by,r:7.5,fill:'#fff',stroke:C.objS,'stroke-width':1.2},gb);
         const bt=el('text',{x:bx,y:by+3.2,'text-anchor':'middle','font-size':9,'font-weight':700,fill:'#26330d'},gb); bt.textContent=b[0];
@@ -2181,7 +2248,7 @@ function drawObjProps(pp){
       if(ps.length){ const cp=el('text',{x:q.x,y:q.y+q.ry+10,'text-anchor':'middle','font-size':9,fill:C.objS},g); cp.textContent='⊆ '+short(ps.join(', '),Math.max(q.rx,40)*1.6); }
     }
     const tt=el('title',{},g);
-    tt.textContent=tipOf(p)+relTip('obj',p)+' : objet, '+ ((classById(oDom(p))||{}).name||'?') +' → '+ ((classById(oRng(p))||{}).name||'?')
+    tt.textContent=tipOf(p)+relTip('obj',p)+' : objet, '+endText(oDomV(p))+' → '+endText(oRngV(p))
       +(owlOn(p,'transitive')?' [transitive]':'')+(owlOn(p,'symmetric')?' [symétrique]':'')+(owlOn(p,'asymmetric')?' [asymétrique]':'')+(owlOn(p,'reflexive')?' [réflexive]':'')+(owlOn(p,'irreflexive')?' [irréflexive]':'')+(owlOn(p,'functional')?' [fonctionnelle]':'')+(owlOn(p,'inverseFunctional')?' [fonctionnelle inverse]':'')+(inv?' [inverse de '+inv.name+']':'')+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(objById(i)||{}).name).join(', ')+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'obj',p.id));
   }
@@ -2383,7 +2450,7 @@ const UI_KEY='ontolab-ui';
    réglage imposé (ONTOLAB_DEFAULTS.lock) > paramètre d'URL ?mode=rdfs > choix enregistré de l'utilisateur > défaut de
    namespaces.js (ONTOLAB_DEFAULTS.mode) > 'owl'. Seul un choix explicite (dialogue « Préférences ») est enregistré (`modeSaved`) :
    un lien ?mode=… ne remplace pas durablement la préférence. */
-const ui={panel:innerWidth>=900,legend:innerWidth>=900,mode:'owl',modeSaved:null,lock:false,annotOpen:false,cdata:false,cdataSaved:null,lockC:false,cobj:false,cobjSaved:null,lockO:false,hiAttr:null};
+const ui={panel:innerWidth>=900,legend:innerWidth>=900,mode:'owl',modeSaved:null,lock:false,annotOpen:false,endEdit:null,cdata:false,cdataSaved:null,lockC:false,cobj:false,cobjSaved:null,lockO:false,hiAttr:null};
 const boolOf=v=>typeof v==='boolean'?v:null;
 const validMode=m=>(m==='owl'||m==='rdfs')?m:null;
 const isRdfs=()=>ui.mode==='rdfs';
@@ -2626,15 +2693,44 @@ function openNamespaceEditor(){
 }
 /* Sélecteur de domaine / portée avec l'entrée « hérité » (A6). */
 function inhSelect(kind,p,field,label,id){
-  const lk=i=>itemOf(kind,i), cn=i=>{ const c=classById(i); return c?c.name:'?'; };
+  const lk=i=>itemOf(kind,i), vn=v=>endText(v);
+  if(ui.endEdit&&ui.endEdit.kind===kind&&ui.endEdit.id===p.id&&ui.endEdit.field===field&&!isRdfs()){ // saisie d'une expression (C3)
+    const cur=(p[field]&&typeof p[field]==='object')?exprToText(p[field]):'';
+    return '<div class="fld"><span>'+label+' — expression</span><input id="'+id+'-expr" value="'+esc(cur)+'" placeholder="ex. : Chat or Chien" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Expression de classe">'
+      +'<button class="btn" id="'+id+'-cancel" style="margin-top:4px">← Revenir à la liste</button>'
+      +'<p class="hint" style="margin:4px 0 0">Syntaxe de Manchester : <code>A or B</code> (union), <code>A and B</code> (intersection), <code>not A</code>, <code>p some C</code>… Une classe seule : choisissez-la dans la liste.</p></div>';
+  }
   let o='';
   if(parentsOf(p).length||p[field]==null){
     const e=effField(Object.assign({},p,{[field]:null}),field,lk);
-    const txt=e.conflict?'conflit : '+e.conflict.map(cn).join(' / ')+' — à préciser':e.id!=null?'hérité de « '+((lk(e.from)||{}).name||'?')+' » : '+cn(e.id):'— non défini —';
+    const txt=e.conflict?'conflit : '+e.conflict.map(vn).join(' / ')+' — à préciser':e.id!=null?'hérité de « '+((lk(e.from)||{}).name||'?')+' » : '+vn(e.id):'— non défini —';
     o+='<option value=""'+(p[field]==null?' selected':'')+'>'+esc(txt)+'</option>';
   }
   o+=state.classes.map(c=>'<option value="'+c.id+'"'+(c.id===p[field]?' selected':'')+'>'+esc(c.name)+'</option>').join('');
-  return '<label class="fld"><span>'+label+'</span><select id="'+id+'">'+o+'</select></label>';
+  const isX=!!p[field]&&typeof p[field]==='object';
+  if(isX) o+='<option value="__cur" selected>✎ '+esc(exprToText(p[field]))+'</option>';
+  if(!isRdfs()) o+='<option value="__expr">✎ Expression…</option>';
+  const rdfsNote=isRdfs()&&isX&&!(p[field].t==='and'&&p[field].args.every(a=>a.t==='class'))?'<p class="hint warn">Expression OWL : non écrite en mode RDFS.</p>':'';
+  return '<label class="fld"><span>'+label+'</span><select id="'+id+'">'+o+'</select></label>'+rdfsNote;
+}
+/* Branche le sélecteur (ou le champ d'expression) d'un domaine / d'une portée. */
+function setEnd(kind,p,field,text){
+  const r=parseClassExpr(text); if(r.error) return r;
+  p[field]=r.expr.t==='class'?r.expr.id:r.expr; ui.endEdit=null; cleanEnds();
+  if(kind==='obj'&&p.inverseOf){ const q=objById(p.inverseOf); if(!q||!invOK(p,q)){ if(q) q.inverseOf=null; p.inverseOf=null; } }
+  save(); render(); return {ok:true};
+}
+function wireEnd(kind,p,field,id){
+  const sel=$('#'+id), inp=$('#'+id+'-expr');
+  const after=()=>{ if(kind==='obj'&&p.inverseOf){ const q=objById(p.inverseOf); if(!q||!invOK(p,q)){ if(q) q.inverseOf=null; p.inverseOf=null; } } save(); render(); };
+  if(sel) sel.onchange=e=>{ const v=e.target.value; if(v==='__cur') return;
+    if(v==='__expr'){ ui.endEdit={kind,id:p.id,field}; render(); const i2=$('#'+id+'-expr'); if(i2&&!matchMedia('(pointer:coarse)').matches) i2.focus(); return; }
+    p[field]=v===''?null:+v; ui.endEdit=null; after(); };
+  if(inp){
+    inp.onchange=e=>{ const old=inp.nextSibling; const r=setEnd(kind,p,field,e.target.value.trim());
+      if(r.error){ inp.classList.add('bad'); const prev=document.querySelector('#panel .def-err'); if(prev) prev.remove(); inp.insertAdjacentHTML('afterend','<p class="hint warn def-err" role="alert">'+esc(r.error)+'</p>'); } };
+    const c=$('#'+id+'-cancel'); if(c) c.onclick=()=>{ ui.endEdit=null; render(); };
+  }
 }
 /* Avertissement non bloquant : domaine / portée surchargé(e) qui n'est pas une sous-classe de celui / celle d'une propriété parente. */
 function inhWarnList(kind,p){
@@ -2645,7 +2741,7 @@ function inhWarnList(kind,p){
       const q=lk(qid); if(!q) continue;
       const e=effField(q,field,lk);
       for(const cid of (e.conflict||(e.id!=null?[e.id]:[])))
-        if(!(p[field]===cid||isAncestor('class',cid,p[field])))
+        if(typeof cid==='number'&&typeof p[field]==='number'&&!(p[field]===cid||isAncestor('class',cid,p[field])))
           out.push((field==='domain'?'Domaine':'Portée')+' « '+cn(p[field])+' » : devrait être « '+cn(cid)+' » ou une sous-classe ('+(field==='domain'?'domaine':'portée')+' de la propriété parente « '+q.name+' »).');
     }
   }
@@ -2707,6 +2803,7 @@ function wireAnnot(x){
 }
 function renderPanelBody(){
   const p=$('#panel'), s=state.sel;
+  if(ui.endEdit&&!(s&&s.kind===ui.endEdit.kind&&s.id===ui.endEdit.id)) ui.endEdit=null; // la saisie d'expression ne survit pas à un changement de sélection
   if(!s){
     p.innerHTML='<h3>OntoLab</h3>'
       +'<p class="hint" style="margin-top:0">Construisez une ontologie RDFS/OWL en trois temps :</p>'
@@ -2778,8 +2875,8 @@ function renderPanelBody(){
     $('#pf-ns').onchange=e=>onNsSelect('obj',p2.id,e.target.value);
     wireAnnot(p2);
     wireParents('obj',p2); wireRel('obj',p2);
-    $('#pf-domain').onchange=e=>{ p2.domain=e.target.value===''?null:+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
-    $('#pf-range').onchange=e=>{ p2.range=e.target.value===''?null:+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
+    wireEnd('obj',p2,'domain','pf-domain');
+    wireEnd('obj',p2,'range','pf-range');
     if(!isRdfs()){
     $('#pf-trans').onchange=e=>{ p2.transitive=e.target.checked; save(); render(); };
     $('#pf-sym').onchange=e=>{ p2.symmetric=e.target.checked; save(); render(); };
@@ -2819,7 +2916,7 @@ function renderPanelBody(){
     $('#pf-ns').onchange=e=>onNsSelect('data',p3.id,e.target.value);
     wireAnnot(p3);
     wireParents('data',p3); wireRel('data',p3);
-    $('#pf-domain').onchange=e=>{ p3.domain=e.target.value===''?null:+e.target.value; save(); render(); };
+    wireEnd('data',p3,'domain','pf-domain');
     $('#pf-type').onchange=e=>{ p3.type=e.target.value; save(); render(); };
     if(!isRdfs()) $('#pf-dfunc').onchange=e=>{ p3.functional=e.target.checked; save(); render(); };
     if(dc) $('#pf-backcls').onclick=()=>{ ui.hiAttr=p3.id; state.sel={kind:'class',id:dc.id}; save(); render(); };

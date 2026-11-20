@@ -210,6 +210,13 @@ d'accueil « À compléter », compteur de `updateStats`). Panneau : `inhSelect(
 `inhWarn()` (avertissement non bloquant si la surcharge n'est pas une sous-classe de celle du parent). Import : `ontologyFromTriples` laisse
 null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux propriétés **sans parent**. Inverses : `invOK(p,q)` (valeurs effectives).
 
+## Domaine / portée en expression (C3)
+`domain` / `range` = id de classe, expression (arbre de C5, validée par `cleanEnds`) ou null (hérité, A6). `oDomV`/`oRngV`/`dDomV` = valeur effective (classe ou expression, héritage compris, comparée par `keyV`) ;
+**`oDom`/`oRng`/`dDom` restent des ids de classe = l'ANCRAGE** (`anchorOf` : la classe, ou la 1re classe nommée d'une expression) : tout le moteur de mise en page et de dessin continue donc à raisonner sur des classes.
+`endClasses(v)` = toutes les classes dessinées (union : une par opérande) ; les flèches supplémentaires sont tracées dans `drawObjArcs`/`drawData` depuis l'étiquette, et la mise en page les relie (`forceLayout`, clé de cache comprise).
+Édition : `inhSelect` (option `__expr`, état transitoire `ui.endEdit`), `wireEnd`, `setEnd`. Export : `endPreds` (intersection de classes = plusieurs triples, même en RDFS) ; import : `endOf` (plusieurs valeurs = `and`).
+Nouveau code qui lit un domaine / une portée : utiliser `oDom`/`oRng` (classe) ou `oDomV`/`oRngV` (valeur), jamais `p.domain` brut ; une classe supprimée qu'une expression cite supprime la propriété (`refsClass`).
+
 ## Classes anonymes (C5)
 `classe.defs=[{kind:'equiv'|'sub', expr}]`, arbre `expr` : `{t:'class',id}` · `{t:'and'|'or',args}` · `{t:'not',arg}` · `{t:'rst',kind,prop,n?,filler:expr|null}` · `{t:'dt',v}` ; validé par `cleanExpr`/`cleanDefs` (sanitize et suppressions : référence disparue ⇒ définition retirée).
 `parseClassExpr(texte)` (syntaxe de Manchester, descente récursive, erreurs en français avec position) et `exprToText(expr)` (formatage canonique, parenthèses minimales) sont les deux sens du même langage : **tout changement de syntaxe se fait aux deux endroits et dans `tests/anonymous.test.js`**.

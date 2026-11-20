@@ -185,6 +185,7 @@ const RIOT = findRiot();
 test('Jena riot --validate accepte les exports (OWL, RDFS, annotations)', { skip: RIOT ? false : 'Jena (riot) introuvable : définir JENA_RIOT pour activer' }, () => {
   const t = load(); t.run('loadExample()');
   t.run(`setDefinition(state.classes[3].id,null,'equiv','Personne and appartient-à some Groupe'); setDefinition(state.classes[5].id,null,'sub','not (Piste or Guide)'); setDefinition(state.classes[6].id,null,'sub','encadre only (Guide or not Voie) ')`);
+  t.run(`setEnd('obj',state.objProps[1],'domain','Personne or Groupe'); setEnd('obj',state.objProps[1],'range','Voie and Membre'); setEnd('data',state.dataProps[2],'domain','Voie or Piste')`);
   t.run('state.objProps[0].asymmetric=true; state.objProps[1].reflexive=true; state.objProps[2].irreflexive=true; state.dataProps[0].functional=true');
   t.run(`addRel('class','disjoint',state.classes[1].id,state.classes[2].id); addRel('class','equivalent',state.classes[3].id,state.classes[4].id); addRel('obj','equivalent',state.objProps[1].id,state.objProps[2].id)`);
   t.run(`state.classes[0].labels=[{lang:'fr',text:'P "x"'}]; state.meta={iri:'',title:'T',description:'',lang:'fr',version:'1',creators:['A'],imports:['http://purl.org/dc/terms/']}`);

@@ -5,6 +5,11 @@ Numéro **MAJEUR.MINEUR.CORRECTIF**, affiché à côté du copyright (constante 
 - À chaque modification de l'application : incrémenter `VERSION` **et** ajouter une entrée ici (en tête). Les commits qui ne touchent que la documentation ou la ROADMAP ne changent pas le numéro.
 - Les entrées jusqu'à 1.14.1 ont été attribuées après coup d'après l'historique git (le numéro n'était pas encore affiché).
 
+## 1.20.0 — 2026-11-20
+- C3 : domaine et portée d'une propriété = une classe, **plusieurs classes (intersection)** ou **toute expression de classe** (`Chat or Chien`, `A and B`, `not C`…) : option « ✎ Expression… » du sélecteur,
+  saisie à la Manchester ; une flèche par classe d'une union, marque ∪ ∩ ¬ après le nom (pastille en mode compact) ; héritage (A6), propriétés inverses, mise en page, vérification et suppression de classe adaptés.
+- Turtle : plusieurs `rdfs:domain` / `rdfs:range` = intersection (écrit aussi en RDFS) ; `owl:unionOf` et autres expressions (OWL seulement) ; l'import reprend les valeurs multiples et les unions au lieu de les ignorer.
+
 ## 1.19.0 — 2026-11-20
 - C5 : classes anonymes (owl:intersectionOf, unionOf, complementOf, restrictions à classe visée complexe) : section « Classes anonymes » du panneau avec saisie en syntaxe de Manchester
   (`Personne and (aEnfant some Personne)`), analyse en direct et erreurs expliquées ; définition d'une classe (≡ équivalente à) ou sous-classe de (⊑) une expression ; nœuds ∩ ∪ ¬ sur le graphe pour les expressions simples ;
