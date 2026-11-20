@@ -196,7 +196,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <script>'use strict';
 /* ================= OntoLab — partie 1 : état, opérations, export ================= */
 /* Numéro de version : à faire évoluer à chaque modification (voir CHANGELOG.md : MINOR = fonction nouvelle, PATCH = correctif ou ajustement). */
-const VERSION='1.22.0';
+const VERSION='1.23.0';
 const SVGNS='http://www.w3.org/2000/svg';
 const LS_KEY='ontolab-v1';
 const C={cls:'#AEDBFC',clsS:'#2C5F9E',obj:'#D9E9A5',objS:'#5B7C29',data:'#F6CECE',dataS:'#8C2E2E',disj:'#7B5EA7',sel:'#E4572E'};
@@ -297,6 +297,7 @@ function restoreSnap(snap){
   if(!state.meta) state.meta=newMeta();
   hist.last=snap;
   if(state.sel&&!itemOf(state.sel.kind,state.sel.id)) state.sel=null; // l'élément sélectionné peut ne plus exister
+  syncNameFromTitle(); // annuler / rétablir un changement de titre change aussi le nom du projet
   save(); render(); updateHistButtons();
 }
 function undo(){
@@ -354,13 +355,23 @@ function load(){
     const id=newProjectId(); projects.list=[{id,name:'Mon ontologie',created:Date.now(),updated:Date.now()}]; projects.current=id;
     try{ const s=JSON.parse(lsGet(LS_KEY)||'null'); if(s&&Array.isArray(s.classes)) state=sanitizeState(s); }catch(e){}
     persistProject(); saveProjects();
-  } else { const s=readProject(projects.current); if(s) state=sanitizeState(s); }
+  } else { const s=readProject(projects.current); if(s){ state=sanitizeState(s); syncNameFromTitle(); } }
 }
 /* Opérations sur les projets. */
-function createProject(name,raw){ // ajoute un projet (vide, ou à partir d'un état brut) sans l'ouvrir ; renvoie son id
-  const id=newProjectId(); projects.list.push({id,name:uniqueProjectName(name),created:Date.now(),updated:Date.now()});
+/* Le nom d'un projet est le TITRE de son ontologie (dcterms:title, ⋯ › Ontologie…) : modifier l'un modifie l'autre.
+   Un titre déjà présent l'emporte à l'ouverture ; un projet dont le titre est vide n'est lié qu'au premier renommage ou à la première saisie d'un titre. */
+function createProject(name,raw,opts){ // ajoute un projet (vide, ou à partir d'un état brut) sans l'ouvrir ; renvoie son id. Nom = titre de l'ontologie importée, sauf opts.byName
+  const own=raw&&raw.meta&&typeof raw.meta.title==='string'?raw.meta.title.trim():'';
+  const id=newProjectId(), nm=uniqueProjectName((opts&&opts.byName)?name:(own||name));
+  projects.list.push({id,name:nm,created:Date.now(),updated:Date.now()});
   const prev=state, st=(raw&&Array.isArray(raw.classes))?sanitizeState(raw):emptyState(); state=prev;
+  st.meta.title=nm; // titre = nom du projet
   lsSet(PROJ_PREFIX+id,JSON.stringify(st)); saveProjects(); return id;
+}
+function syncNameFromTitle(){ // le titre de l'ontologie courante (modifié, annulé, importé…) donne son nom au projet
+  const e=projectEntry(projects.current), t=((state.meta&&state.meta.title)||'').trim(); if(!e||!t||t===e.name) return;
+  e.name=uniqueProjectName(t,e.id); if(e.name!==t) state.meta.title=e.name;
+  saveProjects(); updateProjectName();
 }
 function switchProject(id,raw){ // ouvre un projet (l'état courant est d'abord enregistré) ; raw = état déjà en mémoire
   if(!projectEntry(id)) return false;
@@ -368,16 +379,23 @@ function switchProject(id,raw){ // ouvre un projet (l'état courant est d'abord 
   projects.current=id; lastSnap=0;
   const st=(raw&&Array.isArray(raw.classes))?raw:readProject(id);
   state=st?sanitizeState(st):emptyState();
+  syncNameFromTitle(); // un titre déjà présent dans l'ontologie l'emporte sur l'ancien nom du projet
   layoutCache={key:null,pos:null}; hist.undo=[]; hist.redo=[]; hist.chars=0; hist.last=null; // l'historique annuler / rétablir est propre à la session de chaque projet
   if(state.view.x==null) initView();
   persistProject(); saveProjects(); trackHistory(); updateHistButtons(); updateProjectName(); render(); setMode(state.mode||'class');
   return true;
 }
-function openNewProject(name,raw){ const id=createProject(name,raw); switchProject(id,raw); return id; }
-function renameProject(id,name){ const e=projectEntry(id); name=String(name||'').trim(); if(!e||!name) return false; e.name=uniqueProjectName(name,id); saveProjects(); updateProjectName(); return true; }
+function openNewProject(name,raw,opts){ const id=createProject(name,raw,opts); switchProject(id,readProject(id)||raw); return id; }
+function renameProject(id,name){ // renomme le projet ET le titre de son ontologie
+  const e=projectEntry(id); name=String(name||'').trim(); if(!e||!name) return false;
+  e.name=uniqueProjectName(name,id);
+  if(id===projects.current){ state.meta=Object.assign(newMeta(),state.meta,{title:e.name}); save(); render(); }
+  else{ const st=readProject(id); if(st){ st.meta=Object.assign(newMeta(),st.meta,{title:e.name}); lsSet(PROJ_PREFIX+id,JSON.stringify(st)); } saveProjects(); }
+  updateProjectName(); return true;
+}
 function duplicateProject(id){
   const e=projectEntry(id); if(!e) return null; if(id===projects.current) persistProject();
-  return createProject(e.name+' (copie)',readProject(id));
+  return createProject(e.name+' (copie)',readProject(id),{byName:true});
 }
 function deleteProject(id){
   const e=projectEntry(id); if(!e) return false;
@@ -390,7 +408,7 @@ function deleteProject(id){
 function restoreVersion(id,t){ // la version devient un NOUVEAU projet : rien n'est perdu
   const v=readVersions(id).find(x=>x.t===t); if(!v) return null; let raw=null; try{ raw=JSON.parse(v.data); }catch(e){} if(!raw) return null;
   const d=new Date(t), hh=String(d.getHours()).padStart(2,'0')+'h'+String(d.getMinutes()).padStart(2,'0');
-  return openNewProject((projectEntry(id)||{name:'Projet'}).name+' (version de '+hh+')',raw);
+  return openNewProject((projectEntry(id)||{name:'Projet'}).name+' (version de '+hh+')',raw,{byName:true});
 }
 function updateProjectName(){ const b=$('#proj-name'); if(b){ const e=projectEntry(projects.current); b.textContent='📁 '+(e?e.name:''); b.title='Projets : '+(e?e.name:''); } }
 /* Sauvegarde de tout, en un fichier ; importer en ajoute les projets sans rien écraser. */
@@ -401,12 +419,16 @@ function exportAllProjects(){
   return all.length;
 }
 function importProjectsData(obj){
-  let n=0; (Array.isArray(obj.projects)?obj.projects:[]).forEach(p=>{ if(p&&p.state&&Array.isArray(p.state.classes)){ createProject(p.name||'Projet importé',p.state); n++; } });
+  let n=0; (Array.isArray(obj.projects)?obj.projects:[]).forEach(p=>{ if(p&&p.state&&Array.isArray(p.state.classes)){ createProject(p.name||'Projet importé',p.state,{byName:!!p.name}); n++; } });
   return n;
 }
 /* Place une ontologie importée (Turtle, JSON) : dans un nouveau projet, ou à la place du projet courant. */
 function placeImported(raw,name,where){
-  if(where==='replace'||!ontologyNonEmpty()){ state=sanitizeState(raw); layoutCache={key:null,pos:null}; initView(); save(); render(); setMode(state.mode); return projects.current; }
+  if(where==='replace'||!ontologyNonEmpty()){
+    state=sanitizeState(raw); layoutCache={key:null,pos:null};
+    if(state.meta.title) syncNameFromTitle(); else if(raw&&raw.classes&&ontologyNonEmpty()) state.meta.title=(projectEntry(projects.current)||{}).name||''; // l'ontologie reprend le nom du projet
+    initView(); save(); render(); setMode(state.mode); return projects.current;
+  }
   return openNewProject(name,raw);
 }
 const baseName=n=>String(n||'').replace(/\.[^.]*$/,'').trim()||'Import';
@@ -953,7 +975,8 @@ function deleteProp(kind,id){
 /* ---------- exemple chargé ---------- */
 function loadExample(){
   if(ontologyNonEmpty()) openNewProject('Exemple de randonnées',null); // jamais d'écrasement : l'exemple s'ouvre dans un nouveau projet
-  state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nextId=1; state.nsList=[]; state.meta=newMeta(); // l'exemple n'utilise que l'espace de noms de l'ontologie
+  const t0=state.meta.title;
+  state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nextId=1; state.nsList=[]; state.meta=newMeta(); state.meta.title=t0||''; // le titre (= nom du projet) est conservé // l'exemple n'utilise que l'espace de noms de l'ontologie
   const id={};
   const add=n=>{ const i=state.nextId++; state.classes.push({id:i,name:n,parents:[]}); id[n]=i; return i; };
   add('Personne'); add('Groupe'); add('Voie');
@@ -976,7 +999,7 @@ function loadExample(){
 function clearAll(){
   confirmBox('Tout effacer ? La sauvegarde locale sera remplacée.','Vider').then(ok=>{
     if(!ok) return;
-    state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nsList=[]; state.meta=newMeta(); state.sel=null; save(); render();
+    const t0=state.meta.title; state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nsList=[]; state.meta=newMeta(); state.meta.title=t0||''; state.sel=null; save(); render(); // le titre (= nom du projet) est conservé
   });
 }
 
@@ -3370,7 +3393,7 @@ function openMeta(pre){
   const M=pre||state.meta||newMeta(), defIri=state.ns.replace(/[#/]?$/,'');
   const fields=[
     {key:'iri',label:'IRI de l\'ontologie (vide = '+defIri+')',value:M.iri},
-    {key:'title',label:'Titre (dcterms:title)',value:M.title},
+    {key:'title',label:'Titre (dcterms:title) — c\'est aussi le nom du projet',value:M.title||((projectEntry(projects.current)||{}).name||'')},
     {key:'description',label:'Description (dcterms:description)',value:M.description},
     {key:'lang',label:'Langue du titre et de la description (fr, en… ; vide = sans langue)',value:M.lang},
     {key:'creators',label:'Auteur(s) (dcterms:creator), séparés par « ; »',value:M.creators.join('; ')}];
@@ -3387,8 +3410,12 @@ function openMeta(pre){
     if(n.lang&&!LANG_RE.test(n.lang)) errs.push('Langue invalide (exemples : fr, en, pt-BR).');
     n.imports.filter(i=>!IRI_RE.test(i)).forEach(i=>errs.push('IRI importée invalide : '+i));
     if(errs.length){ infoBox(errs.join('\n'),'Ontologie').then(()=>openMeta(n)); return; }
-    state.meta=cleanMeta(n); save(); render(); status('Métadonnées de l\'ontologie enregistrées.');
+    commitMeta(n); status('Métadonnées de l\'ontologie enregistrées.');
   });
+}
+function commitMeta(n){ // le titre devient le nom du projet (et inversement) ; un titre vidé reprend le nom du projet
+  if(!String(n.title||'').trim()) n.title=(projectEntry(projects.current)||{}).name||'';
+  state.meta=cleanMeta(n); syncNameFromTitle(); save(); render();
 }
 $('#b-more').onclick=()=>showMenu($('#b-more'),[
   {label:'Projets…',hint:'plusieurs ontologies',run:()=>openProjects()},

@@ -237,6 +237,7 @@ Supprimer une classe citée dans une expression supprime la propriété, comme p
 
 Le nom du **projet courant** s'affiche à côté du titre (📁) ; un clic, ou **⋯ › Projets…**, ouvre la liste : **ouvrir**, **+ Nouveau projet**, **renommer** (✎), **dupliquer** (⧉), **supprimer** (🗑, définitif). Chaque projet a son propre historique annuler / rétablir pour la session en cours.
 **« Charger l'exemple »** et les **imports** (Turtle, JSON) s'ouvrent dans un **nouveau projet** si le projet courant n'est pas vide (la boîte d'import propose aussi « Remplacer le projet courant ») : un travail n'est plus écrasé.
+Le **nom du projet est aussi le titre de l'ontologie** (`dcterms:title`, ⋯ › Ontologie…) : renommer l'un change l'autre. Un import qui contient un titre donne son nom au projet. Un projet ancien dont le titre est encore vide n'est lié qu'au premier renommage ou à la première saisie d'un titre.
 **Versions précédentes…** : jusqu'à 5 versions récentes par projet (une au plus toutes les 10 minutes de travail) ; en restaurer une l'ouvre dans un **nouveau projet**, rien n'est perdu.
 **Exporter tous** écrit un fichier `ontolab-projets.json` ; **Importer des projets…** (ou « Importer ▾ › JSON OntoLab ») en ajoute les projets sans rien écraser, en dédoublonnant les noms. Tout reste dans le navigateur de l'appareil : pour changer d'appareil ou rendre un travail, passez par l'export.
 Si le navigateur ne peut plus enregistrer (espace plein, navigation privée), un avertissement s'affiche : exportez alors vos projets.

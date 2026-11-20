@@ -126,3 +126,73 @@ test('changer de projet enregistre d\'abord l\'état courant, même si la derni�
   t.run("openNewProject('B',null)"); t.run(`switchProject('${a}')`);
   assert.ok(t.run('state.classes.some(c=>c.name==="Pas encore sauvée")'));
 });
+
+/* ---- nom du projet = titre de l'ontologie ---- */
+const cur = t => t.run('projects.list.find(e=>e.id===projects.current).name');
+const title = t => t.run('state.meta.title');
+
+test('renommer le projet change le titre de l\'ontologie (courant ou non), noms uniques répercutés', () => {
+  const t = load(); t.run('loadExample()'); const a = t.run('projects.current'); const b = t.run("createProject('Autre',null)");
+  assert.equal(t.run(`renameProject('${a}','TD 1 — Rando')`), true); assert.equal(cur(t), 'TD 1 — Rando'); assert.equal(title(t), 'TD 1 — Rando');
+  assert.match(t.run('toTTL(state.ns)'), /dc\/terms\/title> "TD 1 — Rando"/);
+  assert.equal(t.run(`renameProject('${b}','TD 1 — Rando')`), true);
+  assert.equal(t.run(`projects.list.find(e=>e.id==='${b}').name`), 'TD 1 — Rando (2)'); assert.equal(t.run(`readProject('${b}').meta.title`), 'TD 1 — Rando (2)', 'le titre suit le nom dédoublonné');
+  assert.match(String(t.ctx.document.querySelector('#proj-name').textContent), /TD 1 — Rando/);
+});
+
+test('modifier le titre (⋯ › Ontologie…) renomme le projet ; un titre vidé reprend le nom du projet', () => {
+  const t = load(); t.run('loadExample()');
+  t.run("commitMeta(Object.assign({},state.meta,{title:'Zoo des animaux'}))");
+  assert.equal(cur(t), 'Zoo des animaux'); assert.equal(title(t), 'Zoo des animaux'); assert.match(String(t.ctx.document.querySelector('#proj-name').textContent), /Zoo des animaux/);
+  assert.equal(JSON.parse(t.storage.get('ontolab-projects')).list[0].name, 'Zoo des animaux', 'index enregistré');
+  t.run("commitMeta(Object.assign({},state.meta,{title:'   '}))"); assert.equal(title(t), 'Zoo des animaux'); assert.equal(cur(t), 'Zoo des animaux');
+  t.run("createProject('Zoo des animaux',null)"); t.run("commitMeta(Object.assign({},state.meta,{title:'Zoo des animaux'}))"); assert.equal(t.run('projects.list.length'), 2);
+  t.run("openNewProject('Un autre',null)"); t.run("commitMeta(Object.assign({},state.meta,{title:'Zoo des animaux'}))");
+  assert.equal(cur(t), 'Zoo des animaux (3)'); assert.equal(title(t), 'Zoo des animaux (3)', 'titre dédoublonné comme le nom');
+});
+
+test('annuler / rétablir un changement de titre change aussi le nom du projet', () => {
+  const t = load(); t.run("loadExample(); commitMeta(Object.assign({},state.meta,{title:'Premier'}))"); t.run("commitMeta(Object.assign({},state.meta,{title:'Second'}))");
+  assert.equal(cur(t), 'Second'); t.run('undo()'); assert.equal(cur(t), 'Premier'); t.run('redo()'); assert.equal(cur(t), 'Second');
+});
+
+test('un nouveau projet, une copie ou un projet importé portent leur nom comme titre ; un titre importé devient le nom', () => {
+  const t = load(); t.run('loadExample()');
+  const n = t.run("openNewProject('Mon TD',null)"); assert.equal(title(t), 'Mon TD');
+  const d = t.run(`duplicateProject('${n}')`); assert.equal(t.run(`readProject('${d}').meta.title`), 'Mon TD (copie)');
+  t.call('r => placeImported(r,"nom-de-fichier","new")', { classes: [{ id: 1, name: 'A', parents: [] }], objProps: [], dataProps: [], nextId: 2, meta: { title: 'Titre dans le fichier' } });
+  assert.equal(cur(t), 'Titre dans le fichier'); assert.equal(title(t), 'Titre dans le fichier');
+  t.call('r => placeImported(r,"sans-titre","new")', { classes: [{ id: 1, name: 'B', parents: [] }], objProps: [], dataProps: [], nextId: 2 });
+  assert.equal(cur(t), 'sans-titre'); assert.equal(title(t), 'sans-titre', 'nom de fichier = nom du projet = titre');
+});
+
+test('remplacer le projet courant : le titre importé donne son nom au projet, sinon l\'ontologie garde le nom du projet', () => {
+  const t = load(); t.run("renameProject(projects.current,'Mon projet')");
+  t.call('r => placeImported(r,"x","replace")', { classes: [{ id: 1, name: 'A', parents: [] }], objProps: [], dataProps: [], nextId: 2, meta: { title: 'Titre importé' } });
+  assert.equal(cur(t), 'Titre importé');
+  t.call('r => placeImported(r,"x","replace")', { classes: [{ id: 1, name: 'B', parents: [] }], objProps: [], dataProps: [], nextId: 2 });
+  assert.equal(cur(t), 'Titre importé'); assert.equal(title(t), 'Titre importé');
+});
+
+test('projets existants : un titre déjà saisi l\'emporte sur l\'ancien nom à l\'ouverture ; sans titre, rien n\'est modifié', () => {
+  const t = load(); const id = t.run('projects.current');
+  t.run("loadExample(); state.meta.title='Titre existant'; save()");
+  const raw = Object.fromEntries(t.storage); const ix = JSON.parse(raw['ontolab-projects']); ix.list[0].name = 'Ancien nom'; raw['ontolab-projects'] = JSON.stringify(ix);
+  const t2 = load({ storage: raw }); assert.equal(cur(t2), 'Titre existant');
+  const t3 = load(); t3.run('loadExample()'); assert.equal(cur(t3), 'Mon ontologie'); assert.equal(t3.run('state.meta.title'), '', 'projet sans titre : exports inchangés');
+  assert.equal(id.length > 0, true);
+});
+
+test('vider l\'ontologie et « Charger l\'exemple » gardent le titre (= nom du projet)', async () => {
+  const t = load(); t.run('confirmBox=()=>Promise.resolve(true)'); t.run("renameProject(projects.current,'Mon TP'); loadExample()");
+  assert.equal(title(t), 'Mon TP'); t.run('clearAll()'); await new Promise(r => setTimeout(r, 10)); assert.equal(title(t), 'Mon TP'); assert.equal(cur(t), 'Mon TP');
+  t.run("openNewProject('Exemple de randonnées',null); loadExample()"); assert.equal(title(t), 'Exemple de randonnées');
+});
+
+test('export / import de tous les projets : les noms exportés restent les noms', () => {
+  const t = load(); t.run("renameProject(projects.current,'Alpha'); loadExample(); openNewProject('Beta',null)");
+  t.run('download=(b,n)=>{ globalThis.__dl=b.parts[0]; }'); t.run('exportAllProjects()');
+  const obj = JSON.parse(t.ctx.__dl); assert.deepEqual(obj.projects.map(p => p.name), ['Alpha', 'Beta']);
+  t.call('o => importProjectsData(o)', obj); assert.deepEqual(t.run('projects.list.map(e=>e.name)'), ['Alpha', 'Beta', 'Alpha (2)', 'Beta (2)']);
+  assert.equal(t.run(`readProject(projects.list[2].id).meta.title`), 'Alpha (2)');
+});

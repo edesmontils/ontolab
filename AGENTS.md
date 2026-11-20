@@ -217,6 +217,7 @@ null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux p
 ## Projets (F4)
 `save()` = `persistProject()` (état → `ontolab-p-<id>`, versions) + `saveProjects()` (index) + `trackHistory()`. Opérations : `createProject(nom, brut?)` (sans ouvrir), `switchProject(id, brut?)` (enregistre l'état courant, recharge, **réinitialise l'historique et le cache de mise en page**),
 `openNewProject`, `renameProject`, `duplicateProject`, `deleteProject` (il reste toujours un projet), `restoreVersion` (nouveau projet), `exportAllProjects`/`importProjectsData` (`{format:'ontolab-projects'}`), `placeImported(brut, nom, 'new'|'replace')` pour tout import.
+**Nom = titre** : `projects.list[i].name` et `state.meta.title` sont liés (`createProject` fixe le titre, `renameProject` écrit les deux, `commitMeta` / `syncNameFromTitle` répercutent un titre modifié, annulé ou importé ; titre vide = projet non encore lié). Tout nouveau chemin qui change le titre ou le nom doit passer par ces fonctions.
 **Règle** : une fonction qui remplace l'ontologie entière (import, exemple…) passe par ces fonctions, jamais par `state=…` directement ; `lsSet` signale un stockage plein (une fois). Les tests : `tests/projects.test.js`.
 
 ## Domaine / portée en expression (C3)
