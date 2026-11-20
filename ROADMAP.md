@@ -16,7 +16,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 ## Phase A — Confort d'édition (fondations)
 
 > Déjà réalisés (v1.x) : **A1** annuler/rétablir, **A2** panneau et légende repliables, **A3** export image
-> SVG/PNG — voir `README.md` et `AGENTS.md`. Restent A4 et A5.
+> SVG/PNG — voir `README.md` et `AGENTS.md`. Restent A4, A5 et A6.
 
 ### A4. Caractéristiques OWL supplémentaires — S
 - *Fait* : `owl:InverseFunctionalProperty` (propriétés objet : case à cocher, bordure en points, Turtle, import).
@@ -33,6 +33,28 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
   fonctionnelle et transitive, noms proches (casse, accents), sous-propriété dont le domaine/la portée
   n'est pas contenu(e) dans celui/celle du parent.
 - **Comment** : liste d'avertissements cliquables (sélectionne l'élément concerné).
+
+### A6. Domaine et portée hérités de la propriété parente — S/M
+- **Demande (2026-11-20, « à noter »)** : quand une propriété hérite d'une autre (`rdfs:subPropertyOf`) et **ne surcharge pas** son
+  domaine et/ou sa portée, l'**affichage** prend ceux de la propriété parente. (Propriétés objet : domaine et portée ; propriétés de
+  donnée : domaine, et type XSD si on étend la règle.)
+- **Pourquoi** : c'est la sémantique de RDFS (une sous-propriété a au moins les domaines/portées de sa parente) et cela évite de
+  ressaisir à chaque fille ce que la mère dit déjà.
+- **Impact** : aujourd'hui `domain` et `range` sont **toujours** renseignés (obligatoires à la création, `sanitizeState` les répare,
+  l'import met « Thing » en l'absence). Il faut donc **permettre « non défini = hérité »** (`null`) : sélecteur du panneau avec une
+  entrée « — hérité de la propriété parente (X) » ; création sans domaine/portée possible ; une fonction `effDomain(p)` /
+  `effRange(p)` (remonte les parents) utilisée par `computeProps`, `drawObjArcs`, le panneau, les candidats d'inverse, la légende.
+- **À trancher avant de coder** :
+  1. *Plusieurs parents* (héritage multiple de propriétés) : quel domaine prendre ? Le premier, l'intersection (classe commune la
+     plus spécifique), ou signaler un conflit ?
+  2. *Export Turtle* : omettre `rdfs:domain`/`rdfs:range` quand ils sont hérités (fidèle au modèle) ou écrire les valeurs effectives
+     (explicite, plus lisible pour les étudiants et les outils qui ne raisonnent pas) ? Question liée : en mode RDFS pur (G1).
+  3. *Import* : un domaine/portée absent d'une fille dont le parent en a un devient « hérité » au lieu de « Thing ».
+  4. *Cohérence* (lien avec A5) : un domaine/portée surchargé doit être une sous-classe de celui de la parente.
+  5. *Propriété parente elle-même sans domaine* : remonte plus haut, sinon « Thing » comme aujourd'hui.
+  6. *Mode compact (G2)* : une propriété à domaine hérité n'est plus « incomplète » (cf. la liste « éléments à compléter »).
+- **Affichage à prévoir** : montrer l'origine de la valeur héritée (texte gris « hérité de X » dans le panneau, flèche de même style
+  que les autres ou légèrement atténuée sur le graphe).
 
 ---
 
