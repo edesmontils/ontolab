@@ -5,7 +5,7 @@
 #
 # Cibles (variable TARGETS, « hôte:dossier » séparés par des espaces ; défaut : le Pi et le serveur « sql ») :
 #   ed@192.168.1.200:programmation/OntoLab   (Caddy sert le clone sur https://pedago.desmontils.net/ontolab/ ; réseau local)
-#   root@172.26.70.140:/srv/ontolab          (route /ontolab/ du Caddy partagé ; le clone y utilise le proxy http://cache.ha.univ-nantes.fr:3128)
+#   root@172.26.70.140:/srv/ontolab          (https://asql.ls2n.fr/ontolab/, route /ontolab/ du Caddy partagé ; le clone y utilise le proxy http://cache.ha.univ-nantes.fr:3128)
 #   SKIP_TESTS=1  déploie sans lancer les tests automatisés (./test.sh)
 set -euo pipefail
 
@@ -35,4 +35,4 @@ for t in $TARGETS; do
   echo "→ $host ($dir)"
   if ssh -o BatchMode=yes -o ConnectTimeout=10 "$host" "git -C $dir pull --ff-only && git -C $dir log --oneline -1"; then :; else echo "  ÉCHEC : $host injoignable ou mise à jour refusée." >&2; fail=1; fi
 done
-if [ "$fail" = 0 ]; then echo "Déployé : https://pedago.desmontils.net/ontolab/ (Pi) et serveur 172.26.70.140 (/ontolab/ derrière les relais)"; else echo "Déploiement incomplet : relancez ./deploy.sh depuis un réseau qui joint la cible en échec." >&2; exit 1; fi
+if [ "$fail" = 0 ]; then echo "Déployé : https://pedago.desmontils.net/ontolab/ (Pi) et https://asql.ls2n.fr/ontolab/ (serveur 172.26.70.140)"; else echo "Déploiement incomplet : relancez ./deploy.sh depuis un réseau qui joint la cible en échec." >&2; exit 1; fi
