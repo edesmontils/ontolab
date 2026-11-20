@@ -28,6 +28,14 @@ fs.writeFileSync('/tmp/ontolab.js',h.match(/<script>([\s\S]*)<\/script>/)[1]);"
 node --check /tmp/ontolab.js
 ```
 
+**Tests automatisés (F5)** — `./test.sh` (ou `npm test`), Node ≥ 20, aucune dépendance, ~15 s : à lancer **avant tout commit touchant `index.html` ou `namespaces.js`** ;
+`./deploy.sh` les lance lui-même (`SKIP_TESTS=1` pour passer outre). `tests/harness.js` charge le `<script>` de `index.html` dans un contexte `vm` avec un DOM factice
+(`t.run('expr')`, `t.call('fn', args)`, `t.panelHTML()`, `t.created()` = éléments SVG dessinés) ; les fichiers `tests/*.test.js` couvrent Turtle (analyseur, export, import, aller-retour,
+validation Jena si disponible), modèle (assainissement, migration, cycles, A6), rendu et panneau dans les 8 combinaisons de préférences (y compris le double-clic),
+préférences (priorité verrou > lien > enregistré > défaut), vérification A5, mise en page, catalogue d'espaces de noms, cohérence `VERSION`/`CHANGELOG.md`.
+**Toute nouvelle fonction ou tout bogue corrigé reçoit son test.** Limites : le DOM est factice (rien n'est vérifié visuellement ni au toucher) ; pas de seuil de durée (le contexte `vm` est ~10× plus lent
+qu'un navigateur) ; une fonction supprimée n'est détectée que si un test exécute le code qui l'appelle.
+
 Le JS est organisé en 3 blocs commentés :
 1. **partie 1** — état, boîte de dialogue générique (`dialog()`/`confirmBox()`),
    CRUD, export JSON, export Turtle (`toTTL()`/`exportTTL()`), exemple ;

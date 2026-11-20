@@ -1,0 +1,44 @@
+@prefix : <http://example.org/onto#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://example.org/onto> rdf:type owl:Ontology .
+
+:Personne rdf:type owl:Class .
+:Etudiant rdf:type owl:Class ;
+    rdfs:subClassOf :Personne .
+:Enseignant rdf:type owl:Class ;
+    rdfs:subClassOf :Personne .
+:Doctorant rdf:type owl:Class ;
+    rdfs:subClassOf :Etudiant, :Enseignant .
+:Organisation rdf:type owl:Class .
+:Universite rdf:type owl:Class ;
+    rdfs:subClassOf :Organisation .
+:Laboratoire rdf:type owl:Class ;
+    rdfs:subClassOf :Organisation .
+:CentreDeRecherche rdf:type owl:Class ;
+    rdfs:subClassOf :Laboratoire, :Universite .
+
+:connaît a owl:ObjectProperty ;
+    rdfs:domain :Personne ;
+    rdfs:range :Personne .
+:travailleAvec a owl:ObjectProperty ;
+    rdfs:domain :Personne ;
+    rdfs:range :Personne .
+:collabore a owl:ObjectProperty ;
+    rdfs:domain :Doctorant ;
+    rdfs:range :Enseignant ;
+    rdfs:subPropertyOf :connaît, :travailleAvec .
+
+:nom a owl:DatatypeProperty ;
+    rdfs:domain :Personne ;
+    rdfs:range xsd:string .
+:nomComplet a owl:DatatypeProperty ;
+    rdfs:domain :Personne ;
+    rdfs:range xsd:string .
+:etiquette a owl:DatatypeProperty ;
+    rdfs:domain :Personne ;
+    rdfs:range xsd:string ;
+    rdfs:subPropertyOf :nom, :nomComplet .

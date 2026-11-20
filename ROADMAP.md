@@ -12,10 +12,10 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
 
 ### État au 2026-11-20 (v1.15.0)
-- **Fait** : A1–A3, A5, A6 ; B1, B2 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
-- **Reste** : A4 (S) ; C1–C5 ; D1 ; E1–E3 ; F1–F6 (F1 partiellement : disposition par couches faite, voir la fiche).
-- **Ordre conseillé pour la suite** : C1 + C2 (axiomes simples) → C4 (restrictions : le plus utile au cours OWL) ; F5 (tests automatisés : deux régressions ont déjà
-  échappé aux essais manuels) ; test sur iPad réel (voir « Dette connue »).
+- **Fait** : A1–A3, A5, A6 ; B1, B2 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
+- **Reste** : A4 (S) ; C1–C5 ; D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
+- **Ordre conseillé pour la suite** : C1 + C2 (axiomes simples) → C4 (restrictions : le plus utile au cours OWL) ; test sur iPad réel (voir « Dette connue ») ;
+  performances sur grands graphes (nouvelle entrée de « Dette connue »).
 
 ---
 
@@ -194,13 +194,10 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 - Aujourd'hui une seule ontologie dans `localStorage` (`ontolab-v1`). Liste de projets nommés,
   duplication, export/import de l'ensemble, historique des sauvegardes automatiques.
 
-### F5. Tests automatisés — S/M
-- Le code est dans un seul `index.html` : extraire le `<script>` (comme la vérification de syntaxe
-  actuelle de `AGENTS.md`) et le charger dans Node avec un faux DOM minimal, ou tester les fonctions
-  pures (`parseTurtle`, `ontologyFromTriples`, `toTTL`, `cleanParents`, `localName`).
-- **Tests à écrire en priorité** : export → import → export identique (déjà vérifié à la main),
-  comptage de triplets contre rdflib/Jena, migration `parent` → `parents`, refus des cycles.
-- Un script `deploy.sh` qui lance les tests avant de pousser.
+### F5. Tests automatisés — S/M — **fait** (2026-11-20) : `./test.sh`, dossier `tests/` (voir README et AGENTS)
+- *Fait* : harnais `vm` + DOM factice, 57 tests (Turtle, import, modèle, rendu et double-clic dans les 8 combinaisons de préférences, préférences, A5, mise en page, espaces de noms, version),
+  validation Jena optionnelle, `deploy.sh` qui lance les tests. Les tests ont été éprouvés par « mutation » : la régression d'`attrsBlock`, une perte d'étiquettes à l'export et un cycle d'héritage accepté sont bien détectés.
+- *Reste* : test visuel / tactile réel (navigateur sans interface, iPad) ; détection statique d'une fonction supprimée (pas de linter sans dépendance) ; seuils de performance (hors `vm`).
 
 ### F6. Accessibilité et internationalisation — M
 - Navigation au clavier (Tab entre les éléments, flèches pour les déplacer), rôles ARIA, contrastes
@@ -333,8 +330,10 @@ de G1 et les décisions 1 à 4 de G2 **avant** de coder.
 - **iPad réel** : l'import de fichiers (champs `<input file>` permanents, sans `accept`) et le
   téléchargement du `.ttl` ont été corrigés d'après les comportements connus de Safari iOS, mais pas
   testés sur un appareil. À confirmer.
-- **Gros schémas** : mise en page testée jusqu'à 60 classes (~250 ms) ; au-delà, vérifier les
-  performances (simulation à forces O(n²) × 4 départs).
+- **Gros schémas — mesure du 2026-11-20 (navigateur, ontologie dense de 60 classes, 72 propriétés objet, 60 de donnée)** : mise en page ≈ 2,2 s (une fois, mise en cache tant que la
+  structure ne change pas) **et ≈ 0,95 s par rendu** (placement des propriétés `computeProps` ≈ 0,5 s + `relax` ≈ 0,4 s), à comparer aux ~250 ms annoncés autrefois pour 60 classes :
+  à 20 classes ≈ 0,1 s, 40 classes ≈ 0,45 s. En mode ④ (déplacer), chaque image refait ce rendu : fluide jusqu'à ~30 classes, pénible au-delà. Pistes : limiter les niveaux/angles de `placeAround`,
+  ne recalculer que les propriétés voisines du nœud déplacé, mettre en cache le placement des étiquettes non déplacées.
 - **Partage d'image sur iPad** : `navigator.share({files})` (feuille de partage) est utilisé sur écran tactile, mais n'a
   pas été testé sur un appareil réel ; repli : téléchargement classique.
 - **Mode compact** (v1.12–1.13) : zones de toucher des pastilles, des « +N » et des flèches, et listes d'attributs dans le panneau, jamais essayés sur iPad ;

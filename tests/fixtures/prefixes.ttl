@@ -1,0 +1,29 @@
+# Généré par OntoLab le 2026-11-19
+# Outil pédagogique — cours Web Sémantique
+@prefix : <http://ex.org/zoo#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix o: <http://other.org/vocab/> .
+
+<http://ex.org/zoo> rdf:type owl:Ontology .
+
+:Animal rdf:type owl:Class .
+:Chat rdf:type owl:Class ;
+    rdfs:subClassOf :Animal .
+o:Souris rdf:type owl:Class ;
+    rdfs:subClassOf :Animal .
+foaf:Person rdf:type owl:Class .
+
+foaf:knows a owl:ObjectProperty ;
+    rdfs:domain foaf:Person ;
+    rdfs:range foaf:Person .
+:mange a owl:ObjectProperty ;
+    rdfs:domain :Chat ;
+    rdfs:range o:Souris .
+
+o:poids a owl:DatatypeProperty ;
+    rdfs:domain o:Souris ;
+    rdfs:range xsd:double .

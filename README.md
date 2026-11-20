@@ -180,6 +180,12 @@ et le verrouiller avec `lock:true`. Même priorité que le mode : verrou > lien 
 Propriétés parallèles = courbes décalées, domaine = portée = boucle. Une propriété qui n'a qu'une extrémité est une flèche en tirets vers « ? »
 (elle figure aussi dans « À compléter »). En mode Déplacer, glisser la pastille courbe la flèche. Réglages enseignant : `compact:{data,obj}`, `?compact=data,obj`.
 
+### Tests automatisés (développeurs)
+
+`./test.sh` (ou `npm test`) lance une soixantaine de tests Node sans dépendance (~15 s) : analyse et export Turtle, aller-retour export → import, import de fichiers types,
+modèle et héritage, rendu et panneau dans toutes les combinaisons de préférences, vérification de cohérence, mise en page, catalogue d'espaces de noms. Si Apache Jena (`riot`)
+est installé (variable `JENA_RIOT` ou `~/Applications/Jena/…`), les exports sont aussi validés par lui. `./deploy.sh` lance les tests avant de pousser.
+
 ### Version
 
 Le numéro de version est affiché à côté du copyright et dans l'en-tête des fichiers Turtle exportés ; l'historique est dans [`CHANGELOG.md`](CHANGELOG.md).
