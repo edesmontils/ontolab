@@ -44,15 +44,24 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
   l'import met « Thing » en l'absence). Il faut donc **permettre « non défini = hérité »** (`null`) : sélecteur du panneau avec une
   entrée « — hérité de la propriété parente (X) » ; création sans domaine/portée possible ; une fonction `effDomain(p)` /
   `effRange(p)` (remonte les parents) utilisée par `computeProps`, `drawObjArcs`, le panneau, les candidats d'inverse, la légende.
-- **À trancher avant de coder** :
-  1. *Plusieurs parents* (héritage multiple de propriétés) : quel domaine prendre ? Le premier, l'intersection (classe commune la
-     plus spécifique), ou signaler un conflit ?
-  2. *Export Turtle* : omettre `rdfs:domain`/`rdfs:range` quand ils sont hérités (fidèle au modèle) ou écrire les valeurs effectives
-     (explicite, plus lisible pour les étudiants et les outils qui ne raisonnent pas) ? Question liée : en mode RDFS pur (G1).
-  3. *Import* : un domaine/portée absent d'une fille dont le parent en a un devient « hérité » au lieu de « Thing ».
-  4. *Cohérence* (lien avec A5) : un domaine/portée surchargé doit être une sous-classe de celui de la parente.
-  5. *Propriété parente elle-même sans domaine* : remonte plus haut, sinon « Thing » comme aujourd'hui.
-  6. *Mode compact (G2)* : une propriété à domaine hérité n'est plus « incomplète » (cf. la liste « éléments à compléter »).
+- **Décisions prises (2026-11-20)** :
+  1. **Plusieurs parents en désaccord : conflit signalé.** Si les parents n'ont pas le même domaine (ou la même portée), aucune valeur
+     n'est choisie : le panneau affiche « conflit : Employé / Étudiant — à préciser » et l'élève doit surcharger. Si les parents sont
+     d'accord (même valeur), elle est héritée normalement. Un domaine en conflit compte comme **non défini** pour le dessin (pas de
+     flèche tant qu'il n'est pas précisé) et alimente la liste « éléments à compléter » prévue en G2 (d).
+  2. **Export Turtle : hérités omis.** On n'écrit `rdfs:domain` / `rdfs:range` que s'ils sont **surchargés** : fidèle au modèle, aller-retour
+     exact, `rdfs:subPropertyOf` suffit à porter l'héritage. Cohérent avec le mode RDFS pur (G1). Contrepartie assumée : un outil qui ne
+     raisonne pas ne voit pas le domaine de la fille ; un réexport « valeurs effectives » pourra être ajouté en option si le besoin
+     apparaît.
+  3. **Import** : une propriété sans domaine (ou sans portée) dont une parente présente dans le fichier en a un reçoit « **hérité** » (vide dans
+     le modèle) au lieu de « Thing ». Si aucune parente n'en a, on garde « Thing » comme aujourd'hui.
+  4. **Cohérence : avertissement non bloquant.** Quand le domaine/la portée surchargé(e) n'est pas une sous-classe de celui/celle de la
+     parente, une indication discrète dans le panneau (« devrait être une sous-classe de X, domaine de la parente ») ; aucune restriction
+     du sélecteur. Reprise ensuite par la vérification A5.
+- **Choix par défaut non discutés (à confirmer à l'implantation)** : une parente elle-même sans domaine fait remonter la recherche plus haut,
+  puis « Thing » comme aujourd'hui ; l'héritage s'applique aux propriétés objet (domaine et portée) et aux propriétés de donnée (domaine ;
+  le type XSD reste propre à chaque propriété, ce qui est à reconfirmer) ; le champ vide reste invisible dans le JSON existant (les anciens
+  fichiers, entièrement renseignés, se chargent sans changement).
 - **Affichage à prévoir** : montrer l'origine de la valeur héritée (texte gris « hérité de X » dans le panneau, flèche de même style
   que les autres ou légèrement atténuée sur le graphe).
 
