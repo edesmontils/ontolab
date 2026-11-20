@@ -9,7 +9,7 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 > et besoins d'un outil de TD. La liste des fonctions réelles de l'éditeur de WebVOWL n'a pas été
 > vérifiée en détail (documentation introuvable) : à compléter après essai de l'outil.
 
-Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà).
+Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
 
 ---
 
@@ -169,6 +169,69 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
   (rouge / vert / bleu sur fond clair), taille des cibles tactiles.
 - Interface en français uniquement aujourd'hui : externaliser les chaînes si une version anglaise
   est souhaitée.
+
+---
+
+## Phase G — Modes d'affichage et préférences
+
+Demande de l'enseignant : un petit **panneau de préférences** (menu ⋯ › « Préférences… ») pour choisir des modes. Deux
+réglages **indépendants** (RDFS/OWL × normal/compact, pas un « niveau » unique : on peut vouloir du compact en OWL ou du
+normal en RDFS). Analyse faite le 2026-11-20 ; rien n'est implanté.
+
+**Panneau de préférences (socle commun à G1 et G2)**
+- Une entrée « Préférences… » dans ⋯, ouvrant une boîte de dialogue du style de l'éditeur d'espaces de noms. On y **déplace**
+  (sans dupliquer) ce qui est aujourd'hui dispersé : panneau d'édition (✓ dans ⋯), légende.
+- **Persistance** dans `ontolab-ui` (préférences d'affichage), **hors** de l'état de l'ontologie et donc hors historique
+  annuler/rétablir : une préférence n'est pas une édition. Locale à chaque navigateur (rien côté serveur).
+- **Pilotage par l'enseignant**, comme le catalogue d'espaces de noms : `window.ONTOLAB_DEFAULTS={mode:'rdfs', compact:true, lock:false}`
+  dans `namespaces.js` pour fixer les modes de départ ; `lock` (facultatif) empêche l'étudiant de les changer, pour cadrer un TD.
+- **Paramètres d'URL** `?mode=rdfs&compact=1` : un lien par séance, sans rien éditer (pratique sur iPad). Priorité à décider
+  (URL > préférence enregistrée > défauts de `namespaces.js` ?).
+
+### G1. Mode RDFS / OWL — S/M
+- **Pourquoi** : introduire RDFS seul (classes, sous-classes, domaine/portée, sous-propriétés), puis débloquer OWL à la séance
+  suivante. Aujourd'hui l'étudiant voit tout d'un coup.
+- **Ce que le mode RDFS masquerait** : transitive, symétrique, fonctionnelle, fonctionnelle inverse, propriété inverse
+  (`owl:inverseOf`), et les futures caractéristiques de A4 ; les entrées correspondantes de la légende (boucle verte, doubles
+  flèches, bordure pointillée, ⇄). L'héritage multiple reste (légitime en RDFS). Points d'impact : `renderPanelBody` (cases
+  à cocher et menu « Propriété inverse »), le dialogue de création de propriété objet (`createObjProp`), la légende et son
+  export image.
+- **Question de conception centrale : que devient la donnée déjà présente ?** Masquer seulement est piégeant : on charge une
+  ontologie OWL, on passe en RDFS, on exporte, et le Turtle contient encore du `owl:TransitiveProperty` qu'on ne voit plus.
+  Recommandation : **masquer et le dire** (indicateur discret « N caractéristiques OWL masquées » quand il y en a), l'export
+  restant complet par défaut, avec une option explicite « exporter en RDFS pur » (`rdfs:Class`, `rdf:Property`,
+  `rdfs:domain`/`rdfs:range`, sans `owl:*`) si on la veut. L'**import ne dépend jamais du mode**.
+- **À trancher** : (a) export en mode RDFS filtré ou complet ; (b) classes écrites `rdfs:Class` ou `owl:Class` en RDFS pur
+  (n'a de sens que si l'export suit le mode) ; (c) comportement des types de propriété (`owl:ObjectProperty` /
+  `owl:DatatypeProperty` ↔ `rdf:Property`) ; (d) faut-il aussi masquer « Charger l'exemple » OWL ou prévoir un exemple RDFS ?
+- **Risque** : faible pour le graphe (conditions d'affichage), plus délicat pour l'export (perte d'information silencieuse).
+
+### G2. Mode compact — M (propriétés de donnée) / L (avec propriétés objet)
+- **Pourquoi** : les nœuds de propriétés de donnée encombrent le plus le graphe (VOWL les dessine comme des nœuds distincts).
+  Les ranger dans le panneau de la classe rapproche l'outil d'un diagramme de classes (« une classe a des attributs »).
+- **Nature du changement** : un choix d'**affichage** — le modèle de données (`dataProps`, JSON, Turtle, import, historique) ne
+  change pas. C'est l'argument fort pour le faire.
+- **Décisions à prendre** :
+  1. *Où voit-on les attributs ?* Panneau de la classe seulement (demande initiale) : une classe paraît alors vide de données ;
+     un indicateur discret sur le nœud (compteur « +3 », ou liste d'attributs dans le nœud) l'évite. À arbitrer.
+  2. *Création* : aujourd'hui on crée une propriété de donnée en mode « Propriété de donnée » en cliquant une classe. En compact,
+     le mode de la barre latérale existe-t-il encore ? Alternative plus cohérente : ajout depuis le panneau de la classe
+     (nouveau flux d'édition à écrire).
+  3. *Sélection, double-clic, suppression* : une propriété de donnée n'étant plus un nœud, on ne peut plus la sélectionner ni la
+     déplacer sur le graphe ; le panneau doit lister, éditer et supprimer des éléments qui ne sont pas « sélectionnés ».
+  4. *Étendue du compactage* — à décider, car cela fixe l'ambition :
+     - propriétés de donnée → attributs listés dans la classe (étape 1, M) ;
+     - propriétés objet → simple **flèche étiquetée** au lieu d'une ellipse (réduit le plus le nombre de nœuds, mais change le
+       plus le dessin et touche au point le plus fragile : `computeProps`, `placeAround`, `relax`, `refinalizeProps`) (étape 2, L) ;
+     - sous-propriétés (arcs pointillés), étiquettes de type XSD.
+  5. *Export image* : reflète le mode courant (à signaler dans le dialogue).
+- **Tests à prévoir** : disposition du graphe après disparition des nœuds (point faible de toutes les évolutions de mise en
+  page), bascule de mode sur une ontologie riche sans perte, aller-retour export/import dans chaque mode, double-clic /
+  sélection / annuler en mode compact, iPad.
+
+**Ordre conseillé** : panneau de préférences + G1 d'abord (rapide, utile tout de suite), puis G2 limité aux propriétés de donnée ;
+réserver le compactage des propriétés objet à une troisième étape, après essai en conditions réelles. Trancher les points « À trancher »
+de G1 et les décisions 1 à 4 de G2 **avant** de coder.
 
 ---
 
