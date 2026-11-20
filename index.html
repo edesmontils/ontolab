@@ -1199,7 +1199,8 @@ function forceLayout(){
         for(let i=0;i<n;i++){ x[i]=(rnd()-0.5)*2*R; y[i]=(rnd()-0.5)*2*R; }
       }
       let hot=1;
-      if(v===0&&n>2){ const L0=layered(); for(let i=0;i<n;i++){ x[i]=L0.x[i]; y[i]=L0.y[i]; } hot=0.3; }
+      let anchor=null; // variante par couches : chaque classe reste attirée vers sa couche (frères alignés)
+      if(v===0&&n>2){ const L0=layered(); anchor=L0.y; for(let i=0;i<n;i++){ x[i]=L0.x[i]; y[i]=L0.y[i]; } hot=0.3; }
       const iters=n>1?Math.min(500,200+n*10):0;
       for(let it=0;it<iters;it++){
         const temp=(1-it/iters)*hot;
@@ -1235,6 +1236,7 @@ function forceLayout(){
         const cap=3+45*temp*temp;
         for(let i=0;i<n;i++){
           fx[i]-=x[i]*0.006; fy[i]-=y[i]*0.006;
+          if(anchor) fy[i]+=(anchor[i]-y[i])*0.09;
           let mx=fx[i], my=fy[i]; const m=Math.hypot(mx,my);
           if(m>cap){ mx*=cap/m; my*=cap/m; }
           x[i]+=mx; y[i]+=my;
