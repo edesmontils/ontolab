@@ -202,6 +202,9 @@ d'accueil « À compléter », compteur de `updateStats`). Panneau : `inhSelect(
 `inhWarn()` (avertissement non bloquant si la surcharge n'est pas une sous-classe de celle du parent). Import : `ontologyFromTriples` laisse
 null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux propriétés **sans parent**. Inverses : `invOK(p,q)` (valeurs effectives).
 
+## Numéro de version
+Constante `VERSION` de `index.html` (affichée près du copyright, écrite dans l'en-tête du Turtle). **À chaque modification de l'application** : incrémenter `VERSION` (MINEUR = fonction nouvelle, CORRECTIF = correction / ajustement, MAJEUR = changement incompatible) **et** ajouter l'entrée correspondante en tête de `CHANGELOG.md`. Documentation et ROADMAP seules : pas de changement de numéro.
+
 ## Annotations, métadonnées, vérification (B1, B2, A5)
 `labels` / `comments` = `[{lang,text}]` facultatifs sur classes et propriétés (`cleanAnnots`) ; `disp(x)` = nom affiché (étiquette fr sinon première, sinon `name`), `tipOf(x)` pour les infobulles ;
 `name` reste le nom local d'IRI (unicité inchangée). Tout nouveau dessin doit utiliser `disp()`, pas `name`. `state.meta` = `{iri,title,description,lang,version,creators[],imports[]}` (`newMeta`/`cleanMeta`),

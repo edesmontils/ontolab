@@ -180,6 +180,10 @@ et le verrouiller avec `lock:true`. Même priorité que le mode : verrou > lien 
 Propriétés parallèles = courbes décalées, domaine = portée = boucle. Une propriété qui n'a qu'une extrémité est une flèche en tirets vers « ? »
 (elle figure aussi dans « À compléter »). En mode Déplacer, glisser la pastille courbe la flèche. Réglages enseignant : `compact:{data,obj}`, `?compact=data,obj`.
 
+### Version
+
+Le numéro de version est affiché à côté du copyright et dans l'en-tête des fichiers Turtle exportés ; l'historique est dans [`CHANGELOG.md`](CHANGELOG.md).
+
 ### Étiquettes, commentaires, métadonnées, vérification
 
 - **Étiquettes et commentaires** (panneau d'une classe ou d'une propriété) : plusieurs `rdfs:label` / `rdfs:comment`, chacun avec sa langue (fr, en…, vide = sans langue).

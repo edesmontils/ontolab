@@ -182,6 +182,8 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <script src="namespaces.js"></script>
 <script>'use strict';
 /* ================= OntoLab — partie 1 : état, opérations, export ================= */
+/* Numéro de version : à faire évoluer à chaque modification (voir CHANGELOG.md : MINOR = fonction nouvelle, PATCH = correctif ou ajustement). */
+const VERSION='1.15.0';
 const SVGNS='http://www.w3.org/2000/svg';
 const LS_KEY='ontolab-v1';
 const C={cls:'#AEDBFC',clsS:'#2C5F9E',obj:'#D9E9A5',objS:'#5B7C29',data:'#F6CECE',dataS:'#8C2E2E',sel:'#E4572E'};
@@ -600,7 +602,7 @@ function toTTL(ns){
   const prefixOf=new Map(state.nsList.map(e=>[e.iri,e.prefix]));
   const N=x=>{ const l=localName(x.name); if(!x.ns||x.ns===ns) return ':'+l; const px=prefixOf.get(x.ns); return px?px+':'+l:'<'+x.ns+l+'>'; };
   const L=[];
-  L.push('# Généré par OntoLab le '+new Date().toISOString().slice(0,10));
+  L.push('# Généré par OntoLab v'+VERSION+' le '+new Date().toISOString().slice(0,10));
   L.push('# Outil pédagogique — cours Web Sémantique');
   if(isRdfs()) L.push('# Mode RDFS : vocabulaire restreint (rdfs:Class, rdf:Property), sans owl:*');
   L.push('@prefix : <'+ns+'> .');
@@ -2522,6 +2524,7 @@ $('#b-more').onclick=()=>showMenu($('#b-more'),[
 svg.addEventListener('dblclick',e=>{ if(e.target===svg||e.target===world) initView(); });
 
 /* ---------- démarrage ---------- */
+$('#copyright').textContent+=' · v'+VERSION;
 loadUI(); applyLegendUI(); load(); trackHistory(); updateHistButtons(); // photographie de départ de l'historique
 if(state.view.x==null) initView();
 render();
