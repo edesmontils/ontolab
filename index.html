@@ -68,6 +68,8 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 #status.show{opacity:1;}
 #status.err{background:#b3261e;}
 #stats{position:fixed;right:14px;bottom:12px;font-size:11.5px;color:#7b8aa5;z-index:5;}
+#copyright{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);font-size:11px;color:#a9b4c8;z-index:5;white-space:nowrap;pointer-events:none;user-select:none;}
+@media (max-width:1000px){ #copyright{left:auto;right:14px;bottom:28px;transform:none;} }
 .ovl{position:fixed;inset:0;background:rgba(20,30,50,.35);z-index:50;display:flex;align-items:center;justify-content:center;}
 .dlg{box-sizing:border-box;background:#fff;border-radius:14px;padding:18px 20px;width:min(440px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.25);}
 .dlg h3{margin:0 0 12px;font-size:15px;color:var(--blueS);}
@@ -155,6 +157,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <input type="file" id="f-ttl" class="hidden-file" tabindex="-1" aria-hidden="true">
 <input type="file" id="f-json" class="hidden-file" accept=".json,application/json" tabindex="-1" aria-hidden="true">
 <div id="stats"></div>
+<div id="copyright">© 2026 Emmanuel Desmontils — Nantes Université</div>
 <script src="namespaces.js"></script>
 <script>'use strict';
 /* ================= OntoLab — partie 1 : état, opérations, export ================= */
