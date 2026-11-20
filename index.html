@@ -2172,6 +2172,36 @@ function inhWarnList(kind,p){
   return out;
 }
 function inhWarn(kind,p){ const out=inhWarnList(kind,p); return out.length?'<p class="hint warn">'+out.map(esc).join('<br>')+'</p>':''; }
+/* Mode compact : attributs (propriétés de donnée) d'une classe dans son panneau, éditables sur place ; ceux des classes ancêtres en gris. */
+function attrsBlock(c){
+  const own=state.dataProps.filter(p=>dDom(p)===c.id);
+  let h='<div class="attrs"><div class="attrs-h"><b>Attributs</b> (propriétés de donnée)</div>';
+  h+=own.length?own.map(p=>'<div class="attr'+(ui.hiAttr===p.id?' hi':'')+'" data-aid="'+p.id+'">'
+      +'<input class="a-name" value="'+esc(p.name)+'" spellcheck="false" aria-label="Nom de l\'attribut">'
+      +'<select class="a-type" aria-label="Type XSD">'+XSD.map(t=>'<option value="'+t+'"'+(t===p.type?' selected':'')+'>'+t+'</option>').join('')+'</select>'
+      +'<button class="btn a-del" title="Supprimer l\'attribut" aria-label="Supprimer l\'attribut">✕</button>'
+      +'<button class="btn a-det" title="Domaine, propriétés parentes, espace de noms">Détails</button></div>').join('')
+    :'<p class="hint" style="margin:0 0 6px">Aucun attribut propre.</p>';
+  h+='<button class="btn" id="pf-addattr">+ attribut</button>';
+  const seen=new Set(), stack=[...parentsOf(c)], anc=[];
+  while(stack.length){ const id=stack.shift(); if(seen.has(id)) continue; seen.add(id); const a=classById(id); if(!a) continue; anc.push(a); stack.push(...parentsOf(a)); }
+  anc.forEach(a=>{ const l=state.dataProps.filter(p=>dDom(p)===a.id); if(!l.length) return;
+    h+='<button class="btn a-inh" data-cid="'+a.id+'" title="Aller à la classe « '+esc(a.name)+' »">hérités de « '+esc(a.name)+' »</button>'
+      +'<div class="attr-inh">'+l.map(p=>esc(p.name)+' : '+esc(p.type.replace('xsd:',''))).join('<br>')+'</div>'; });
+  return h+'</div>';
+}
+function wireAttrs(c){
+  const pan=$('#panel');
+  pan.querySelectorAll('.attr').forEach(r=>{
+    const id=+r.dataset.aid, p=dataById(id); if(!p) return;
+    r.querySelector('.a-name').onchange=e=>{ ui.hiAttr=id; if(!setCommonName('data',id,e.target.value)) e.target.value=p.name; };
+    r.querySelector('.a-type').onchange=e=>{ p.type=e.target.value; ui.hiAttr=id; save(); render(); };
+    r.querySelector('.a-del').onclick=()=>deleteProp('data',id);
+    r.querySelector('.a-det').onclick=()=>{ state.sel={kind:'data',id}; save(); render(); };
+  });
+  pan.querySelectorAll('.a-inh').forEach(b=>b.onclick=()=>{ ui.hiAttr=null; state.sel={kind:'class',id:+b.dataset.cid}; save(); render(); });
+  $('#pf-addattr').onclick=()=>newDataProp(c.id);
+}
 /* Étiquettes (rdfs:label) et commentaires (rdfs:comment) d'un élément, plusieurs par langue possibles (B1). */
 function annotBlock(x){
   const sec=(key,title,area)=>'<div class="annot-h">'+title+'</div>'
