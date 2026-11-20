@@ -148,6 +148,12 @@ vérifiez une IRI sur <https://prefix.cc> avant de l'ajouter. Une ligne erronée
 l'éditeur d'espaces de noms ; si le fichier manque, OntoLab retombe sur sa liste intégrée (rien ne casse hors ligne).
 Pour publier : modifier, commiter, `./deploy.sh`.
 
+**Racine d'IRI pour les ontologies des étudiants** : `ONTOLAB_ROOTS`, en bas de `namespaces.js`, donne une ou plusieurs
+racines (ex. `http://www.univ-nantes.fr/ns/`). Dans **⋯ › Espaces de noms…**, l'étudiant choisit la racine et saisit le
+**nom** de son ontologie : `http://www.univ-nantes.fr/ns/mon-onto#` (nom : lettres, chiffres, `- _ . ~`). « Autre » laisse
+une IRI libre, comme sans racine. La première racine sert d'espace de départ (nom `mon-ontologie`) à un nouvel utilisateur ;
+un état déjà enregistré dans le navigateur n'est pas modifié.
+
 **Première installation sur le Pi** (ou si Caddy ne sert pas `namespaces.js`) : `./install-pi.sh` (ou
 `./install-pi.sh --check` pour seulement voir l'état). Il vérifie le clone git et ajoute `/namespaces.js` aux
 fichiers servis par Caddy, avec sauvegarde du Caddyfile, validation et retour arrière si la configuration est refusée.

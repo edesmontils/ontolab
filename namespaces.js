@@ -11,6 +11,8 @@
  *   - group  : titre du groupe dans les listes (facultatif, « Espaces courants » par défaut). Les groupes
  *              s'affichent dans l'ordre de leur première apparition ici.
  *
+ * Racine d'IRI pour les ontologies des étudiants : voir ONTOLAB_ROOTS en bas de ce fichier.
+ *
  * Vérifier une IRI avant de l'ajouter : https://prefix.cc (donne l'IRI usuelle d'un préfixe).
  * Une entrée invalide est ignorée sans bloquer les autres ; l'éditeur d'espaces de noms indique laquelle.
  * Si ce fichier est absent, illisible ou ne contient aucune entrée valide, OntoLab utilise sa liste intégrée.
@@ -43,4 +45,15 @@ window.ONTOLAB_NAMESPACES=[
   /* ---- Exemple : espaces propres au cours (décommenter / adapter, sans oublier la virgule à la ligne précédente) ----
   ,{prefix:'cours', iri:'http://example.org/cours#', label:'Espace de noms du cours', group:'Cours'}
   */
+];
+
+/* ---- Racine(s) d'IRI proposée(s) aux étudiants pour leur propre ontologie ----
+ * L'étudiant choisit la racine dans ⋯ › Espaces de noms… et donne un nom à son ontologie : avec la racine ci-dessous,
+ * http://www.univ-nantes.fr/ns/mon-onto#  (racine + nom + « # »). La première racine sert aussi d'espace de noms de départ
+ * (nom « mon-ontologie ») pour un nouvel utilisateur. L'étudiant peut toujours choisir « Autre » et saisir une IRI libre.
+ * Une racine finit par « / » (ajouté si besoin). Plusieurs racines possibles (cours, projets…) ; sans ligne : pas de racine.
+ * Forme : une chaîne, ou un tableau de chaînes / de {iri, label}.
+ */
+window.ONTOLAB_ROOTS=[
+  {iri:'http://www.univ-nantes.fr/ns/', label:'Université de Nantes'}
 ];

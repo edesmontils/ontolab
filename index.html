@@ -51,6 +51,11 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 .nsrow{display:grid;grid-template-columns:130px 1fr 34px;gap:6px;align-items:center;margin:0 0 6px;}
 .nsrow input,.nsrow select{width:100%;box-sizing:border-box;border:1px solid #c9d4e6;border-radius:7px;padding:6px 8px;font-size:13px;color:#1c2333;min-width:0;}
 .nsrow .nsp{font-size:12.5px;color:#516079;}
+.nsdef{display:flex;gap:6px;align-items:center;min-width:0;}
+.nsdef select{flex:0 1 52%;}
+.nsdef input{flex:1 1 0;}
+.nsdef .nshash{font-family:ui-monospace,Menlo,monospace;color:#516079;}
+@media (max-width:600px){ .nsdef{flex-wrap:wrap;} .nsdef select{flex:1 1 100%;} .nsdef input{min-width:60%;} }
 .nsrow .btn{padding:4px 0;}
 .nsadd{grid-template-columns:auto 1fr 0;}
 .nsuse{margin:-3px 0 6px 136px;font-size:11.5px;color:#7b8aa5;}
@@ -158,7 +163,27 @@ const LS_KEY='ontolab-v1';
 const C={cls:'#AEDBFC',clsS:'#2C5F9E',obj:'#D9E9A5',objS:'#5B7C29',data:'#F6CECE',dataS:'#8C2E2E',sel:'#E4572E'};
 const XSD=['xsd:string','xsd:integer','xsd:double','xsd:decimal','xsd:boolean','xsd:date','xsd:dateTime','xsd:time','xsd:anyURI'];
 
-let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:'http://example.org/onto#',nsList:[],sel:null,mode:'class',view:{x:null,y:null,k:1}};
+/* Racines d'IRI proposées par l'enseignant (namespaces.js : window.ONTOLAB_ROOTS = chaîne | [chaîne | {iri,label}]).
+   L'élève choisit une racine et donne un nom à son ontologie : racine + nom + « # ». Invalides : ignorées (NS_ROOTS_PROBLEMS). */
+const NS_ROOTS_PROBLEMS=[], ONTO_SLUG_DEFAULT='mon-ontologie';
+const NS_ROOTS=(function(){
+  let raw=window.ONTOLAB_ROOTS; if(raw===undefined) return [];
+  if(!Array.isArray(raw)) raw=[raw];
+  const out=[];
+  raw.forEach((r,i)=>{
+    const iri0=typeof r==='string'?r:(r&&r.iri), label=(r&&typeof r==='object'&&r.label)?String(r.label):'';
+    const where='namespaces.js, racine '+(i+1)+' : ';
+    if(typeof iri0!=='string'||!iri0.trim()){ NS_ROOTS_PROBLEMS.push(where+'IRI attendue'); return; }
+    let v=iri0.trim(); if(/#$/.test(v)){ NS_ROOTS_PROBLEMS.push(where+'une racine finit par « / », pas par « # »'); return; }
+    if(!/\/$/.test(v)) v+='/';
+    const c=validateNs(v); if(c.err){ NS_ROOTS_PROBLEMS.push(where+c.err); return; }
+    if(out.some(o=>o.iri===c.iri)){ NS_ROOTS_PROBLEMS.push(where+'racine en double'); return; }
+    out.push({iri:c.iri,label});
+  });
+  return out;
+})();
+const defaultNs=()=>NS_ROOTS.length?NS_ROOTS[0].iri+ONTO_SLUG_DEFAULT+'#':'http://example.org/onto#';
+let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:defaultNs(),nsList:[],sel:null,mode:'class',view:{x:null,y:null,k:1}};
 
 /* ---------- historique (annuler / rétablir) ----------
    Chaque save() compare les données (classes, propriétés, nextId : ni la vue, ni la sélection, ni le mode) à la dernière
@@ -206,7 +231,7 @@ function sanitizeState(s){
   out.classes=arr(s.classes); out.objProps=arr(s.objProps); out.dataProps=arr(s.dataProps);
   const ids=[...out.classes,...out.objProps,...out.dataProps].map(x=>+x.id||0);
   out.nextId=Math.max(+s.nextId||1,Math.max(0,...ids)+1);
-  out.ns=typeof s.ns==='string'&&s.ns?s.ns:'http://example.org/onto#';
+  out.ns=typeof s.ns==='string'&&s.ns?s.ns:defaultNs();
   if(!['class','obj','data','move'].includes(out.mode)) out.mode='class';
   out.view=(s.view&&isFinite(s.view.x)&&isFinite(s.view.y)&&isFinite(s.view.k))?s.view:{x:null,y:null,k:1};
   // ids toujours numériques (répare les états enregistrés avec des ids en chaînes)
@@ -1769,7 +1794,11 @@ function nsBlock(kind,x){
 function nsUsage(iri){ return [...state.classes,...state.objProps,...state.dataProps].filter(x=>x.ns===iri).length; }
 function openNamespaceEditor(){
   const rows=state.nsList.map(e=>({prefix:e.prefix,iri:e.iri,orig:e.iri}));
-  const def={iri:state.ns};
+  const def={iri:state.ns,root:null,slug:ONTO_SLUG_DEFAULT};
+  for(const r of NS_ROOTS){ // l'espace actuel = racine + nom + « # » ? alors mode « racine »
+    if(def.iri.startsWith(r.iri)){ const rest=def.iri.slice(r.iri.length); if(/^[A-Za-z0-9_.~-]+#$/.test(rest)){ def.root=r.iri; def.slug=rest.slice(0,-1); break; } }
+  }
+  const SLUG_RE=/^[A-Za-z0-9_.~-]+$/;
   const ov=document.createElement('div'); ov.className='ovl';
   const box=document.createElement('div'); box.className='dlg'; box.style.width='min(680px,94vw)'; box.style.maxHeight='88vh'; box.style.overflow='auto';
   ov.appendChild(box);
@@ -1779,17 +1808,31 @@ function openNamespaceEditor(){
   const draw=()=>{
     box.innerHTML='<h3>Espaces de noms</h3>'
       +'<p class="dlg-msg">L\'IRI d\'un élément = espace de noms + nom. Le premier est celui de l\'ontologie (préfixe « : » dans le Turtle). Les autres s\'écrivent avec leur préfixe et se choisissent dans le panneau de chaque élément.</p>'
-      +'<div class="nsrow"><span class="nsp">: (ontologie)</span><input id="ns-def" spellcheck="false" autocapitalize="off" autocorrect="off" value="'+esc(def.iri)+'"><span></span></div>'
+      +(NS_ROOTS.length?'<p class="dlg-msg">Racine d\'IRI proposée pour votre ontologie : choisissez-la, puis donnez un <b>nom</b> à votre ontologie (lettres, chiffres, - _ . ~). « Autre » permet une IRI libre.</p>':'')
+      +'<div class="nsrow"><span class="nsp">: (ontologie)</span>'
+      +(NS_ROOTS.length
+        ?'<div class="nsdef"><select id="ns-root">'+NS_ROOTS.map(r=>'<option value="'+esc(r.iri)+'"'+(def.root===r.iri?' selected':'')+'>'+esc(r.label||r.iri)+'</option>').join('')
+          +'<option value=""'+(def.root?'':' selected')+'>Autre (IRI libre)</option></select>'
+          +(def.root?'<input id="ns-slug" placeholder="'+ONTO_SLUG_DEFAULT+'" spellcheck="false" autocapitalize="off" autocorrect="off" value="'+esc(def.slug)+'"><span class="nshash">#</span>'
+                    :'<input id="ns-def" spellcheck="false" autocapitalize="off" autocorrect="off" value="'+esc(def.iri)+'">')+'</div>'
+        :'<input id="ns-def" spellcheck="false" autocapitalize="off" autocorrect="off" value="'+esc(def.iri)+'">')
+      +'<span></span></div>'
+      +(def.root?'<div class="nsuse" id="ns-full">IRI de l\'ontologie : <code>'+esc(def.root+def.slug+'#')+'</code></div>':'')
       +rows.map((r,i)=>'<div class="nsrow"><input class="ns-p" data-i="'+i+'" placeholder="préfixe" spellcheck="false" autocapitalize="off" autocorrect="off" value="'+esc(r.prefix)+'"><input class="ns-i" data-i="'+i+'" placeholder="http://…#" spellcheck="false" autocapitalize="off" autocorrect="off" value="'+esc(r.iri)+'"><button class="btn ns-x" data-i="'+i+'" title="Retirer" aria-label="Retirer">✕</button></div>'
          +(r.orig&&nsUsage(r.orig)?'<div class="nsuse">utilisé par '+nsUsage(r.orig)+' élément(s)</div>':'')).join('')
       +'<div class="nsrow nsadd"><button class="btn" id="ns-add">+ Ajouter</button>'
       +'<select id="ns-freq"><option value="">Ajouter un espace courant…</option>'
         +nsCatalogueOptions(FREQUENT_NS.filter(f=>!rows.some(r=>r.iri===f.iri)&&f.iri!==def.iri),'')+'</select><span></span></div>'
       +'<div class="hint nscat">Catalogue : '+(NS_CATALOGUE.source==='intégré'?'liste intégrée':'<code>'+NS_CATALOGUE.source+'</code> ('+FREQUENT_NS.length+' espaces)')+'.'
-        +(NS_CATALOGUE.problems.length?'<br><span class="nserr">'+NS_CATALOGUE.problems.map(esc).join('<br>')+'</span>':'')+'</div>'
+        +(NS_CATALOGUE.problems.length+NS_ROOTS_PROBLEMS.length?'<br><span class="nserr">'+NS_CATALOGUE.problems.concat(NS_ROOTS_PROBLEMS).map(esc).join('<br>')+'</span>':'')+'</div>'
       +'<div id="ns-err" class="nserr"></div>'
       +'<div class="dlg-btns"><button class="btn" id="ns-cancel">Annuler</button><button class="btn primary" id="ns-ok">OK</button></div>';
-    box.querySelector('#ns-def').oninput=e=>{ def.iri=e.target.value; };
+    const dEl=box.querySelector('#ns-def'); if(dEl) dEl.oninput=e=>{ def.iri=e.target.value; };
+    const sEl=box.querySelector('#ns-slug'); if(sEl) sEl.oninput=e=>{ def.slug=e.target.value; def.iri=def.root+def.slug+'#'; box.querySelector('#ns-full').innerHTML='IRI de l\'ontologie : <code>'+esc(def.iri)+'</code>'; };
+    const rEl=box.querySelector('#ns-root'); if(rEl) rEl.onchange=e=>{
+      if(e.target.value){ def.root=e.target.value; def.slug=SLUG_RE.test(def.slug)?def.slug:ONTO_SLUG_DEFAULT; def.iri=def.root+def.slug+'#'; }
+      else def.root=null; // IRI libre : on garde l'IRI actuelle comme point de départ
+      draw(); };
     box.querySelectorAll('.ns-p').forEach(n=>n.oninput=e=>{ rows[+n.dataset.i].prefix=e.target.value; });
     box.querySelectorAll('.ns-i').forEach(n=>n.oninput=e=>{ rows[+n.dataset.i].iri=e.target.value; });
     box.querySelectorAll('.ns-x').forEach(b=>b.onclick=()=>{ rows.splice(+b.dataset.i,1); draw(); });
@@ -1804,6 +1847,7 @@ function openNamespaceEditor(){
   };
   const fail=m=>{ const e=box.querySelector('#ns-err'); e.textContent=m; };
   const apply=()=>{
+    if(def.root&&!SLUG_RE.test(def.slug)){ fail('Nom de l\'ontologie « '+def.slug+' » invalide : lettres, chiffres, - _ . ~ uniquement, sans espace.'); return; }
     const d=validateNs(def.iri); if(d.err){ fail('Espace de noms de l\'ontologie : '+d.err+'.'); return; }
     const seenP=new Set(RESERVED_PREFIXES), seenI=new Set([d.iri]), out=[];
     for(const r of rows){

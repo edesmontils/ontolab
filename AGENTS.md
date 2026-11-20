@@ -183,7 +183,10 @@ d'espace de noms dans la fenêtre d'export. **Catalogue** : `FREQUENT_NS=loadNsC
 (chargé par `<script src="namespaces.js">` avant le script principal : un `.js` et non un `.json`, car `fetch` est bloqué en
 `file://`). Entrée `{prefix,iri,label,group?}` ; entrées invalides ignorées et listées dans `NS_CATALOGUE.problems` (affichées
 dans l'éditeur) ; fichier absent / sans entrée valide : repli sur `BUILTIN_NS` (liste intégrée, à garder alignée avec
-`namespaces.js` si on la modifie). `nsCatalogueOptions()` produit les `<optgroup>` par `group`. C'est l'enseignant qui
+`namespaces.js` si on la modifie). `nsCatalogueOptions()` produit les `<optgroup>` par `group`. **Racines** : `NS_ROOTS` (lue avant `state`, depuis `window.ONTOLAB_ROOTS` : chaîne | tableau de chaînes ou `{iri,label}` ; erreurs dans
+`NS_ROOTS_PROBLEMS`) ; `defaultNs()` = première racine + `mon-ontologie#` (sinon `example.org`), utilisé pour l'état initial et par
+`sanitizeState`. Éditeur : si `state.ns` = racine + nom + `#` → mode « racine » (`#ns-root`, `#ns-slug`, `SLUG_RE`), sinon IRI
+libre (`#ns-def`) ; l'option « Autre » bascule. C'est l'enseignant qui
 édite `namespaces.js` : ne pas y mettre de logique. Côté Pi, Caddy ne sert que `/`, `/index.html` et `/namespaces.js`
 (matcher `@page`) ; `install-pi.sh` (idempotent, `--check`) vérifie/corrige cela. Tout nouveau fichier à servir doit être
 ajouté à ce matcher **et** à `install-pi.sh`.
