@@ -209,6 +209,22 @@ Sur le graphe : bordure en tirets (fonctionnelle, objet ou donnée), en points (
 (A, R, I = asymétrique, réflexive, irréflexive) ; en mode normal, l'infobulle les liste. « Vérifier l'ontologie » signale les combinaisons contradictoires (asymétrique + symétrique, réflexive + irréflexive, réflexive + asymétrique)
 et celles que OWL 2 DL interdit (transitive avec asymétrique, irréflexive ou fonctionnelle). Masquées et non exportées en mode RDFS.
 
+### Classes anonymes (mode OWL)
+
+Section **Classes anonymes** du panneau d'une classe : on définit la classe par une expression (**≡ équivalente à** : classe définie, condition nécessaire et suffisante) ou on la place **⊑ sous** une expression. La saisie suit la syntaxe de Manchester (celle de Protégé) :
+
+| Écriture | Sens |
+|---|---|
+| `A and B`, `A or B`, `not A` | intersection, union, complément (`and` lie plus fort que `or` ; parenthèses pour imbriquer) |
+| `p some C`, `p only C` | restriction existentielle / universelle (`C` peut être une expression entre parenthèses) |
+| `p min 2 C`, `p max 1`, `p exactly 3 C` | cardinalités (classe visée facultative) |
+| `age some integer`, `Thing`, `Literal` | types de données, `owl:Thing`, `rdfs:Literal` |
+
+Les noms de classes et de propriétés sont vérifiés (casse et accents tolérés, suggestion en cas de faute) ; un nom contenant un espace se met entre apostrophes. Les erreurs sont expliquées sous le champ.
+Sur le graphe, une expression **simple** (union, intersection de classes nommées, complément d'une classe) devient un nœud **∩ / ∪ / ¬** relié à la classe (trait plein = équivalente, flèche creuse = sous-classe) et à ses opérandes (pointillés) ;
+les expressions imbriquées ou avec restrictions se lisent dans le panneau et l'infobulle. Une restriction simple saisie comme « sous-classe de » est rangée dans **Restrictions**. `owl:oneOf` attend les individus (D1) ; `owl:hasValue` aussi.
+Export : `owl:equivalentClass [ a owl:Class ; owl:intersectionOf ( … ) ]` ; l'import relit les expressions imbriquées et signale ce qu'il ne reprend pas. Masquées et non exportées en mode RDFS.
+
 ### Version
 
 Le numéro de version est affiché à côté du copyright et dans l'en-tête des fichiers Turtle exportés ; l'historique est dans [`CHANGELOG.md`](CHANGELOG.md).

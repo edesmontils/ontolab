@@ -210,6 +210,12 @@ d'accueil « À compléter », compteur de `updateStats`). Panneau : `inhSelect(
 `inhWarn()` (avertissement non bloquant si la surcharge n'est pas une sous-classe de celle du parent). Import : `ontologyFromTriples` laisse
 null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux propriétés **sans parent**. Inverses : `invOK(p,q)` (valeurs effectives).
 
+## Classes anonymes (C5)
+`classe.defs=[{kind:'equiv'|'sub', expr}]`, arbre `expr` : `{t:'class',id}` · `{t:'and'|'or',args}` · `{t:'not',arg}` · `{t:'rst',kind,prop,n?,filler:expr|null}` · `{t:'dt',v}` ; validé par `cleanExpr`/`cleanDefs` (sanitize et suppressions : référence disparue ⇒ définition retirée).
+`parseClassExpr(texte)` (syntaxe de Manchester, descente récursive, erreurs en français avec position) et `exprToText(expr)` (formatage canonique, parenthèses minimales) sont les deux sens du même langage : **tout changement de syntaxe se fait aux deux endroits et dans `tests/anonymous.test.js`**.
+`setDefinition` est l'unique point d'entrée de l'éditeur (une restriction simple en « sub » est redirigée vers C4). Export : fonction `X` dans `toTTL` ; import : `exprOf`/`rstExprOf` (profondeur ≤ 10 ; `oneOf`, `hasValue` ⇒ compté dans « expression(s) de classe non reprise(s) »).
+Dessin : `drawClassDefs` (seulement `flatOperands(expr)` non nul) ; la mise en page et sa clé de cache tiennent compte de `flatOperands`.
+
 ## Caractéristiques OWL (A4)
 Nouvelle caractéristique ⇒ l'ajouter à `OWL_FLAGS` (compte, `owlList`, statistiques), au dialogue de création et au panneau (cases masquées en RDFS), à `toTTL` (OWL seulement), à `ontologyFromTriples` (type reconnu **et** retiré des « axiomes non représentables »),
 au dessin (infobulle, pastille, bordure), à la légende et à `checkOntology`. Pour une propriété de donnée seule `functional` existe ; `transitive`/`symmetric`… sur une donnée sont signalées à l'import.

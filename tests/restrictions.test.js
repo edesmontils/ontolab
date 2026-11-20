@@ -68,8 +68,10 @@ test('import : restrictions non reprises signalées (hasValue, propriété incon
     :B a owl:Class ; owl:equivalentClass [ a owl:Restriction ; owl:onProperty :p ; owl:someValuesFrom :A ] .
     :p a owl:ObjectProperty ; rdfs:domain :A ; rdfs:range :A .`);
   assert.equal(t.run('state.classes.find(c=>c.name==="A").restrictions.length'), 1);
-  assert.ok(notes.some(n => /3 restriction\(s\) OWL non reprise/.test(n)), notes.join('|'));
-  assert.ok(notes.some(n => /1 super-classe\(s\) anonyme/.test(n)));
+  assert.ok(notes.some(n => /2 expression\(s\) de classe non reprise/.test(n)), notes.join('|'));  // hasValue et propriété inconnue
+  // l'union anonyme et la classe définie par une restriction sont désormais reprises (C5)
+  assert.deepEqual(t.run('state.classes.find(c=>c.name==="A").defs.map(d=>d.kind+":"+exprToText(d.expr))'), ['sub:A or B']);
+  assert.deepEqual(t.run('state.classes.find(c=>c.name==="B").defs.map(d=>d.kind+":"+exprToText(d.expr))'), ['equiv:p some A']);
 });
 
 test('import : cardinalités qualifiées sur donnée, doublons éliminés', () => {

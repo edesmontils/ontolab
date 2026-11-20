@@ -11,10 +11,10 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 
 Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
 
-### État au 2026-11-20 (v1.18.0, 92 tests)
-- **Fait** : A1–A6 ; B1, B2 ; C1, C2, C4 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
-- **Reste** : C3, C5 ; D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
-- **Ordre conseillé pour la suite** : C5 (classes anonymes, qui prolonge C4 : classes définies, unions) ; performances sur grands graphes (mesures en « Dette connue », reporté
+### État au 2026-11-20 (v1.19.0, 108 tests)
+- **Fait** : A1–A6 ; B1, B2 ; C1, C2, C4, C5 (sauf `oneOf`) ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
+- **Reste** : C3 (domaines / portées multiples, expressions comme domaine) ; D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
+- **Ordre conseillé pour la suite** : C3 (qui s'appuie sur C5) ; D1 (individus, qui débloque `oneOf` et `hasValue`) ; performances sur grands graphes (mesures en « Dette connue », reporté
   « plus tard » le 2026-11-20) ; A4 (court) quand on touche aux caractéristiques OWL. Retours iPad : aucun problème signalé pour l'instant.
 
 ---
@@ -122,7 +122,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
   sans oublier la lecture à l'import (les blank nodes sont déjà parsés, cf. `parseTurtle`).
 - **Pédagogie** : c'est ce qui fait la puissance d'OWL face à RDFS — à privilégier pour le cours.
 
-### C5. Classes anonymes : `unionOf`, `intersectionOf`, `complementOf`, `oneOf` — L
+### C5. Classes anonymes : `unionOf`, `intersectionOf`, `complementOf`, `oneOf` — L — **fait** (v1.19.0, 2026-11-20) sauf `oneOf` (attend D1) et l'usage comme domaine / portée (C3) ; saisie à la Manchester, nœuds ∩ ∪ ¬ pour les expressions simples
 - Expressions de classes imbriquées ; nécessite un petit éditeur d'expressions et un rendu VOWL
   (nœuds « union », « intersection » reliés à leurs opérandes).
 - **Impact** : le modèle `parents` / `domain` / `range` devra accepter une expression au lieu d'un

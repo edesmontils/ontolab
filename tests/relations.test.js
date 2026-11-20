@@ -79,7 +79,7 @@ test('import : owl:AllDisjointClasses, relation déclarée d\'un seul côté, ci
      [ a owl:AllDisjointClasses ; owl:members ( :A :B :C ) ] .`);
   assert.deepEqual(rel(t, 'class', 'A', 'disjoint'), ['B', 'C']); assert.deepEqual(rel(t, 'class', 'B', 'disjoint'), ['A', 'C']);
   assert.deepEqual(rel(t, 'class', 'A', 'equivalent'), ['D'], 'symétrisée');
-  assert.ok(notes.some(n => /inconnu/.test(n))); assert.ok(notes.some(n => /expression anonyme/.test(n)));
+  assert.ok(notes.some(n => /inconnu/.test(n))); assert.ok(notes.some(n => /1 expression\(s\) de classe non reprise/.test(n)), notes.join('|'));
   assert.ok(!notes.some(n => /non représentables/.test(n)), 'disjointWith / equivalentClass ne sont plus « non représentables »');
 });
 

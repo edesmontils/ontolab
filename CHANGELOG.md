@@ -5,6 +5,12 @@ Numéro **MAJEUR.MINEUR.CORRECTIF**, affiché à côté du copyright (constante 
 - À chaque modification de l'application : incrémenter `VERSION` **et** ajouter une entrée ici (en tête). Les commits qui ne touchent que la documentation ou la ROADMAP ne changent pas le numéro.
 - Les entrées jusqu'à 1.14.1 ont été attribuées après coup d'après l'historique git (le numéro n'était pas encore affiché).
 
+## 1.19.0 — 2026-11-20
+- C5 : classes anonymes (owl:intersectionOf, unionOf, complementOf, restrictions à classe visée complexe) : section « Classes anonymes » du panneau avec saisie en syntaxe de Manchester
+  (`Personne and (aEnfant some Personne)`), analyse en direct et erreurs expliquées ; définition d'une classe (≡ équivalente à) ou sous-classe de (⊑) une expression ; nœuds ∩ ∪ ¬ sur le graphe pour les expressions simples ;
+  export `owl:equivalentClass [ … ]` / `rdfs:subClassOf [ … ]`, import (y compris imbriqué ; `owl:oneOf` signalé, en attente de D1), vérification A5 (définition circulaire). Masquées en mode RDFS.
+- Une restriction simple saisie comme « sous-classe de » est rangée dans les restrictions (C4).
+
 ## 1.18.0 — 2026-11-20
 - A4 : propriétés objet asymétrique / réflexive / irréflexive (`owl:AsymmetricProperty`, `ReflexiveProperty`, `IrreflexiveProperty`) et propriété de donnée fonctionnelle (`owl:FunctionalProperty`) :
   cases du panneau et des dialogues de création, export, import, pastilles A / R / I en mode compact, bordure en tirets pour une donnée fonctionnelle, vérification A5 (contradictions, restriction OWL 2 DL). Masqué en mode RDFS.
