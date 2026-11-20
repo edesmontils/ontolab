@@ -140,6 +140,22 @@ L'IRI d'une classe ou d'une propriété = **espace de noms + nom**.
 - Annuler / rétablir couvre aussi les espaces de noms ; « Charger l'exemple » et « Vider » remettent la
   liste à zéro (l'espace par défaut est conservé).
 
+## Préférences : mode OWL / RDFS
+
+**⋯ › Préférences…** choisit le vocabulaire proposé.
+- **OWL** (par défaut) : tout est disponible (transitive, symétrique, fonctionnelle, fonctionnelle inverse, propriété inverse).
+- **RDFS** : ces éléments OWL sont masqués (panneau, création de propriété, légende, marques sur le graphe) et l'**export Turtle est du
+  RDFS pur** : `rdfs:Class` et `rdf:Property`, sans `owl:Ontology` ni aucun `owl:*`. RDFS ne distingue pas propriété objet et propriété de
+  donnée : à l'import, un type `xsd:` en portée donne une propriété de donnée, une classe une propriété objet, **l'absence de portée une
+  propriété objet**.
+- Les caractéristiques OWL déjà saisies **restent dans l'ontologie** (JSON, historique) : le panneau de la propriété les rappelle
+  (« caractéristiques OWL masquées : transitive… »), la fenêtre d'export en indique le nombre, et repasser en OWL les retrouve.
+  « Charger l'exemple » en mode RDFS charge l'exemple sans caractéristiques OWL.
+- L'**import** ne dépend pas du mode (il lit `owl:Class` comme `rdfs:Class`, `owl:ObjectProperty` comme `rdf:Property`).
+- Le mode est enregistré dans le navigateur (hors historique annuler/rétablir). L'enseignant peut le piloter : lien `…/ontolab/?mode=rdfs`
+  (ne remplace pas durablement le choix enregistré), ou défaut / réglage imposé `ONTOLAB_DEFAULTS` dans `namespaces.js`
+  (`lock:true` : l'étudiant ne peut plus le changer). Priorité : réglage imposé > lien > choix enregistré > défaut > OWL.
+
 ### Catalogue des espaces courants (pour l'enseignant)
 
 La liste des espaces courants se maintient dans **`namespaces.js`**, à côté de `index.html` : une ligne par espace

@@ -178,7 +178,10 @@ Demande de l'enseignant : un petit **panneau de préférences** (menu ⋯ › «
 réglages **indépendants** (RDFS/OWL × normal/compact, pas un « niveau » unique : on peut vouloir du compact en OWL ou du
 normal en RDFS). Analyse faite le 2026-11-20 ; rien n'est implanté.
 
-**Panneau de préférences (socle commun à G1 et G2)**
+**Panneau de préférences (socle commun à G1 et G2)** — *fait pour le mode RDFS/OWL* : dialogue ⋯ › Préférences…, enregistrement,
+`ONTOLAB_DEFAULTS` (mode, lock) et lien `?mode=`. Écart avec ce qui est écrit ci-dessous : l'entrée « Panneau d'édition » (✓) du menu ⋯ et la
+pastille de légende n'ont **pas** été déplacées dans le dialogue (accès rapide conservé) ; le réglage « compact » reste à ajouter (G2). Priorité
+retenue : réglage imposé > lien > choix enregistré > défaut.
 - Une entrée « Préférences… » dans ⋯, ouvrant une boîte de dialogue du style de l'éditeur d'espaces de noms. On y **déplace**
   (sans dupliquer) ce qui est aujourd'hui dispersé : panneau d'édition (✓ dans ⋯), légende.
 - **Persistance** dans `ontolab-ui` (préférences d'affichage), **hors** de l'état de l'ontologie et donc hors historique
@@ -188,7 +191,7 @@ normal en RDFS). Analyse faite le 2026-11-20 ; rien n'est implanté.
 - **Paramètres d'URL** `?mode=rdfs&compact=1` : un lien par séance, sans rien éditer (pratique sur iPad). Priorité à décider
   (URL > préférence enregistrée > défauts de `namespaces.js` ?).
 
-### G1. Mode RDFS / OWL — S/M
+### G1. Mode RDFS / OWL — S/M — **fait** (2026-11-20) ; voir README « Préférences » et AGENTS « Préférences et mode OWL / RDFS »
 - **Pourquoi** : introduire RDFS seul (classes, sous-classes, domaine/portée, sous-propriétés), puis débloquer OWL à la séance
   suivante. Aujourd'hui l'étudiant voit tout d'un coup.
 - **Ce que le mode RDFS masquerait** : transitive, symétrique, fonctionnelle, fonctionnelle inverse, propriété inverse

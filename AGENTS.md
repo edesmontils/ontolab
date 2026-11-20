@@ -191,6 +191,18 @@ libre (`#ns-def`) ; l'option « Autre » bascule. C'est l'enseignant qui
 (matcher `@page`) ; `install-pi.sh` (idempotent, `--check`) vérifie/corrige cela. Tout nouveau fichier à servir doit être
 ajouté à ce matcher **et** à `install-pi.sh`.
 
+## Préférences et mode OWL / RDFS
+
+`ui.mode` ('owl' | 'rdfs'), `ui.modeSaved` (seul le choix explicite du dialogue `openPrefs()` est enregistré, dans `ontolab-ui`),
+`ui.lock`. Calcul dans `loadUI()` : lock > `?mode=` > modeSaved > `ONTOLAB_DEFAULTS.mode` (namespaces.js) > 'owl'. Helpers : `isRdfs()`,
+`owlOn(p,k)` (caractéristique « visible » : à utiliser pour tout dessin / comptage), `owlList(p)` (caractéristiques portées, pour
+l'indicateur du panneau), `OWL_FLAGS`. **Le modèle de données ne dépend jamais du mode** : les drapeaux OWL restent dans `objProps`
+(JSON, historique) ; seuls l'affichage (panneau, dialogue de création, légende `.owl-only`, `exportLegend`, `drawObjArcs`, `dashOf`,
+`updateStats`) et `toTTL` (RDFS pur : `rdfs:Class`, `rdf:Property`, pas de `owl:Ontology` ni de `@prefix owl`) en tiennent compte.
+`loadExample` omet les caractéristiques en RDFS. Import : inchangé, indépendant du mode (`ontologyFromTriples` lit déjà
+`rdfs:Class`/`rdf:Property` et classe par la portée ; sans portée = propriété objet). Toute nouvelle caractéristique OWL (A4) doit passer
+par `owlOn`/`OWL_FLAGS`/`owlList` et être omise de `toTTL` en mode RDFS. Les préférences compactes (G2) viendront dans le même dialogue.
+
 ## Historique, préférences d'affichage, export image
 
 - **Historique (annuler/rétablir)** : intégré à `save()` — `trackHistory()` compare `snapOf()`

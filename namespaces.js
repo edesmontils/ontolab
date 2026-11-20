@@ -57,3 +57,11 @@ window.ONTOLAB_NAMESPACES=[
 window.ONTOLAB_ROOTS=[
   {iri:'http://www.univ-nantes.fr/ns/', label:'Université de Nantes'}
 ];
+
+/* ---- Préférences de départ (facultatif) ----
+ * mode : 'owl' (complet, par défaut) ou 'rdfs' (restreint : éléments OWL masqués, export Turtle en RDFS pur).
+ * lock : true = l'étudiant ne peut pas changer le mode (réglage imposé pour un TD) ; il est ignoré si mode est absent.
+ * Ordre de priorité : lock > lien ?mode=rdfs (ou ?mode=owl) > choix enregistré par l'utilisateur dans ⋯ › Préférences… > ces défauts.
+ * Un lien ?mode=… ne remplace pas durablement le choix enregistré. Exemples de liens : …/ontolab/?mode=rdfs
+ */
+window.ONTOLAB_DEFAULTS={mode:'owl', lock:false};
