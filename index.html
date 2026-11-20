@@ -1152,13 +1152,40 @@ function forceLayout(){
     const n=ids.length, idx=new Map(ids.map((id,i)=>[id,i]));
     const deg=new Map(); links.forEach(l=>{ if(idx.has(l.a)){ deg.set(l.a,(deg.get(l.a)||0)+l.n); deg.set(l.b,(deg.get(l.b)||0)+l.n); } });
     // place nécessaire autour d'une classe : étiquettes des propriétés de donnée et des liens supplémentaires
-    const room=id=>9*dataCountOf(id)+14*Math.max(0,(deg.get(id)||0)-2)+10*selfCountOf(id);
+    const room=id=>12*dataCountOf(id)+22*Math.max(0,(deg.get(id)||0)-2)+14*selfCountOf(id);
     const ls=links.filter(l=>idx.has(l.a)).map(l=>{
       const A=size.get(l.a), B=size.get(l.b), r=room(l.a)+room(l.b);
       return {a:idx.get(l.a),b:idx.get(l.b),sub:l.sub,
-              L:(l.sub?Math.max(125,A.rx+B.rx+30):Math.max(190,A.rx+B.rx+95)+45*(l.n-1))+r};
+              L:(l.sub?Math.max(125,A.rx+B.rx+30):Math.max(250,A.rx+B.rx+130)+80*(l.n-1))+r};
     });
     const rx=ids.map(id=>size.get(id).rx), ry=ids.map(id=>size.get(id).ry);
+    // placement initial « par couches » : super-classes au-dessus, portée d'une propriété sous son domaine,
+    // puis ordre dans chaque couche par barycentre (réduit les croisements) — base de la variante v = 0
+    const layered=()=>{
+      const out=ls.map(l=>l.sub?[l.b,l.a]:[l.a,l.b]), adj=ls.length?Array.from({length:n},()=>[]):[]; 
+      out.forEach(([u,v])=>adj[u].push(v));
+      const st=new Int8Array(n), ok=[]; // DFS : on écarte les arêtes de retour (cycles)
+      const dfs2=u=>{ st[u]=1; for(const v of adj[u]){ if(st[v]===1) continue; ok.push([u,v]); if(!st[v]) dfs2(v); } st[u]=2; };
+      const hasIn=new Set(out.map(e=>e[1]));
+      for(let i=0;i<n;i++) if(!hasIn.has(i)&&!st[i]) dfs2(i);
+      for(let i=0;i<n;i++) if(!st[i]) dfs2(i);
+      const lay=new Array(n).fill(0);
+      for(let r=0;r<n;r++){ let ch=false; for(const [u,v] of ok) if(lay[v]<lay[u]+1){ lay[v]=lay[u]+1; ch=true; } if(!ch) break; }
+      const nl=Math.max(...lay)+1, rows=Array.from({length:nl},()=>[]);
+      for(let i=0;i<n;i++) rows[lay[i]].push(i);
+      const nb=Array.from({length:n},()=>[]); ls.forEach(l=>{ nb[l.a].push(l.b); nb[l.b].push(l.a); });
+      const xp=new Float64Array(n);
+      const spread=()=>rows.forEach(row=>{ let w=0; row.forEach(i=>w+=2*rx[i]+95+room(ids[i])); let c=-w/2; row.forEach(i=>{ const q=2*rx[i]+95+room(ids[i]); xp[i]=c+q/2; c+=q; }); });
+      spread();
+      for(let sw=0;sw<6;sw++){
+        const lo=sw%2?nl-1:0, hi=sw%2?-1:nl, stp=sw%2?-1:1;
+        for(let k=lo;k!==hi;k+=stp){
+          const row=rows[k], bc=new Map(row.map(i=>{ const m=nb[i].filter(j=>lay[j]!==k); return [i,m.length?m.reduce((a,j)=>a+xp[j],0)/m.length:xp[i]]; }));
+          row.sort((a,b)=>bc.get(a)-bc.get(b)); spread();
+        }
+      }
+      return {x:Float64Array.from(xp),y:Float64Array.from(lay,l=>(l-(nl-1)/2)*185)};
+    };
     // une simulation à partir d'un placement initial circulaire (décalé / en miroir selon `v`)
     const simulate=v=>{
       const x=new Float64Array(n), y=new Float64Array(n), fx=new Float64Array(n), fy=new Float64Array(n);
@@ -1171,9 +1198,11 @@ function forceLayout(){
         let sd=v*2654435761%4294967296||1; const rnd=()=>(sd=(sd*1664525+1013904223)%4294967296)/4294967296;
         for(let i=0;i<n;i++){ x[i]=(rnd()-0.5)*2*R; y[i]=(rnd()-0.5)*2*R; }
       }
+      let hot=1;
+      if(v===0&&n>2){ const L0=layered(); for(let i=0;i<n;i++){ x[i]=L0.x[i]; y[i]=L0.y[i]; } hot=0.3; }
       const iters=n>1?Math.min(500,200+n*10):0;
       for(let it=0;it<iters;it++){
-        const temp=1-it/iters;
+        const temp=(1-it/iters)*hot;
         fx.fill(0); fy.fill(0);
         for(const l of ls){
           const dx=x[l.b]-x[l.a], dy=y[l.b]-y[l.a], d=Math.hypot(dx,dy)||1e-3;
@@ -1189,7 +1218,7 @@ function forceLayout(){
           if(d<1e-3){ dx=1; dy=0.5; d=Math.hypot(dx,dy); }
           const ux=dx/d, uy=dy/d;
           const ra=rx[i]*ry[i]/Math.hypot(ry[i]*ux,rx[i]*uy), rb=rx[j]*ry[j]/Math.hypot(ry[j]*ux,rx[j]*uy);
-          const minD=ra+rb+40;
+          const minD=ra+rb+70;
           const f=d<minD?(minD-d)*0.7:450/d;
           fx[i]-=ux*f; fy[i]-=uy*f; fx[j]+=ux*f; fy[j]+=uy*f;
         }
