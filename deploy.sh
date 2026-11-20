@@ -5,11 +5,11 @@
 #
 # Cibles (variable TARGETS, « hôte:dossier » séparés par des espaces ; défaut : le Pi et le serveur « sql ») :
 #   ed@192.168.1.200:programmation/OntoLab   (Caddy sert le clone sur https://pedago.desmontils.net/ontolab/ ; réseau local)
-#   root@172.26.70.140:/srv/ontolab          (https://asql.ls2n.fr/ontolab/, route /ontolab/ du Caddy partagé ; le clone y utilise le proxy http://cache.ha.univ-nantes.fr:3128)
+#   root@172.26.70.140:/root/prog/OntoLab          (https://asql.ls2n.fr/ontolab/ ; le git pull y déclenche un hook post-merge qui copie index.html et namespaces.js dans /srv/ontolab, la racine web de Caddy ; le clone y utilise le proxy http://cache.ha.univ-nantes.fr:3128)
 #   SKIP_TESTS=1  déploie sans lancer les tests automatisés (./test.sh)
 set -euo pipefail
 
-TARGETS="${TARGETS:-ed@192.168.1.200:programmation/OntoLab root@172.26.70.140:/srv/ontolab}"
+TARGETS="${TARGETS:-ed@192.168.1.200:programmation/OntoLab root@172.26.70.140:/root/prog/OntoLab}"
 cd "$(dirname "$0")"
 
 if [ -n "$(git status --porcelain)" ]; then
