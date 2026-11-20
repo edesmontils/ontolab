@@ -327,16 +327,14 @@ de G1 et les décisions 1 à 4 de G2 **avant** de coder.
 
 ## Dette connue et points à vérifier
 
-- **iPad réel** : l'import de fichiers (champs `<input file>` permanents, sans `accept`) et le
-  téléchargement du `.ttl` ont été corrigés d'après les comportements connus de Safari iOS, mais pas
-  testés sur un appareil. À confirmer.
+- **iPad** : l'utilisateur teste régulièrement sur iPad (les essais de l'assistant, eux, se font dans un navigateur de bureau : aucun test tactile automatisé). Import de fichiers
+  (champs `<input file>` permanents, sans `accept`) et téléchargement du `.ttl` : corrigés d'après les comportements connus de Safari iOS ; leur validation sur l'appareil n'est pas consignée ici.
 - **Gros schémas — mesure du 2026-11-20 (navigateur, ontologie dense de 60 classes, 72 propriétés objet, 60 de donnée)** : mise en page ≈ 2,2 s (une fois, mise en cache tant que la
   structure ne change pas) **et ≈ 0,95 s par rendu** (placement des propriétés `computeProps` ≈ 0,5 s + `relax` ≈ 0,4 s), à comparer aux ~250 ms annoncés autrefois pour 60 classes :
   à 20 classes ≈ 0,1 s, 40 classes ≈ 0,45 s. En mode ④ (déplacer), chaque image refait ce rendu : fluide jusqu'à ~30 classes, pénible au-delà. Pistes : limiter les niveaux/angles de `placeAround`,
   ne recalculer que les propriétés voisines du nœud déplacé, mettre en cache le placement des étiquettes non déplacées.
-- **Partage d'image sur iPad** : `navigator.share({files})` (feuille de partage) est utilisé sur écran tactile, mais n'a
-  pas été testé sur un appareil réel ; repli : téléchargement classique.
-- **Mode compact** (v1.12–1.13) : zones de toucher des pastilles, des « +N » et des flèches, et listes d'attributs dans le panneau, jamais essayés sur iPad ;
+- **Partage d'image sur iPad** : `navigator.share({files})` (feuille de partage) est utilisé sur écran tactile ; repli : téléchargement classique. Résultat sur appareil à consigner.
+- **Mode compact** (v1.12–1.13) : zones de toucher des pastilles, des « +N » et des flèches, et listes d'attributs dans le panneau : à confirmer sur iPad (retours de l'utilisateur à consigner) ;
   placement des pastilles testé seulement sur de petites ontologies (étiquettes qui se frôlent avec beaucoup de propriétés entre deux mêmes classes).
 - **Régressions** : deux fonctions supprimées par erreur lors d'un remaniement (v1.14.0) ne se sont vues qu'en usage ; d'où la priorité de F5.
 - **Cache navigateur** : après un déploiement, une ancienne page peut rester affichée ; envisager `Cache-Control: no-cache` côté Caddy pour `index.html` et `namespaces.js`.
