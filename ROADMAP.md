@@ -221,28 +221,42 @@ normal en RDFS). Analyse faite le 2026-11-20 ; rien n'est implanté.
   (export RDFS pur → import → export identique, objet/donnée correctement reclassés).
 - **Risque** : faible pour le graphe (conditions d'affichage), plus délicat pour l'export (perte d'information silencieuse).
 
-### G2. Mode compact — M (propriétés de donnée) / L (avec propriétés objet)
+### G2. Mode compact — L (M pour les propriétés de donnée seules, en première livraison)
 - **Pourquoi** : les nœuds de propriétés de donnée encombrent le plus le graphe (VOWL les dessine comme des nœuds distincts).
   Les ranger dans le panneau de la classe rapproche l'outil d'un diagramme de classes (« une classe a des attributs »).
 - **Nature du changement** : un choix d'**affichage** — le modèle de données (`dataProps`, JSON, Turtle, import, historique) ne
   change pas. C'est l'argument fort pour le faire.
-- **Décisions à prendre** :
-  1. *Où voit-on les attributs ?* Panneau de la classe seulement (demande initiale) : une classe paraît alors vide de données ;
-     un indicateur discret sur le nœud (compteur « +3 », ou liste d'attributs dans le nœud) l'évite. À arbitrer.
-  2. *Création* : aujourd'hui on crée une propriété de donnée en mode « Propriété de donnée » en cliquant une classe. En compact,
-     le mode de la barre latérale existe-t-il encore ? Alternative plus cohérente : ajout depuis le panneau de la classe
-     (nouveau flux d'édition à écrire).
-  3. *Sélection, double-clic, suppression* : une propriété de donnée n'étant plus un nœud, on ne peut plus la sélectionner ni la
-     déplacer sur le graphe ; le panneau doit lister, éditer et supprimer des éléments qui ne sont pas « sélectionnés ».
-  4. *Étendue du compactage* — à décider, car cela fixe l'ambition :
-     - propriétés de donnée → attributs listés dans la classe (étape 1, M) ;
-     - propriétés objet → simple **flèche étiquetée** au lieu d'une ellipse (réduit le plus le nombre de nœuds, mais change le
-       plus le dessin et touche au point le plus fragile : `computeProps`, `placeAround`, `relax`, `refinalizeProps`) (étape 2, L) ;
-     - sous-propriétés (arcs pointillés), étiquettes de type XSD.
-  5. *Export image* : reflète le mode courant (à signaler dans le dialogue).
-- **Tests à prévoir** : disposition du graphe après disparition des nœuds (point faible de toutes les évolutions de mise en
-  page), bascule de mode sur une ontologie riche sans perte, aller-retour export/import dans chaque mode, double-clic /
-  sélection / annuler en mode compact, iPad.
+- **Décisions prises (2026-11-20)** :
+  1. **Sur le nœud d'une classe** : un **compteur discret** (« +3 ») des propriétés de donnée, cliquable pour ouvrir ses attributs ;
+     ne change ni la taille des nœuds ni le placement. Les noms ne se lisent que dans le panneau.
+  2. **Création d'une propriété de donnée : les deux.** Le mode « Propriété de donnée » de la barre latérale est conservé (un clic
+     sur une classe y ajoute un attribut, sans nœud) **et** un bouton « + attribut » dans le panneau de la classe (découvrabilité,
+     iPad).
+  3. **Édition dans le panneau de la classe** : une ligne par attribut, **nom et type XSD modifiables sur place**, suppression avec
+     confirmation, et un lien **« Détails »** qui ouvre le panneau complet (domaine, propriétés parentes).
+  4. **Étendue : propriétés de donnée ET propriétés objet** (flèche étiquetée entre classes au lieu de l'ellipse). C'est l'option
+     ambitieuse (effort **L**) : voir les questions ouvertes ci-dessous. Recommandation de réalisation : **deux livraisons**
+     (d'abord les propriétés de donnée, puis les propriétés objet), le panneau de préférences ayant **une case par famille**
+     (donnée / objet) pour pouvoir les activer séparément.
+- **Questions ouvertes** (découvertes en examinant la décision 4 ; à trancher avant de coder les flèches) :
+  a. *Symboles d'une propriété objet sans ellipse* : transitive (boucle verte), symétrique (doubles flèches), fonctionnelle et
+     fonctionnelle inverse (bordure pointillée / en points), paire d'inverses (⇄). Où mettre ces marques sur une flèche
+     (style du trait, pastille au milieu, texte dans l'étiquette) ?
+  b. *Sous-propriétés* : l'arc pointillé relie aujourd'hui deux ellipses. Entre deux flèches il n'a plus de support : le supprimer
+     en compact (info dans le panneau), l'indiquer dans l'étiquette, ou relier les milieux des flèches ?
+  c. *Plusieurs propriétés entre les mêmes classes* et *boucles* (domaine = portée) : flèches courbes décalées, boucle sur la classe
+     (le moteur actuel gère déjà des ellipses autour d'une classe, pas des flèches parallèles).
+  d. *Propriétés sans domaine ou sans portée* : impossibles à dessiner comme flèche. Où les voir (flèche partant d'un point libre,
+     liste dans le panneau d'ontologie, indicateur) ?
+  e. *Propriétés de donnée sans domaine* et *attributs hérités* : ces attributs n'ont plus de nœud ; le panneau d'une classe
+     doit-il lister aussi ceux des super-classes (grisés) ?
+  f. *Sélection au doigt* : zone de toucher d'une flèche fine et de son étiquette (iPad) ; sélection d'une flèche = ouvre le
+     panneau de la propriété.
+- **Autres points** : l'export image reflète le mode courant (à signaler dans le dialogue) ; la légende s'adapte au mode (flèche
+  au lieu de l'ellipse, compteur) ; interaction avec G1 (mode RDFS : pas de symboles OWL à dessiner).
+- **Tests à prévoir** : disposition du graphe après disparition des nœuds (point faible de toutes les évolutions de mise en page),
+  bascule de mode sur une ontologie riche sans perte, aller-retour export/import dans chaque mode, double-clic / sélection /
+  annuler en mode compact, ontologies avec boucles et propriétés parallèles, iPad.
 
 **Ordre conseillé** : panneau de préférences + G1 d'abord (rapide, utile tout de suite), puis G2 limité aux propriétés de donnée ;
 réserver le compactage des propriétés objet à une troisième étape, après essai en conditions réelles. Trancher les points « À trancher »
