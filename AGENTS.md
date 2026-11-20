@@ -202,6 +202,12 @@ d'accueil « À compléter », compteur de `updateStats`). Panneau : `inhSelect(
 `inhWarn()` (avertissement non bloquant si la surcharge n'est pas une sous-classe de celle du parent). Import : `ontologyFromTriples` laisse
 null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux propriétés **sans parent**. Inverses : `invOK(p,q)` (valeurs effectives).
 
+## Annotations, métadonnées, vérification (B1, B2, A5)
+`labels` / `comments` = `[{lang,text}]` facultatifs sur classes et propriétés (`cleanAnnots`) ; `disp(x)` = nom affiché (étiquette fr sinon première, sinon `name`), `tipOf(x)` pour les infobulles ;
+`name` reste le nom local d'IRI (unicité inchangée). Tout nouveau dessin doit utiliser `disp()`, pas `name`. `state.meta` = `{iri,title,description,lang,version,creators[],imports[]}` (`newMeta`/`cleanMeta`),
+inclus dans l'historique (`snapOf`). `toTTL` : en-tête `owl:Ontology` + `dcterms:*` (RDFS : sans type ni version/imports), `annPreds` pour les étiquettes. `parseTurtle` conserve la langue d'un littéral
+(`texte\u0001langue`, décodé par `litOf`) ; `ontologyFromTriples` renvoie `meta` et remplit `labels`/`comments`. `checkOntology()` (A5) renvoie `[{lvl,kind,id,msg}]` ; `inhWarnList` est partagé avec le panneau.
+
 ## Préférences et mode OWL / RDFS
 
 `ui.mode` ('owl' | 'rdfs'), `ui.modeSaved` (seul le choix explicite du dialogue `openPrefs()` est enregistré, dans `ontolab-ui`),

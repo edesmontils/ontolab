@@ -63,6 +63,15 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 .iri code{font-size:11.5px;word-break:break-all;color:#41506b;}
 .hint{font-size:12px;color:#7b8aa5;margin:10px 0 0;line-height:1.5;}
 .hint.warn{color:#9a5b00;}
+details.annot{margin:0 0 10px;font-size:12px;color:#516079;}details.annot summary{cursor:pointer;margin-bottom:6px;}
+.annot-h{margin:6px 0 3px;}.annot-row{display:flex;gap:4px;align-items:flex-start;margin-bottom:4px;}
+.annot-row input,.annot-row textarea{box-sizing:border-box;border:1px solid #c9d4e6;border-radius:7px;padding:5px 7px;font-size:12.5px;color:#1c2333;min-width:0;font-family:inherit;}
+.annot-row .an-lang{width:62px;flex:none;}.annot-row .an-text{flex:1;}
+#panel .annot-row .btn,#panel details.annot .an-add{width:auto;margin:0;padding:5px 9px;}
+#panel details.annot .an-add{margin-top:2px;display:block;}
+.chk-list{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto;margin:0 0 4px;}
+.chk-item{display:block;width:100%;text-align:left;white-space:normal;line-height:1.4;}
+.chk-item.warn{border-left:4px solid #d98a00;}.chk-item.info{border-left:4px solid #8fa6c8;color:#41506b;}
 .attrs{margin:12px 0 4px;}.attrs-h{font-size:12px;color:#516079;margin-bottom:5px;}
 .attr{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:6px;border:1px solid #f0d4d4;background:#fff7f7;border-radius:8px;margin-bottom:6px;}
 .attr.hi{border-color:#E4572E;box-shadow:0 0 0 2px rgba(228,87,46,.2);}
@@ -198,7 +207,27 @@ const NS_ROOTS=(function(){
   return out;
 })();
 const defaultNs=()=>NS_ROOTS.length?NS_ROOTS[0].iri+ONTO_SLUG_DEFAULT+'#':'http://example.org/onto#';
-let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:defaultNs(),nsList:[],sel:null,mode:'class',view:{x:null,y:null,k:1}};
+/* Métadonnées de l'ontologie (B2) et annotations d'éléments (B1). */
+const LANG_RE=/^[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*$/;
+const IRI_RE=/^[A-Za-z][A-Za-z0-9+.\-]*:[^\s<>"{}|\\^`]+$/;
+const newMeta=()=>({iri:'',title:'',description:'',lang:'fr',version:'',creators:[],imports:[]});
+function cleanMeta(m){
+  const o=newMeta(); if(!m||typeof m!=='object') return o;
+  const t=v=>typeof v==='string'?v.trim():'';
+  o.iri=IRI_RE.test(t(m.iri))?t(m.iri):''; o.title=t(m.title); o.description=t(m.description); o.version=t(m.version);
+  if(typeof m.lang==='string') o.lang=(t(m.lang)===''||LANG_RE.test(t(m.lang)))?t(m.lang):'fr';
+  o.creators=(Array.isArray(m.creators)?m.creators:[]).map(t).filter(Boolean);
+  o.imports=(Array.isArray(m.imports)?m.imports:[]).map(t).filter(i=>IRI_RE.test(i));
+  return o;
+}
+const cleanAnnots=a=>(Array.isArray(a)?a:[]).filter(e=>e&&typeof e==='object'&&typeof e.text==='string').map(e=>({lang:(typeof e.lang==='string'&&LANG_RE.test(e.lang.trim()))?e.lang.trim():'',text:e.text}));
+/* Nom affiché sur le graphe : étiquette (de préférence en français) si elle existe, sinon le nom (= nom local de l'IRI). */
+function disp(x){
+  const L=(x.labels||[]).filter(e=>e.text.trim()); if(!L.length) return x.name;
+  return (L.find(e=>/^fr(-|$)/i.test(e.lang))||L[0]).text.trim();
+}
+const tipOf=x=>disp(x)!==x.name?disp(x)+' ('+x.name+')':x.name;
+let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:defaultNs(),nsList:[],meta:newMeta(),sel:null,mode:'class',view:{x:null,y:null,k:1}};
 
 /* ---------- historique (annuler / rétablir) ----------
    Chaque save() compare les données (classes, propriétés, nextId : ni la vue, ni la sélection, ni le mode) à la dernière
@@ -206,7 +235,7 @@ let state={classes:[],objProps:[],dataProps:[],nextId:1,ns:defaultNs(),nsList:[]
    n'a donc à connaître l'historique ; un glisser en mode ④ ne produit qu'une entrée (save() n'est appelé qu'à la fin). */
 const HIST_MAX=100, HIST_CHARS=6e6;
 const hist={undo:[],redo:[],last:null,chars:0};
-const snapOf=()=>JSON.stringify([state.classes,state.objProps,state.dataProps,state.nextId,state.ns,state.nsList]);
+const snapOf=()=>JSON.stringify([state.classes,state.objProps,state.dataProps,state.nextId,state.ns,state.nsList,state.meta]);
 function trackHistory(){
   const s=snapOf();
   if(hist.last===null){ hist.last=s; return; }
@@ -217,7 +246,8 @@ function trackHistory(){
 }
 function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} trackHistory(); }
 function restoreSnap(snap){
-  [state.classes,state.objProps,state.dataProps,state.nextId,state.ns,state.nsList]=JSON.parse(snap);
+  [state.classes,state.objProps,state.dataProps,state.nextId,state.ns,state.nsList,state.meta]=JSON.parse(snap);
+  if(!state.meta) state.meta=newMeta();
   hist.last=snap;
   if(state.sel&&!itemOf(state.sel.kind,state.sel.id)) state.sel=null; // l'élément sélectionné peut ne plus exister
   save(); render(); updateHistButtons();
@@ -256,6 +286,8 @@ function sanitizeState(s){
   out.dataProps.forEach(p=>{ p.id=+p.id; p.domain=num(p.domain); });
   [...out.classes,...out.objProps,...out.dataProps].forEach(x=>{ if(typeof x.ns!=='string'||!x.ns.trim()) delete x.ns; else x.ns=x.ns.trim(); }); // espace de noms propre (facultatif)
   out.nsList=Array.isArray(s.nsList)?s.nsList.map(e=>Object.assign({},e)):[]; syncNsList(out); // espaces de noms déclarés (+ ceux utilisés)
+  out.meta=cleanMeta(s.meta);
+  [...out.classes,...out.objProps,...out.dataProps].forEach(x=>{ x.labels=cleanAnnots(x.labels); x.comments=cleanAnnots(x.comments); if(!x.labels.length) delete x.labels; if(!x.comments.length) delete x.comments; });
   cleanParents(out); // migre l'ancien champ `parent` (héritage simple) vers `parents` (héritage multiple)
   out.sel=null;
   return out;
@@ -504,7 +536,7 @@ function deleteProp(kind,id){
 
 /* ---------- exemple chargé ---------- */
 function loadExample(){
-  state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nextId=1; state.nsList=[]; // l'exemple n'utilise que l'espace de noms de l'ontologie
+  state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nextId=1; state.nsList=[]; state.meta=newMeta(); // l'exemple n'utilise que l'espace de noms de l'ontologie
   const id={};
   const add=n=>{ const i=state.nextId++; state.classes.push({id:i,name:n,parents:[]}); id[n]=i; return i; };
   add('Personne'); add('Groupe'); add('Voie');
@@ -527,7 +559,7 @@ function loadExample(){
 function clearAll(){
   confirmBox('Tout effacer ? La sauvegarde locale sera remplacée.','Vider').then(ok=>{
     if(!ok) return;
-    state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nsList=[]; state.sel=null; save(); render();
+    state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nsList=[]; state.meta=newMeta(); state.sel=null; save(); render();
   });
 }
 
@@ -560,6 +592,9 @@ function handleJSONFile(f){
 }
 
 /* ---------- export Turtle ---------- */
+const DCT='http://purl.org/dc/terms/', DCE='http://purl.org/dc/elements/1.1/';
+function ttlLit(t,l){ return '"'+String(t).replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/\t/g,'\\t')+'"'+(l&&LANG_RE.test(l)?'@'+l:''); }
+const annPreds=x=>[...(x.labels||[]).filter(e=>e.text.trim()).map(e=>'rdfs:label '+ttlLit(e.text,e.lang)),...(x.comments||[]).filter(e=>e.text.trim()).map(e=>'rdfs:comment '+ttlLit(e.text,e.lang))];
 function toTTL(ns){
   // nom préfixé dans l'espace de noms par défaut, ou IRI complète si l'élément a son propre espace de noms
   const prefixOf=new Map(state.nsList.map(e=>[e.iri,e.prefix]));
@@ -575,7 +610,16 @@ function toTTL(ns){
   L.push('@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .');
   state.nsList.forEach(e=>L.push('@prefix '+e.prefix+': <'+e.iri+'> .'));
   L.push('');
-  if(!isRdfs()){ L.push('<'+ns.replace(/[#/]?$/,'')+'> rdf:type owl:Ontology .'); L.push(''); }
+  { const M=state.meta||newMeta(), oiri='<'+(M.iri||ns.replace(/[#/]?$/,''))+'>', mp=[];
+    if(M.title) mp.push('<'+DCT+'title> '+ttlLit(M.title,M.lang));
+    if(M.description) mp.push('<'+DCT+'description> '+ttlLit(M.description,M.lang));
+    M.creators.forEach(c=>mp.push('<'+DCT+'creator> '+ttlLit(c,'')));
+    if(!isRdfs()){
+      if(M.version) mp.push('owl:versionInfo '+ttlLit(M.version,''));
+      M.imports.forEach(i=>mp.push('owl:imports <'+i+'>'));
+      L.push(oiri+' rdf:type owl:Ontology'+(mp.length?' ;\n    '+mp.join(' ;\n    '):'')+' .'); L.push('');
+    } else if(mp.length){ L.push(oiri+' '+mp.join(' ;\n    ')+' .'); L.push(''); }
+  }
   const byId=new Map(state.classes.map(c=>[c.id,c]));
   // ordre hiérarchique : une classe n'est émise qu'après toutes ses super-classes
   const order=[], done=new Set();
@@ -591,8 +635,8 @@ function toTTL(ns){
     const c=byId.get(id); if(!c) continue;
     const pars=parentsOf(c).map(pid=>byId.get(pid)).filter(Boolean);
     const CT=isRdfs()?'rdfs:Class':'owl:Class';
-    L.push(pars.length ? N(c)+' rdf:type '+CT+' ;\n    rdfs:subClassOf '+pars.map(q=>N(q)).join(', ')+' .'
-                       : N(c)+' rdf:type '+CT+' .');
+    const cp=[]; if(pars.length) cp.push('rdfs:subClassOf '+pars.map(q=>N(q)).join(', ')); cp.push(...annPreds(c));
+    L.push(N(c)+' rdf:type '+CT+(cp.length?' ;\n    '+cp.join(' ;\n    '):'')+' .');
   }
   if(state.classes.length) L.push('');
   for(const p of state.objProps){
@@ -607,6 +651,7 @@ function toTTL(ns){
     const preds=[]; if(d) preds.push('rdfs:domain '+N(d)); if(r) preds.push('rdfs:range '+N(r));
     const pars=parentsOf(p).map(objById).filter(Boolean); if(pars.length) preds.push('rdfs:subPropertyOf '+pars.map(q=>N(q)).join(', '));
     const q=!isRdfs()&&p.inverseOf&&objById(p.inverseOf); if(q) preds.push('owl:inverseOf '+N(q));
+    preds.push(...annPreds(p));
     L.push(N(p)+' a '+types.join(', ')+(preds.length?' ;\n    '+preds.join(' ;\n    '):'')+' .');
   }
   if(state.objProps.length) L.push('');
@@ -614,6 +659,7 @@ function toTTL(ns){
     const d=p.domain!=null?classById(p.domain):null;
     const preds=[]; if(d) preds.push('rdfs:domain '+N(d)); preds.push('rdfs:range '+p.type);
     const pars=parentsOf(p).map(dataById).filter(Boolean); if(pars.length) preds.push('rdfs:subPropertyOf '+pars.map(q=>N(q)).join(', '));
+    preds.push(...annPreds(p));
     L.push(N(p)+' a '+(isRdfs()?'rdf:Property':'owl:DatatypeProperty')+' ;\n    '+preds.join(' ;\n    ')+' .');
   }
   return L.join('\n')+'\n';
@@ -797,7 +843,7 @@ function parseTurtle(src){
   };
   const ESC={t:'\t',n:'\n',r:'\r',b:'\b',f:'\f','"':'"',"'":"'",'\\':'\\'};
   const literal=()=>{
-    const q=src[i], long=src.substr(i,3)===q+q+q; let s=''; i+=long?3:1;
+    const q=src[i], long=src.substr(i,3)===q+q+q; let s='', lang=''; i+=long?3:1;
     for(;;){
       if(i>=n) fail('chaîne non terminée');
       if(long?src.substr(i,3)===q+q+q:src[i]===q){ i+=long?3:1; break; }
@@ -807,9 +853,9 @@ function parseTurtle(src){
         else{ s+=(c in ESC)?ESC[c]:c; i+=2; }
       } else s+=src[i++];
     }
-    if(src[i]==='@'){ const m=/@[a-zA-Z]+(-[a-zA-Z0-9]+)*/y; m.lastIndex=i; if(m.exec(src)) i=m.lastIndex; }
+    if(src[i]==='@'){ const m=/@([a-zA-Z]+(?:-[a-zA-Z0-9]+)*)/y; m.lastIndex=i; const r=m.exec(src); if(r){ i=m.lastIndex; lang=r[1]; } }
     else if(src.substr(i,2)==='^^'){ i+=2; term(); }
-    return s;
+    return lang?s+'\u0001'+lang:s; // la langue suit le texte, séparée par U+0001 (cf. litOf)
   };
   const verb=()=>{
     ws();
@@ -879,6 +925,8 @@ function ontologyFromTriples(T,prefixes){
     if(!ix.has(s)) ix.set(s,new Map()); const m=ix.get(s); if(!m.has(p)) m.set(p,[]); m.get(p).push(o);
   });
   const get=(s,p)=>(ix.get(s)&&ix.get(s).get('I'+p))||[];
+  const litOf=t=>{ const k=t.indexOf('\u0001'); return k<0?{lang:'',text:t.slice(1)}:{lang:t.slice(k+1),text:t.slice(1,k)}; };
+  const annotsOf=(s,p)=>{ const out=[]; get(s,p).forEach(o=>{ if(o[0]!=='L') return; const e=litOf(o); if(e.text.trim()&&!out.some(x=>x.lang===e.lang&&x.text===e.text)) out.push(e); }); return out; };
   const iriOf=t=>t&&t[0]==='I'?t.slice(1):null;
   const typesOf=s=>get(s,RDFN+'type').map(iriOf).filter(Boolean);
   const isDT=iri=>iri.startsWith(XSDN)||iri===RDFSN+'Literal'||iri===RDFN+'langString'||iri===RDFN+'XMLLiteral'||iri===RDFN+'PlainLiteral';
@@ -1046,6 +1094,26 @@ function ontologyFromTriples(T,prefixes){
   // --- cycles éventuels d'héritage (ontologies erronées)
   cleanParents({classes,objProps,dataProps});
 
+  // --- étiquettes et commentaires (rdfs:label, rdfs:comment) des classes et propriétés (B1)
+  const annotate=(x,term)=>{ const La=annotsOf(term,RDFSN+'label'), Co=annotsOf(term,RDFSN+'comment'); if(La.length) x.labels=La; if(Co.length) x.comments=Co; };
+  classes.forEach(c=>{ const iri=civ.get(c.id); if(iri&&iri!==THING) annotate(c,'I'+iri); });
+  for(const [iri,id] of pid) annotate(byIdP.get(id),'I'+iri);
+
+  // --- métadonnées de l'ontologie (B2)
+  const meta=newMeta();
+  const ontos=[...ix.keys()].filter(t=>t[0]==='I'&&typesOf(t).includes(OWLN+'Ontology'));
+  if(ontos.length){
+    const o=ontos[0], bestOf=v=>v.find(e=>/^fr(-|$)/i.test(e.lang))||v.find(e=>!e.lang)||v[0];
+    const first=ps=>{ for(const p of ps){ const v=annotsOf(o,p); if(v.length) return bestOf(v); } return null; };
+    const ti=first([DCT+'title',DCE+'title',RDFSN+'label']), de=first([DCT+'description',DCE+'description',RDFSN+'comment']), ve=first([OWLN+'versionInfo']);
+    if(ti) meta.title=ti.text; if(de) meta.description=de.text; if(ve) meta.version=ve.text;
+    if(ti||de) meta.lang=(ti&&ti.lang)||(de&&de.lang)||'';
+    meta.creators=[...annotsOf(o,DCT+'creator'),...annotsOf(o,DCE+'creator')].map(e=>e.text).filter((t,i,a)=>a.indexOf(t)===i);
+    meta.imports=get(o,OWLN+'imports').map(iriOf).filter(Boolean);
+    const oi=o.slice(1); if(oi!==(mainNs||'').replace(/[#/]?$/,'')) meta.iri=oi;
+    if(ontos.length>1) notes.push((ontos.length-1)+' autre(s) déclaration(s) owl:Ontology ignorée(s)');
+  }
+
   // --- axiomes non repris
   const HANDLED=new Set([RDFN+'type',RDFSN+'subClassOf',RDFSN+'subPropertyOf',RDFSN+'domain',RDFSN+'range',OWLN+'inverseOf']);
   const ANNOT=new Set([RDFSN+'label',RDFSN+'comment',RDFSN+'seeAlso',RDFSN+'isDefinedBy',OWLN+'versionInfo',OWLN+'deprecated']);
@@ -1056,6 +1124,7 @@ function ontologyFromTriples(T,prefixes){
     for(const [p,os] of m){
       const iri=p.slice(1);
       if(HANDLED.has(iri)) continue;
+      if(iri===RDFSN+'label'||iri===RDFSN+'comment') continue; // conservés (B1)
       if(ANNOT.has(iri)||!isVocab(iri)){ nAnn+=os.length; continue; }
       skip(iri.replace(/^.*[#\/]/,''),os.length);
     }
@@ -1063,7 +1132,7 @@ function ontologyFromTriples(T,prefixes){
     for(const t of typesOf('I'+s)) if([OWLN+'AsymmetricProperty',OWLN+'ReflexiveProperty',OWLN+'IrreflexiveProperty'].includes(t)) skip(t.replace(OWLN,''));
   }
   if(ign.size) notes.push('axiomes non représentables ignorés : '+[...ign].map(([k,v])=>k+(v>1?' ×'+v:'')).join(', '));
-  if(nAnn) notes.push(nAnn+' annotation(s) (rdfs:label, rdfs:comment…) non conservée(s)');
+  if(nAnn) notes.push(nAnn+' autre(s) annotation(s) (rdfs:seeAlso…) non conservée(s)');
 
   // espaces de noms propres des éléments : préfixe déclaré dans le fichier, sinon préfixe automatique
   const pfx=prefixes||{}, takenP=new Set(), nsList=[];
@@ -1072,7 +1141,7 @@ function ontologyFromTriples(T,prefixes){
     if(!px) px=autoPrefix(n,takenP);
     takenP.add(px); nsList.push({prefix:px,iri:n});
   });
-  return {classes,objProps,dataProps,nextId,ns:mainNs,nsList,notes};
+  return {classes,objProps,dataProps,nextId,ns:mainNs,nsList,meta,notes};
 }
 
 function importTTL(){ openFilePicker('#f-ttl'); }
@@ -1088,7 +1157,7 @@ function handleTTLFile(f){
       infoBox('Aucune classe ni propriété trouvée dans « '+f.name+' » ('+txt.length+' caractères lus). Le fichier est-il bien de l\'OWL/RDFS en Turtle ?','Import Turtle'); return; }
     const apply=()=>{
       try{
-        state=sanitizeState({classes:res.classes,objProps:res.objProps,dataProps:res.dataProps,nextId:res.nextId,ns:res.ns||state.ns,nsList:res.nsList,mode:state.mode});
+        state=sanitizeState({classes:res.classes,objProps:res.objProps,dataProps:res.dataProps,nextId:res.nextId,ns:res.ns||state.ns,nsList:res.nsList,meta:res.meta,mode:state.mode});
         initView(); save(); render(); setMode(state.mode);
         status('Import Turtle : '+res.classes.length+' classe(s), '+res.objProps.length+' propriété(s) objet, '+res.dataProps.length+' propriété(s) de donnée.');
       }catch(e){ console.error(e); infoBox('Erreur pendant l\'import : '+e.message,'Import Turtle impossible'); }
@@ -1129,7 +1198,7 @@ function dataCountOf(id){ return state.dataProps.filter(p=>dDom(p)===id).length;
 function selfCountOf(id){ return state.objProps.filter(p=>oDom(p)===id&&oRng(p)===id).length; }
 function computeLayout(){
   const cls=state.classes, pos=new Map(); if(!cls.length) return pos;
-  const key=JSON.stringify([cls.map(c=>[c.id,c.name,parentsOf(c)]),state.objProps.map(p=>[oDom(p),oRng(p)]),state.dataProps.map(p=>dDom(p))]);
+  const key=JSON.stringify([cls.map(c=>[c.id,disp(c),parentsOf(c)]),state.objProps.map(p=>[oDom(p),oRng(p)]),state.dataProps.map(p=>dDom(p))]);
   let base;
   if(layoutCache.key===key) base=layoutCache.pos;
   else{ base=forceLayout(); layoutCache={key,pos:base}; }
@@ -1141,7 +1210,7 @@ function computeLayout(){
 function forceLayout(){
   const cls=state.classes, out=new Map();
   const byId=new Map(cls.map(c=>[c.id,c]));
-  const size=new Map(cls.map(c=>[c.id,classSize(c.name)]));
+  const size=new Map(cls.map(c=>[c.id,classSize(disp(c))]));
   // liens + composantes connexes (union-find)
   const uf=new Map(cls.map(c=>[c.id,c.id]));
   const find=a=>{ while(uf.get(a)!==a){ uf.set(a,uf.get(uf.get(a))); a=uf.get(a); } return a; };
@@ -1329,7 +1398,7 @@ function segHitsEllipse(p,rx,ry,s0,s1){
    (chevauchement avec classes et étiquettes déjà posées, arêtes traversées, écart angulaire aux liens)
    et la moins coûteuse est retenue. */
 /* Taille de l'étiquette d'une propriété objet : ellipse (normal) ou pastille arrondie plus compacte (propriétés objet compactes). */
-function objDim(p){ return ui.cobj?{rx:Math.max(26,12+p.name.length*3.4),ry:11}:{rx:Math.max(36,14+p.name.length*3.4),ry:16}; }
+function objDim(p){ return ui.cobj?{rx:Math.max(26,12+disp(p).length*3.4),ry:11}:{rx:Math.max(36,14+disp(p).length*3.4),ry:16}; }
 function computeProps(pos){
   const obj=new Map(), data=new Map();
   const occ=new Map(); pos.forEach((p,id)=>occ.set(id,[]));
@@ -1408,7 +1477,7 @@ function computeProps(pos){
   byDom.forEach((arr,dom)=>{
     const c=pos.get(dom);
     arr.forEach(p=>{
-      const prx=Math.max(30,8+p.name.length*3.45), pry=14; // assez large pour le texte (cf. short())
+      const prx=Math.max(30,8+disp(p).length*3.45), pry=14; // assez large pour le texte (cf. short())
       const CAP=9; // la légende du type XSD est écrite sous l'ellipse : elle compte dans l'encombrement
       const s=placeAround(dom,prx,pry+CAP,34);
       occ.get(dom).push(s.a);
@@ -1576,9 +1645,9 @@ function drawData(pos,pp){
     const g=el('g',{class:'node','data-id':p.id,'data-kind':'data',cursor:'pointer'},layerData);
     const sel=selIs('data',p.id);
     el('ellipse',{cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.data,stroke:sel?C.sel:C.dataS,'stroke-width':sel?3:1.6},g);
-    const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#3d1414'},g); t.textContent=short(p.name,q.rx);
+    const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#3d1414'},g); t.textContent=short(disp(p),q.rx);
     const t2=el('text',{x:q.x,y:q.y+q.ry+11,'text-anchor':'middle','font-size':9,fill:C.dataS},g); t2.textContent=p.type.replace('xsd:','');
-    const tt=el('title',{},g); tt.textContent=p.name+' : propriété de donnée de '+c.name+' ('+p.type+')'+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(dataById(i)||{}).name).join(', ')+']':'');
+    const tt=el('title',{},g); tt.textContent=tipOf(p)+' : propriété de donnée de '+disp(c)+' ('+p.type+')'+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(dataById(i)||{}).name).join(', ')+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'data',p.id));
   }
 }
@@ -1591,8 +1660,8 @@ function drawClasses(pos){
     const sel=selIs('class',c.id);
     const hl=!sel&&ui.cdata&&state.sel&&state.sel.kind==='data'&&dDom(dataById(state.sel.id)||{})===c.id; // classe de l'attribut en cours d'édition
     el('ellipse',{cx:p.x,cy:p.y,rx:p.rx,ry:p.ry,fill:C.cls,stroke:(sel||hl)?C.sel:C.clsS,'stroke-width':sel?3.4:hl?2.6:2},g);
-    const t=el('text',{x:p.x,y:p.y+4.5,'text-anchor':'middle','font-size':13,'font-weight':600,fill:'#10233f'},g); t.textContent=short(c.name,p.rx);
-    const tt=el('title',{},g); tt.textContent=c.name+(pars.length?' (sous-classe de '+pars.map(q=>q.name).join(', ')+')':' (classe racine)');
+    const t=el('text',{x:p.x,y:p.y+4.5,'text-anchor':'middle','font-size':13,'font-weight':600,fill:'#10233f'},g); t.textContent=short(disp(c),p.rx);
+    const tt=el('title',{},g); tt.textContent=tipOf(c)+(pars.length?' (sous-classe de '+pars.map(q=>q.name).join(', ')+')':' (classe racine)');
     g.addEventListener('pointerdown',e=>nodeDown(e,'class',c.id));
     if(ui.cdata){ // mode compact : compteur « +N » des propriétés de donnée ; un clic ouvre la liste de ses attributs dans le panneau
       const own=state.dataProps.filter(q=>dDom(q)===c.id);
@@ -1601,7 +1670,7 @@ function drawClasses(pos){
         el('circle',{cx,cy,r:17,fill:'transparent'},gp); // zone de toucher élargie
         el('rect',{x:cx-14,y:cy-9,width:28,height:18,rx:9,fill:C.data,stroke:C.dataS,'stroke-width':1.4},gp);
         const tn=el('text',{x:cx,y:cy+3.7,'text-anchor':'middle','font-size':10.5,'font-weight':600,fill:'#3d1414'},gp); tn.textContent='+'+own.length;
-        const tp=el('title',{},gp); tp.textContent=own.map(q=>q.name+' : '+q.type.replace('xsd:','')).join('\n');
+        const tp=el('title',{},gp); tp.textContent=own.map(q=>disp(q)+' : '+q.type.replace('xsd:','')).join('\n');
         gp.addEventListener('pointerdown',e=>{
           if(e.pointerType==='mouse'&&e.button!==0) return;
           e.stopPropagation(); ui.hiAttr=null; ui.panel=true; saveUI(); state.sel={kind:'class',id:c.id}; save(); render();
@@ -1626,7 +1695,7 @@ function drawObjProps(pp){
       el('rect',ra,g);
     } else el('ellipse',ea,g);
     const inv=!isRdfs()&&p.inverseOf&&objById(p.inverseOf);
-    const label=short(p.name,q.rx)+(inv&&!ui.cobj?' ⇄':'');
+    const label=short(disp(p),q.rx)+(inv&&!ui.cobj?' ⇄':'');
     const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#26330d'},g); t.textContent=label;
     if(ui.cobj){
       const badges=[owlOn(p,'transitive')&&['T','transitive'],owlOn(p,'symmetric')&&['S','symétrique'],inv&&['⇄','inverse de '+inv.name]].filter(Boolean);
@@ -1638,7 +1707,7 @@ function drawObjProps(pp){
       if(ps.length){ const cp=el('text',{x:q.x,y:q.y+q.ry+10,'text-anchor':'middle','font-size':9,fill:C.objS},g); cp.textContent='⊆ '+short(ps.join(', '),Math.max(q.rx,40)*1.6); }
     }
     const tt=el('title',{},g);
-    tt.textContent=p.name+' : objet, '+ ((classById(oDom(p))||{}).name||'?') +' → '+ ((classById(oRng(p))||{}).name||'?')
+    tt.textContent=tipOf(p)+' : objet, '+ ((classById(oDom(p))||{}).name||'?') +' → '+ ((classById(oRng(p))||{}).name||'?')
       +(owlOn(p,'transitive')?' [transitive]':'')+(owlOn(p,'symmetric')?' [symétrique]':'')+(owlOn(p,'functional')?' [fonctionnelle]':'')+(owlOn(p,'inverseFunctional')?' [fonctionnelle inverse]':'')+(inv?' [inverse de '+inv.name+']':'')+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(objById(i)||{}).name).join(', ')+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'obj',p.id));
   }
@@ -1834,7 +1903,7 @@ const UI_KEY='ontolab-ui';
    réglage imposé (ONTOLAB_DEFAULTS.lock) > paramètre d'URL ?mode=rdfs > choix enregistré de l'utilisateur > défaut de
    namespaces.js (ONTOLAB_DEFAULTS.mode) > 'owl'. Seul un choix explicite (dialogue « Préférences ») est enregistré (`modeSaved`) :
    un lien ?mode=… ne remplace pas durablement la préférence. */
-const ui={panel:innerWidth>=900,legend:innerWidth>=900,mode:'owl',modeSaved:null,lock:false,cdata:false,cdataSaved:null,lockC:false,cobj:false,cobjSaved:null,lockO:false,hiAttr:null};
+const ui={panel:innerWidth>=900,legend:innerWidth>=900,mode:'owl',modeSaved:null,lock:false,annotOpen:false,cdata:false,cdataSaved:null,lockC:false,cobj:false,cobjSaved:null,lockO:false,hiAttr:null};
 const boolOf=v=>typeof v==='boolean'?v:null;
 const validMode=m=>(m==='owl'||m==='rdfs')?m:null;
 const isRdfs=()=>ui.mode==='rdfs';
@@ -2088,7 +2157,7 @@ function inhSelect(kind,p,field,label,id){
   return '<label class="fld"><span>'+label+'</span><select id="'+id+'">'+o+'</select></label>';
 }
 /* Avertissement non bloquant : domaine / portée surchargé(e) qui n'est pas une sous-classe de celui / celle d'une propriété parente. */
-function inhWarn(kind,p){
+function inhWarnList(kind,p){
   const lk=i=>itemOf(kind,i), cn=i=>{ const c=classById(i); return c?c.name:'?'; }, out=[];
   for(const field of (kind==='obj'?['domain','range']:['domain'])){
     if(p[field]==null) continue;
@@ -2100,37 +2169,31 @@ function inhWarn(kind,p){
           out.push((field==='domain'?'Domaine':'Portée')+' « '+cn(p[field])+' » : devrait être « '+cn(cid)+' » ou une sous-classe ('+(field==='domain'?'domaine':'portée')+' de la propriété parente « '+q.name+' »).');
     }
   }
-  return out.length?'<p class="hint warn">'+out.map(esc).join('<br>')+'</p>':'';
+  return out;
 }
-/* Mode compact : attributs (propriétés de donnée) d'une classe dans son panneau, éditables sur place ; ceux des classes ancêtres en gris. */
-function attrsBlock(c){
-  const own=state.dataProps.filter(p=>dDom(p)===c.id);
-  let h='<div class="attrs"><div class="attrs-h"><b>Attributs</b> (propriétés de donnée)</div>';
-  h+=own.length?own.map(p=>'<div class="attr'+(ui.hiAttr===p.id?' hi':'')+'" data-aid="'+p.id+'">'
-      +'<input class="a-name" value="'+esc(p.name)+'" spellcheck="false" aria-label="Nom de l\'attribut">'
-      +'<select class="a-type" aria-label="Type XSD">'+XSD.map(t=>'<option value="'+t+'"'+(t===p.type?' selected':'')+'>'+t+'</option>').join('')+'</select>'
-      +'<button class="btn a-del" title="Supprimer l\'attribut" aria-label="Supprimer l\'attribut">✕</button>'
-      +'<button class="btn a-det" title="Domaine, propriétés parentes, espace de noms">Détails</button></div>').join('')
-    :'<p class="hint" style="margin:0 0 6px">Aucun attribut propre.</p>';
-  h+='<button class="btn" id="pf-addattr">+ attribut</button>';
-  const seen=new Set(), stack=[...parentsOf(c)], anc=[];
-  while(stack.length){ const id=stack.shift(); if(seen.has(id)) continue; seen.add(id); const a=classById(id); if(!a) continue; anc.push(a); stack.push(...parentsOf(a)); }
-  anc.forEach(a=>{ const l=state.dataProps.filter(p=>dDom(p)===a.id); if(!l.length) return;
-    h+='<button class="btn a-inh" data-cid="'+a.id+'" title="Aller à la classe « '+esc(a.name)+' »">hérités de « '+esc(a.name)+' »</button>'
-      +'<div class="attr-inh">'+l.map(p=>esc(p.name)+' : '+esc(p.type.replace('xsd:',''))).join('<br>')+'</div>'; });
-  return h+'</div>';
+function inhWarn(kind,p){ const out=inhWarnList(kind,p); return out.length?'<p class="hint warn">'+out.map(esc).join('<br>')+'</p>':''; }
+/* Étiquettes (rdfs:label) et commentaires (rdfs:comment) d'un élément, plusieurs par langue possibles (B1). */
+function annotBlock(x){
+  const sec=(key,title,area)=>'<div class="annot-h">'+title+'</div>'
+    +(x[key]||[]).map((e,i)=>'<div class="annot-row" data-k="'+key+'" data-i="'+i+'"><input class="an-lang" value="'+esc(e.lang)+'" placeholder="langue" maxlength="12" spellcheck="false" aria-label="Langue">'
+      +(area?'<textarea class="an-text" rows="2" spellcheck="false" aria-label="Texte">'+esc(e.text)+'</textarea>':'<input class="an-text" value="'+esc(e.text)+'" spellcheck="false" aria-label="Texte">')
+      +'<button class="btn an-del" title="Supprimer" aria-label="Supprimer">✕</button></div>').join('')
+    +'<button class="btn an-add" data-k="'+key+'">+ '+(key==='labels'?'étiquette':'commentaire')+'</button>';
+  const n=(x.labels||[]).length+(x.comments||[]).length;
+  return '<details class="annot"'+((n||ui.annotOpen)?' open':'')+'><summary>Étiquettes et commentaires'+(n?' ('+n+')':'')+'</summary>'
+    +sec('labels','Étiquettes (rdfs:label) — affichées sur le graphe',false)+sec('comments','Commentaires (rdfs:comment)',true)+'</details>';
 }
-function wireAttrs(c){
-  const pan=$('#panel');
-  pan.querySelectorAll('.attr').forEach(r=>{
-    const id=+r.dataset.aid, p=dataById(id); if(!p) return;
-    r.querySelector('.a-name').onchange=e=>{ ui.hiAttr=id; if(!setCommonName('data',id,e.target.value)) e.target.value=p.name; };
-    r.querySelector('.a-type').onchange=e=>{ p.type=e.target.value; ui.hiAttr=id; save(); render(); };
-    r.querySelector('.a-del').onclick=()=>deleteProp('data',id);
-    r.querySelector('.a-det').onclick=()=>{ state.sel={kind:'data',id}; save(); render(); };
+function wireAnnot(x){
+  const pan=$('#panel'), det=pan.querySelector('details.annot'); if(!det) return;
+  det.addEventListener('toggle',()=>{ ui.annotOpen=det.open; });
+  det.querySelectorAll('.annot-row').forEach(r=>{
+    const k=r.dataset.k, i=+r.dataset.i;
+    r.querySelector('.an-lang').onchange=e=>{ const v=e.target.value.trim(); if(v!==''&&!LANG_RE.test(v)){ status('Langue invalide (exemples : fr, en, pt-BR).',1); e.target.value=x[k][i].lang; return; } x[k][i].lang=v; save(); render(); };
+    r.querySelector('.an-text').onchange=e=>{ x[k][i].text=e.target.value; save(); render(); };
+    r.querySelector('.an-del').onclick=()=>{ x[k].splice(i,1); if(!x[k].length) delete x[k]; ui.annotOpen=true; save(); render(); };
   });
-  pan.querySelectorAll('.a-inh').forEach(b=>b.onclick=()=>{ ui.hiAttr=null; state.sel={kind:'class',id:+b.dataset.cid}; save(); render(); });
-  $('#pf-addattr').onclick=()=>newDataProp(c.id);
+  det.querySelectorAll('.an-add').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; (x[k]=x[k]||[]).push({lang:x[k].length?'':'fr',text:''}); ui.annotOpen=true; save(); render();
+    const rows=$('#panel').querySelectorAll('.annot-row[data-k="'+k+'"] .an-text'); if(rows.length) rows[rows.length-1].focus(); });
 }
 function renderPanelBody(){
   const p=$('#panel'), s=state.sel;
@@ -2156,8 +2219,9 @@ function renderPanelBody(){
   if(s.kind==='class'){
     const c=classById(s.id); if(!c){ state.sel=null; return renderPanelBody(); }
     h='<h3>Classe</h3>'
-      +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(c.name)+'" spellcheck="false"></label>'
+      +'<label class="fld"><span>Nom (nom local de l\'IRI)</span><input id="pf-name" value="'+esc(c.name)+'" spellcheck="false"></label>'
       +nsBlock('class',c)
+      +annotBlock(c)
       +parentsBlock('class',c,'Sous-classe de (rdfs:subClassOf) — plusieurs possibles')
       +(ui.cdata?attrsBlock(c):'')
       +'<button class="btn" id="pf-addchild">+ Ajouter une sous-classe</button>'
@@ -2166,6 +2230,7 @@ function renderPanelBody(){
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('class',c.id,e.target.value);
     $('#pf-ns').onchange=e=>onNsSelect('class',c.id,e.target.value);
+    wireAnnot(c);
     wireParents('class',c);
     $('#pf-addchild').onclick=()=>addChildClass(c.id);
     if(ui.cdata) wireAttrs(c);
@@ -2175,8 +2240,9 @@ function renderPanelBody(){
     const cands=state.objProps.filter(x=>x.id!==p2.id&&invOK(x,p2));
     if(p2.inverseOf&&!cands.some(x=>x.id===p2.inverseOf)){ const q=objById(p2.inverseOf); if(q) q.inverseOf=null; p2.inverseOf=null; }
     h='<h3>Propriété objet</h3>'
-      +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p2.name)+'" spellcheck="false"></label>'
+      +'<label class="fld"><span>Nom (nom local de l\'IRI)</span><input id="pf-name" value="'+esc(p2.name)+'" spellcheck="false"></label>'
       +nsBlock('obj',p2)
+      +annotBlock(p2)
       +inhSelect('obj',p2,'domain','Domaine (rdfs:domain)','pf-domain')
       +inhSelect('obj',p2,'range','Portée (rdfs:range)','pf-range')
       +inhWarn('obj',p2)
@@ -2193,6 +2259,7 @@ function renderPanelBody(){
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('obj',p2.id,e.target.value);
     $('#pf-ns').onchange=e=>onNsSelect('obj',p2.id,e.target.value);
+    wireAnnot(p2);
     wireParents('obj',p2);
     $('#pf-domain').onchange=e=>{ p2.domain=e.target.value===''?null:+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
     $('#pf-range').onchange=e=>{ p2.range=e.target.value===''?null:+e.target.value; if(p2.inverseOf){ const q=objById(p2.inverseOf); if(!(q.domain===p2.range&&q.range===p2.domain)) q.inverseOf=null; p2.inverseOf=null; } save(); render(); };
@@ -2216,8 +2283,9 @@ function renderPanelBody(){
     const dc=ui.cdata&&classById(dDom(p3));
     h='<h3>Propriété de donnée</h3>'
       +(dc?'<button class="btn" id="pf-backcls">← Classe « '+esc(dc.name)+' »</button>':'')
-      +'<label class="fld"><span>Nom</span><input id="pf-name" value="'+esc(p3.name)+'" spellcheck="false"></label>'
+      +'<label class="fld"><span>Nom (nom local de l\'IRI)</span><input id="pf-name" value="'+esc(p3.name)+'" spellcheck="false"></label>'
       +nsBlock('data',p3)
+      +annotBlock(p3)
       +inhSelect('data',p3,'domain','Domaine (rdfs:domain)','pf-domain')
       +inhWarn('data',p3)
       +'<label class="fld"><span>Type XSD (rdfs:range)</span><select id="pf-type">'+XSD.map(t=>'<option value="'+t+'"'+(t===p3.type?' selected':'')+'>'+t+'</option>').join('')+'</select></label>'
@@ -2226,6 +2294,7 @@ function renderPanelBody(){
     p.innerHTML=h;
     $('#pf-name').onchange=e=>setCommonName('data',p3.id,e.target.value);
     $('#pf-ns').onchange=e=>onNsSelect('data',p3.id,e.target.value);
+    wireAnnot(p3);
     wireParents('data',p3);
     $('#pf-domain').onchange=e=>{ p3.domain=e.target.value===''?null:+e.target.value; save(); render(); };
     $('#pf-type').onchange=e=>{ p3.type=e.target.value; save(); render(); };
@@ -2331,12 +2400,92 @@ function openPrefs(){
     status(ch.join(' · ')+'.');
   });
 }
+/* ---------- A5 : vérification de cohérence ---------- */
+function checkOntology(){
+  const out=[], add=(lvl,kind,id,msg)=>out.push({lvl,kind,id,msg});
+  const cn=id=>{ const c=classById(id); return c?c.name:'?'; };
+  incompleteProps().forEach(q=>add('warn',q.kind,q.id,'Propriété « '+q.name+' » : '+q.why+' non défini(e) — elle n\'est pas (ou mal) dessinée.'));
+  if(state.classes.length>1) state.classes.forEach(c=>{
+    const used=parentsOf(c).length||state.classes.some(k=>parentsOf(k).includes(c.id))||state.objProps.some(p=>oDom(p)===c.id||oRng(p)===c.id)||state.dataProps.some(p=>dDom(p)===c.id);
+    if(!used) add('info','class',c.id,'Classe « '+c.name+' » isolée : ni sous-classe, ni super-classe, ni propriété.');
+  });
+  state.objProps.forEach(p=>{
+    const d=oDom(p), r=oRng(p);
+    if(!isRdfs()){
+      if(p.transitive&&p.functional) add('warn','obj',p.id,'« '+p.name+' » est à la fois fonctionnelle et transitive : OWL 2 DL l\'interdit (une propriété transitive ne peut pas porter de contrainte de cardinalité).');
+      if((p.symmetric||p.transitive)&&d!=null&&r!=null&&d!==r&&!isAncestor('class',d,r)&&!isAncestor('class',r,d))
+        add('warn','obj',p.id,'« '+p.name+' » est '+(p.symmetric?'symétrique':'transitive')+' mais son domaine « '+cn(d)+' » et sa portée « '+cn(r)+' » ne sont pas la même classe (ni apparentées) : ses valeurs sortent de ces classes.');
+      if(p.inverseOf){ const q=objById(p.inverseOf);
+        if(!q) add('warn','obj',p.id,'« '+p.name+' » : propriété inverse introuvable.');
+        else if(!invOK(p,q)) add('warn','obj',p.id,'« '+p.name+' » et son inverse « '+q.name+' » : domaine et portée ne sont pas croisés.');
+        else if(q.inverseOf!==p.id) add('warn','obj',p.id,'« '+p.name+' » déclare « '+q.name+' » comme inverse, mais la réciproque n\'est pas déclarée.');
+        if(p.symmetric) add('info','obj',p.id,'« '+p.name+' » est symétrique et a une inverse : une propriété symétrique est sa propre inverse.'); }
+    }
+    inhWarnList('obj',p).forEach(m=>add('warn','obj',p.id,'« '+p.name+' » : '+m));
+  });
+  state.dataProps.forEach(p=>inhWarnList('data',p).forEach(m=>add('warn','data',p.id,'« '+p.name+' » : '+m)));
+  // noms très proches (casse, accents, séparateurs) : sources d'erreurs d'IRI
+  const key=n=>String(n).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const groups=new Map();
+  [['class',state.classes],['obj',state.objProps],['data',state.dataProps]].forEach(([k,l])=>l.forEach(x=>{ const g=key(x.name); if(!g) return; if(!groups.has(g)) groups.set(g,[]); groups.get(g).push({kind:k,x}); }));
+  groups.forEach(l=>{ if(l.length>1) add('warn',l[0].kind,l[0].x.id,'Noms très proches : '+l.map(e=>'« '+e.x.name+' »').join(', ')+' (casse, accents ou séparateurs) : risque de confusion.'); });
+  // conventions usuelles (suggestions)
+  state.classes.forEach(c=>{ const f=c.name.charAt(0); if(f&&f!==f.toUpperCase()) add('info','class',c.id,'Classe « '+c.name+' » : par convention, un nom de classe commence par une majuscule.'); });
+  [...state.objProps.map(p=>['obj',p]),...state.dataProps.map(p=>['data',p])].forEach(([k,p])=>{ const f=p.name.charAt(0); if(f&&f!==f.toLowerCase()) add('info',k,p.id,'Propriété « '+p.name+' » : par convention, un nom de propriété commence par une minuscule.'); });
+  const M=state.meta||newMeta();
+  if(state.classes.length&&!M.title&&!M.description) add('info','meta',0,'L\'ontologie n\'a ni titre ni description (⋯ › Ontologie…).');
+  return out.sort((a,b)=>(a.lvl==='warn'?0:1)-(b.lvl==='warn'?0:1)); // les points à corriger d'abord (tri stable)
+}
+function openCheck(){
+  const items=checkOntology(), ov=document.createElement('div'); ov.className='ovl';
+  const box=document.createElement('div'); box.className='dlg'; box.style.width='min(620px,94vw)';
+  const nW=items.filter(i=>i.lvl==='warn').length;
+  box.innerHTML='<h3>Vérification de l\'ontologie</h3>'
+    +(items.length?'<p class="dlg-msg">'+nW+' point(s) à corriger, '+(items.length-nW)+' suggestion(s). Cliquez sur une ligne pour sélectionner l\'élément concerné.</p>':'<p class="dlg-msg">Aucun défaut détecté.</p>')
+    +'<div class="chk-list">'+items.map((it,i)=>'<button class="btn chk-item '+it.lvl+'" data-i="'+i+'">'+(it.lvl==='warn'?'⚠ ':'ℹ ')+esc(it.msg)+'</button>').join('')+'</div>';
+  const btns=document.createElement('div'); btns.className='dlg-btns';
+  const cl=document.createElement('button'); cl.className='btn primary'; cl.textContent='Fermer'; btns.appendChild(cl); box.appendChild(btns); ov.appendChild(box);
+  cl.onclick=()=>ov.remove();
+  ov.addEventListener('pointerdown',e=>{ if(e.target===ov) ov.remove(); });
+  box.querySelectorAll('.chk-item').forEach(b=>b.onclick=()=>{ const it=items[+b.dataset.i]; ov.remove();
+    if(it.kind==='meta'){ openMeta(); return; }
+    if(itemOf(it.kind,it.id)){ state.sel={kind:it.kind,id:it.id}; ui.panel=true; saveUI(); save(); render(); } });
+  ov.style.pointerEvents='none'; setTimeout(()=>{ ov.style.pointerEvents=''; },350);
+  document.body.appendChild(ov);
+}
+/* ---------- B2 : métadonnées de l'ontologie ---------- */
+function openMeta(pre){
+  const M=pre||state.meta||newMeta(), defIri=state.ns.replace(/[#/]?$/,'');
+  const fields=[
+    {key:'iri',label:'IRI de l\'ontologie (vide = '+defIri+')',value:M.iri},
+    {key:'title',label:'Titre (dcterms:title)',value:M.title},
+    {key:'description',label:'Description (dcterms:description)',value:M.description},
+    {key:'lang',label:'Langue du titre et de la description (fr, en… ; vide = sans langue)',value:M.lang},
+    {key:'creators',label:'Auteur(s) (dcterms:creator), séparés par « ; »',value:M.creators.join('; ')}];
+  if(!isRdfs()){ fields.push({key:'version',label:'Version (owl:versionInfo)',value:M.version});
+    fields.push({key:'imports',label:'Ontologies importées (owl:imports) : IRI séparées par des espaces',value:M.imports.join(' ')}); }
+  dialog('Ontologie',fields,isRdfs()?'Mode RDFS : version et imports (OWL) ne sont pas proposés ; ils sont conservés et reviennent en mode OWL.':'')
+  .then(v=>{
+    if(!v) return;
+    const t=x=>(x||'').trim(), n=Object.assign({},M);
+    n.iri=t(v.iri); n.title=t(v.title); n.description=t(v.description); n.lang=t(v.lang); n.creators=t(v.creators).split(';').map(t).filter(Boolean);
+    if(!isRdfs()){ n.version=t(v.version); n.imports=t(v.imports).split(/\s+/).filter(Boolean); }
+    const errs=[];
+    if(n.iri&&!IRI_RE.test(n.iri)) errs.push('IRI de l\'ontologie invalide (IRI absolue attendue, sans espace).');
+    if(n.lang&&!LANG_RE.test(n.lang)) errs.push('Langue invalide (exemples : fr, en, pt-BR).');
+    n.imports.filter(i=>!IRI_RE.test(i)).forEach(i=>errs.push('IRI importée invalide : '+i));
+    if(errs.length){ infoBox(errs.join('\n'),'Ontologie').then(()=>openMeta(n)); return; }
+    state.meta=cleanMeta(n); save(); render(); status('Métadonnées de l\'ontologie enregistrées.');
+  });
+}
 $('#b-more').onclick=()=>showMenu($('#b-more'),[
   {label:'Charger l\'exemple',run:loadExample},
   {label:'Vider l\'ontologie',danger:true,run:clearAll},
   '-',
   {label:'Panneau d\'édition',check:()=>ui.panel,run:()=>{ ui.panel=!ui.panel; saveUI(); updatePanel(); }},
+  {label:'Ontologie…',hint:'titre, auteur…',run:()=>openMeta()},
   {label:'Espaces de noms…',run:openNamespaceEditor},
+  {label:'Vérifier l\'ontologie…',run:openCheck},
   {label:'Préférences…',hint:(isRdfs()?'RDFS':'OWL')+(ui.cdata||ui.cobj?' · compact':''),run:openPrefs},
   '-',
   {label:'Aide et raccourcis',run:showHelp}]);

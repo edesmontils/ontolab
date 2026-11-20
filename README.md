@@ -180,7 +180,16 @@ et le verrouiller avec `lock:true`. Même priorité que le mode : verrou > lien 
 Propriétés parallèles = courbes décalées, domaine = portée = boucle. Une propriété qui n'a qu'une extrémité est une flèche en tirets vers « ? »
 (elle figure aussi dans « À compléter »). En mode Déplacer, glisser la pastille courbe la flèche. Réglages enseignant : `compact:{data,obj}`, `?compact=data,obj`.
 
-### Catalogue des espaces courants (pour l'enseignant)
+### Étiquettes, commentaires, métadonnées, vérification
+
+- **Étiquettes et commentaires** (panneau d'une classe ou d'une propriété) : plusieurs `rdfs:label` / `rdfs:comment`, chacun avec sa langue (fr, en…, vide = sans langue).
+  Le **nom** reste le nom local de l'IRI ; l'étiquette (de préférence en français) est ce qui s'affiche sur le graphe, le nom étant rappelé dans l'infobulle.
+  Écrits dans le Turtle (RDFS comme OWL) et relus à l'import.
+- **⋯ › Ontologie…** : IRI de l'ontologie (par défaut l'espace de noms sans « # »), titre, description (avec leur langue), auteur(s), puis, en mode OWL, version
+  (`owl:versionInfo`) et `owl:imports`. Exportés en `dcterms:*` ; relus à l'import (propriétés `dc:` et `rdfs:label` comprises). Annuler/rétablir les couvre.
+- **⋯ › Vérifier l'ontologie…** : liste de points à corriger (⚠) et de suggestions (ℹ), cliquables : propriété incomplète, fonctionnelle + transitive, symétrique ou transitive
+  entre classes sans rapport, inverse non croisée ou non réciproque, domaine/portée plus large que celui de la propriété parente, noms très proches (casse, accents),
+  classe isolée, conventions de majuscule/minuscule, ontologie sans titre.
 
 La liste des espaces courants se maintient dans **`namespaces.js`**, à côté de `index.html` : une ligne par espace
 (`{prefix, iri, label, group}`), le format est détaillé en tête du fichier. Pas d'autre fichier à toucher ;

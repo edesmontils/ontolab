@@ -26,7 +26,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
   `createObjProp`, `toTTL`, `ontologyFromTriples` (qui les signale aujourd'hui comme « non représentables »),
   `dashOf()`. Pas de symbole VOWL standard : mention dans l'infobulle ou petit badge (la bordure n'a plus de style libre).
 
-### A5. Vérification de cohérence (« Vérifier ») — M
+### A5. Vérification de cohérence (« Vérifier ») — M — **fait** (2026-11-20) : ⋯ › Vérifier l'ontologie…
 - **Pourquoi** : pédagogique — repérer les défauts d'une ontologie d'étudiant.
 - **Exemples** : classe sans propriété ni sous-classe, propriété dont le domaine est une sous-classe
   de la portée de son inverse, `owl:inverseOf` incohérent (domaine/portée non croisés), propriété
@@ -69,7 +69,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 
 ## Phase B — Annotations et métadonnées
 
-### B1. Étiquettes, commentaires et nom local d'IRI éditables — M
+### B1. Étiquettes, commentaires et nom local d'IRI éditables — M — **fait** (2026-11-20) : plusieurs étiquettes par langue, affichage de l'étiquette ; le nom reste le nom local (pas de champ « local » séparé)
 - *Fait* : l'**espace de noms** par élément (champ `ns`, éditeur d'espaces de noms avec préfixes et espaces
   courants, sélecteur du panneau, Turtle, import). *Reste* : étiquette,
   commentaire et nom local d'IRI distincts du nom affiché.
@@ -82,7 +82,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
   (`rdfs:label "…"@fr`, `rdfs:comment`), `ontologyFromTriples` (conserver au lieu d'ignorer),
   infobulles. Décider : plusieurs langues par étiquette ou une seule.
 
-### B2. Métadonnées de l'ontologie — S
+### B2. Métadonnées de l'ontologie — S — **fait** (2026-11-20) : dialogue ⋯ › Ontologie…
 - IRI de l'ontologie (aujourd'hui dérivée de `ns`), titre, description, version, auteur
   (`dc:`/`dcterms:`), `owl:imports`. Fenêtre « Ontologie » ; export `toTTL`.
 
