@@ -11,11 +11,11 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 
 Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
 
-### État au 2026-11-20 (v1.15.0)
+### État au 2026-11-20 (v1.15.0, 57 tests)
 - **Fait** : A1–A3, A5, A6 ; B1, B2 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
 - **Reste** : A4 (S) ; C1–C5 ; D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
-- **Ordre conseillé pour la suite** : C1 + C2 (axiomes simples) → C4 (restrictions : le plus utile au cours OWL) ; test sur iPad réel (voir « Dette connue ») ;
-  performances sur grands graphes (nouvelle entrée de « Dette connue »).
+- **Ordre conseillé pour la suite** : C1 + C2 (axiomes simples) → C4 (restrictions : le plus utile au cours OWL) ; performances sur grands graphes (mesures en « Dette connue », reporté
+  « plus tard » le 2026-11-20) ; A4 (court) quand on touche aux caractéristiques OWL. Retours iPad : aucun problème signalé pour l'instant.
 
 ---
 
