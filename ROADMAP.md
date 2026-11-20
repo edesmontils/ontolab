@@ -1,7 +1,7 @@
 # ROADMAP — fonctions à implanter plus tard
 
-Liste des évolutions envisagées pour OntoLab. **Rien de ce qui suit n'est implanté** : ce sont
-des idées retenues pour plus tard (cf. `AGENTS.md` : ne pas élargir le périmètre sans demande
+Liste des évolutions envisagées pour OntoLab (version courante : voir `CHANGELOG.md`). Les fiches marquées **fait** sont
+implantées ; **toutes les autres sont des idées retenues pour plus tard** (cf. `AGENTS.md` : ne pas élargir le périmètre sans demande
 explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de grandeur de l'effort
 (S = quelques heures, M = une journée, L = plusieurs jours).
 
@@ -10,6 +10,12 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 > vérifiée en détail (documentation introuvable) : à compléter après essai de l'outil.
 
 Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
+
+### État au 2026-11-20 (v1.15.0)
+- **Fait** : A1–A3, A5, A6 ; B1, B2 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
+- **Reste** : A4 (S) ; C1–C5 ; D1 ; E1–E3 ; F1–F6 (F1 partiellement : disposition par couches faite, voir la fiche).
+- **Ordre conseillé pour la suite** : C1 + C2 (axiomes simples) → C4 (restrictions : le plus utile au cours OWL) ; F5 (tests automatisés : deux régressions ont déjà
+  échappé aux essais manuels) ; test sur iPad réel (voir « Dette connue »).
 
 ---
 
@@ -167,6 +173,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 ## Phase F — Navigation, qualité, projets
 
 ### F1. Mise en page : améliorations — M
+- *Fait (v1.11.0)* : placement initial par couches, repoussement nœud-arête, espacement selon le degré, ancrage des classes sur leur couche. *Reste* : les points ci-dessous.
 - Rapprocher une **sous-propriété de sa propriété parente** (aujourd'hui seulement une marge minimale
   de 58 px, `SUBGAP` dans `relax()`).
 - **Épingler** un nœud (verrouiller sa position) sans passer par le mode ④ ; relancer la mise en page
@@ -330,6 +337,10 @@ de G1 et les décisions 1 à 4 de G2 **avant** de coder.
   performances (simulation à forces O(n²) × 4 départs).
 - **Partage d'image sur iPad** : `navigator.share({files})` (feuille de partage) est utilisé sur écran tactile, mais n'a
   pas été testé sur un appareil réel ; repli : téléchargement classique.
+- **Mode compact** (v1.12–1.13) : zones de toucher des pastilles, des « +N » et des flèches, et listes d'attributs dans le panneau, jamais essayés sur iPad ;
+  placement des pastilles testé seulement sur de petites ontologies (étiquettes qui se frôlent avec beaucoup de propriétés entre deux mêmes classes).
+- **Régressions** : deux fonctions supprimées par erreur lors d'un remaniement (v1.14.0) ne se sont vues qu'en usage ; d'où la priorité de F5.
+- **Cache navigateur** : après un déploiement, une ancienne page peut rester affichée ; envisager `Cache-Control: no-cache` côté Caddy pour `index.html` et `namespaces.js`.
 - **Historique** : non conservé au rechargement de la page.
 - **Étiquettes** : avec beaucoup de propriétés de donnée sur une même classe, une légende de type
   peut être partiellement masquée par une flèche voisine.
