@@ -11,8 +11,8 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 
 Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
 
-### État au 2026-11-20 (v1.20.0, 122 tests)
-- **Fait** : A1–A6 ; B1, B2 ; C1–C5 (C5 sans `oneOf`) ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
+### État au 2026-11-20 (v1.21.0, 135 tests)
+- **Fait** : A1–A6 ; B1, B2 ; C1–C5 (C5 sans `oneOf`) ; F4, F5 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
 - **Reste** : D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
 - **Ordre conseillé pour la suite** : D1 (individus, qui débloque `oneOf` et `hasValue`) ; performances sur grands graphes (mesures en « Dette connue », reporté
   « plus tard » le 2026-11-20) ; A4 (court) quand on touche aux caractéristiques OWL. Retours iPad : aucun problème signalé pour l'instant.
@@ -190,7 +190,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 - Rectangle de sélection, suppression groupée, déplacement groupé en mode ④, duplication d'un
   motif (classe + ses propriétés).
 
-### F4. Plusieurs ontologies / projets locaux — M
+### F4. Plusieurs ontologies / projets locaux — M — **fait** (v1.21.0, 2026-11-20) : dialogue Projets, nom en en-tête, imports en nouveau projet, 5 versions, export / import de tout
 - Aujourd'hui une seule ontologie dans `localStorage` (`ontolab-v1`). Liste de projets nommés,
   duplication, export/import de l'ensemble, historique des sauvegardes automatiques.
 
@@ -345,6 +345,6 @@ de G1 et les décisions 1 à 4 de G2 **avant** de coder.
   `XSD` (les autres sont ramenés au plus proche à l'import).
 - **Noms** : unicité testée sur le nom local d'IRI (`localName()`), les noms de classes et de
   propriétés partagent le même espace (cf. `nameTaken()`).
-- **Clé de sauvegarde** : `ontolab-v1` conservée ; l'héritage multiple migre l'ancien champ `parent`
+- **Clé de sauvegarde** : depuis la v1.21.0, état par projet (`ontolab-p-<id>`, index `ontolab-projects`) ; `ontolab-v1` n'est plus que la source de migration (laissée en secours) ; l'héritage multiple migre l'ancien champ `parent`
   dans `sanitizeState` (`cleanParents`). Pour un changement de schéma plus profond (individus,
   expressions de classes), envisager `ontolab-v2` avec migration explicite.

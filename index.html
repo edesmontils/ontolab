@@ -10,6 +10,12 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 #toolbar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;gap:10px;padding:0 14px;background:#fff;border-bottom:1px solid #d8e0ec;z-index:10;flex-wrap:nowrap;}
 #toolbar h1{font-size:16px;margin:0 6px 0 0;font-weight:700;color:var(--blueS);white-space:nowrap;}
 #toolbar h1 .sub{font-size:11px;color:#7b8aa5;font-weight:400;}
+#proj-name{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;padding:5px 9px;color:#41506b;}
+.prj{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 8px;border:1px solid #d8e0ec;border-radius:9px;margin-bottom:6px;}
+.prj.cur{border-color:#2C5F9E;background:#f2f7fd;}
+.prj .prj-open{flex:1 1 140px;text-align:left;background:none;border:none;padding:4px 2px;font-size:13.5px;font-weight:600;color:#1c2f52;cursor:pointer;white-space:normal;}
+.prj small{flex:1 1 100%;color:#7b8aa5;font-size:11.5px;margin:-2px 0 0 2px;}
+.prj .btn{padding:4px 9px;}
 #rail{position:fixed;left:0;top:52px;bottom:0;width:88px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;padding:8px 6px;background:#fff;border-right:1px solid #d8e0ec;z-index:9;}
 #rail button{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;border:1px solid transparent;border-radius:10px;background:#fff;padding:10px 2px 8px;font:inherit;font-size:11.5px;line-height:1.15;color:#41506b;cursor:pointer;text-align:center;}
 #rail button:hover{background:#eef3fa;}
@@ -132,6 +138,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <body>
 <div id="toolbar">
   <h1>OntoLab <span class="sub">constructeur d'ontologies · Web Sémantique</span></h1>
+  <button class="btn" id="proj-name" aria-haspopup="dialog" title="Projets">📁</button>
   <button class="btn" id="b-undo" aria-label="Annuler" disabled>↶<span class="lbl"> Annuler</span></button>
   <button class="btn" id="b-redo" aria-label="Rétablir" disabled>↷<span class="lbl"> Rétablir</span></button>
   <div class="spacer"></div>
@@ -189,7 +196,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <script>'use strict';
 /* ================= OntoLab — partie 1 : état, opérations, export ================= */
 /* Numéro de version : à faire évoluer à chaque modification (voir CHANGELOG.md : MINOR = fonction nouvelle, PATCH = correctif ou ajustement). */
-const VERSION='1.20.0';
+const VERSION='1.21.0';
 const SVGNS='http://www.w3.org/2000/svg';
 const LS_KEY='ontolab-v1';
 const C={cls:'#AEDBFC',clsS:'#2C5F9E',obj:'#D9E9A5',objS:'#5B7C29',data:'#F6CECE',dataS:'#8C2E2E',disj:'#7B5EA7',sel:'#E4572E'};
@@ -252,7 +259,39 @@ function trackHistory(){
   while(hist.undo.length>HIST_MAX||hist.chars>HIST_CHARS) hist.chars-=hist.undo.shift().length;
   updateHistButtons();
 }
-function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} trackHistory(); }
+/* ---------- projets (F4) ----------
+   Plusieurs ontologies dans le navigateur : index `ontolab-projects` ({current, list:[{id,name,created,updated}]}), un état par projet
+   (`ontolab-p-<id>`) et jusqu'à 5 versions récentes (`ontolab-pv-<id>`, une au plus toutes les 10 minutes de travail).
+   L'ancienne clé unique `ontolab-v1` est reprise comme premier projet « Mon ontologie » au premier lancement (puis laissée telle quelle, en secours). */
+const PROJ_KEY='ontolab-projects', PROJ_PREFIX='ontolab-p-', VER_PREFIX='ontolab-pv-', SNAP_EVERY=10*60*1000, SNAP_MAX=5;
+const projects={current:null,list:[]};
+let lastSnap=0, quotaWarned=false;
+const newProjectId=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const lsGet=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
+function lsSet(k,v){
+  try{ localStorage.setItem(k,v); return true; }
+  catch(e){ if(!quotaWarned){ quotaWarned=true; status('Le navigateur ne peut plus enregistrer (espace plein ou stockage bloqué) : exportez vos projets (⋯ › Projets…).',1); } return false; }
+}
+const projectEntry=id=>projects.list.find(e=>e.id===id);
+const ontologyNonEmpty=()=>state.classes.length+state.objProps.length+state.dataProps.length>0;
+function saveProjects(){ lsSet(PROJ_KEY,JSON.stringify({v:1,current:projects.current,list:projects.list})); }
+function uniqueProjectName(base,ignoreId){
+  base=String(base||'').trim()||'Projet'; let n=base, i=2;
+  while(projects.list.some(e=>e.name===n&&e.id!==ignoreId)) n=base+' ('+(i++)+')';
+  return n;
+}
+function readProject(id){ try{ const s=JSON.parse(lsGet(PROJ_PREFIX+id)||'null'); return (s&&Array.isArray(s.classes))?s:null; }catch(e){ return null; } }
+function readVersions(id){ try{ const v=JSON.parse(lsGet(VER_PREFIX+id)||'[]'); return Array.isArray(v)?v.filter(x=>x&&x.t&&typeof x.data==='string'):[]; }catch(e){ return []; } }
+function maybeSnapshot(){
+  const now=Date.now(); if(now-lastSnap<SNAP_EVERY||!ontologyNonEmpty()) return; lastSnap=now;
+  const v=readVersions(projects.current); v.push({t:now,data:JSON.stringify(Object.assign({},state,{view:undefined,sel:null}))});
+  while(v.length>SNAP_MAX) v.shift(); lsSet(VER_PREFIX+projects.current,JSON.stringify(v));
+}
+function persistProject(){ // écrit l'état courant dans son projet
+  if(!projects.current) return;
+  if(lsSet(PROJ_PREFIX+projects.current,JSON.stringify(state))){ const e=projectEntry(projects.current); if(e) e.updated=Date.now(); maybeSnapshot(); }
+}
+function save(){ persistProject(); saveProjects(); trackHistory(); }
 function restoreSnap(snap){
   [state.classes,state.objProps,state.dataProps,state.nextId,state.ns,state.nsList,state.meta]=JSON.parse(snap);
   if(!state.meta) state.meta=newMeta();
@@ -305,7 +344,73 @@ function sanitizeState(s){
   out.sel=null;
   return out;
 }
-function load(){ try{ const s=JSON.parse(localStorage.getItem(LS_KEY)||'null'); if(s&&Array.isArray(s.classes)) state=sanitizeState(s); }catch(e){} }
+function emptyState(){ return sanitizeState({classes:[],objProps:[],dataProps:[],nextId:1,ns:defaultNs(),nsList:[],meta:newMeta(),mode:state.mode}); }
+function load(){
+  try{ const j=JSON.parse(lsGet(PROJ_KEY)||'null');
+    if(j&&Array.isArray(j.list)){ projects.list=j.list.filter(e=>e&&typeof e.id==='string'&&typeof e.name==='string'); projects.current=projects.list.some(e=>e.id===j.current)?j.current:(projects.list[0]||{}).id; } }catch(e){}
+  if(!projects.list.length){ // premier lancement, ou migration de l'ancienne clé unique
+    const id=newProjectId(); projects.list=[{id,name:'Mon ontologie',created:Date.now(),updated:Date.now()}]; projects.current=id;
+    try{ const s=JSON.parse(lsGet(LS_KEY)||'null'); if(s&&Array.isArray(s.classes)) state=sanitizeState(s); }catch(e){}
+    persistProject(); saveProjects();
+  } else { const s=readProject(projects.current); if(s) state=sanitizeState(s); }
+}
+/* Opérations sur les projets. */
+function createProject(name,raw){ // ajoute un projet (vide, ou à partir d'un état brut) sans l'ouvrir ; renvoie son id
+  const id=newProjectId(); projects.list.push({id,name:uniqueProjectName(name),created:Date.now(),updated:Date.now()});
+  const prev=state, st=(raw&&Array.isArray(raw.classes))?sanitizeState(raw):emptyState(); state=prev;
+  lsSet(PROJ_PREFIX+id,JSON.stringify(st)); saveProjects(); return id;
+}
+function switchProject(id,raw){ // ouvre un projet (l'état courant est d'abord enregistré) ; raw = état déjà en mémoire
+  if(!projectEntry(id)) return false;
+  if(id!==projects.current){ persistProject(); }
+  projects.current=id; lastSnap=0;
+  const st=(raw&&Array.isArray(raw.classes))?raw:readProject(id);
+  state=st?sanitizeState(st):emptyState();
+  layoutCache={key:null,pos:null}; hist.undo=[]; hist.redo=[]; hist.chars=0; hist.last=null; // l'historique annuler / rétablir est propre à la session de chaque projet
+  if(state.view.x==null) initView();
+  persistProject(); saveProjects(); trackHistory(); updateHistButtons(); updateProjectName(); render(); setMode(state.mode||'class');
+  return true;
+}
+function openNewProject(name,raw){ const id=createProject(name,raw); switchProject(id,raw); return id; }
+function renameProject(id,name){ const e=projectEntry(id); name=String(name||'').trim(); if(!e||!name) return false; e.name=uniqueProjectName(name,id); saveProjects(); updateProjectName(); return true; }
+function duplicateProject(id){
+  const e=projectEntry(id); if(!e) return null; if(id===projects.current) persistProject();
+  return createProject(e.name+' (copie)',readProject(id));
+}
+function deleteProject(id){
+  const e=projectEntry(id); if(!e) return false;
+  try{ localStorage.removeItem(PROJ_PREFIX+id); localStorage.removeItem(VER_PREFIX+id); }catch(x){}
+  projects.list=projects.list.filter(x=>x.id!==id);
+  if(!projects.list.length){ const nid=createProject('Mon ontologie',null); switchProject(nid); return true; }
+  if(id===projects.current){ projects.current=null; switchProject(projects.list[0].id); } else saveProjects();
+  return true;
+}
+function restoreVersion(id,t){ // la version devient un NOUVEAU projet : rien n'est perdu
+  const v=readVersions(id).find(x=>x.t===t); if(!v) return null; let raw=null; try{ raw=JSON.parse(v.data); }catch(e){} if(!raw) return null;
+  const d=new Date(t), hh=String(d.getHours()).padStart(2,'0')+'h'+String(d.getMinutes()).padStart(2,'0');
+  return openNewProject((projectEntry(id)||{name:'Projet'}).name+' (version de '+hh+')',raw);
+}
+function updateProjectName(){ const b=$('#proj-name'); if(b){ const e=projectEntry(projects.current); b.textContent='📁 '+(e?e.name:''); b.title='Projets : '+(e?e.name:''); } }
+/* Sauvegarde de tout, en un fichier ; importer en ajoute les projets sans rien écraser. */
+function exportAllProjects(){
+  persistProject();
+  const all=projects.list.map(e=>({name:e.name,state:e.id===projects.current?state:readProject(e.id)})).filter(x=>x.state);
+  download(new Blob([JSON.stringify({format:'ontolab-projects',version:VERSION,exported:new Date().toISOString(),projects:all},null,1)],{type:'application/json'}),'ontolab-projets.json');
+  return all.length;
+}
+function importProjectsData(obj){
+  let n=0; (Array.isArray(obj.projects)?obj.projects:[]).forEach(p=>{ if(p&&p.state&&Array.isArray(p.state.classes)){ createProject(p.name||'Projet importé',p.state); n++; } });
+  return n;
+}
+/* Place une ontologie importée (Turtle, JSON) : dans un nouveau projet, ou à la place du projet courant. */
+function placeImported(raw,name,where){
+  if(where==='replace'||!ontologyNonEmpty()){ state=sanitizeState(raw); layoutCache={key:null,pos:null}; initView(); save(); render(); setMode(state.mode); return projects.current; }
+  return openNewProject(name,raw);
+}
+const baseName=n=>String(n||'').replace(/\.[^.]*$/,'').trim()||'Import';
+function destinationField(name){
+  return ontologyNonEmpty()?[{key:'where',label:'Destination',type:'select',value:'new',options:[{v:'new',t:'Nouveau projet « '+name+' »'},{v:'replace',t:'Remplacer le projet courant « '+((projectEntry(projects.current)||{}).name||'')+' »'}]}]:[];
+}
 
 const $=s=>document.querySelector(s);
 function el(tag,attrs,parent){ const n=document.createElementNS(SVGNS,tag); for(const k in attrs) n.setAttribute(k,attrs[k]); if(parent) parent.appendChild(n); return n; }
@@ -845,6 +950,7 @@ function deleteProp(kind,id){
 
 /* ---------- exemple chargé ---------- */
 function loadExample(){
+  if(ontologyNonEmpty()) openNewProject('Exemple de randonnées',null); // jamais d'écrasement : l'exemple s'ouvre dans un nouveau projet
   state.classes=[]; state.objProps=[]; state.dataProps=[]; state.nextId=1; state.nsList=[]; state.meta=newMeta(); // l'exemple n'utilise que l'espace de noms de l'ontologie
   const id={};
   const add=n=>{ const i=state.nextId++; state.classes.push({id:i,name:n,parents:[]}); id[n]=i; return i; };
@@ -893,9 +999,12 @@ function readTextFile(f,done){
 function handleJSONFile(f){
   readTextFile(f,txt=>{
     try{
-      const s=JSON.parse(txt); if(!Array.isArray(s.classes)) throw new Error('pas de liste « classes »');
-      state=sanitizeState(s); if(state.view.x==null) initView(); save(); render(); setMode(state.mode);
-      status('Ontologie importée : '+s.classes.length+' classe(s).');
+      const s=JSON.parse(txt);
+      if(s&&s.format==='ontolab-projects'){ const n=importProjectsData(s); status(n+' projet(s) importé(s) : ⋯ › Projets… pour les ouvrir.'); return; }
+      if(!Array.isArray(s.classes)) throw new Error('pas de liste « classes »');
+      const name=baseName(f.name), fields=destinationField(name);
+      const done=where=>{ placeImported(s,name,where); status('Ontologie importée : '+s.classes.length+' classe(s).'); };
+      if(!fields.length) done('replace'); else dialog('Importer un fichier JSON OntoLab',fields,'« '+f.name+' » : '+s.classes.length+' classe(s).').then(v=>{ if(v) done(v.where); });
     }catch(e){ infoBox('« '+f.name+' » n\'est pas un export JSON d\'OntoLab valide.\n'+e.message,'Import JSON impossible'); }
   });
 }
@@ -1600,19 +1709,18 @@ function handleTTLFile(f){
     }catch(e){ infoBox('« '+f.name+' » : '+e.message,'Import Turtle impossible'); return; }
     if(!res.classes.length&&!res.objProps.length&&!res.dataProps.length){
       infoBox('Aucune classe ni propriété trouvée dans « '+f.name+' » ('+txt.length+' caractères lus). Le fichier est-il bien de l\'OWL/RDFS en Turtle ?','Import Turtle'); return; }
-    const apply=()=>{
+    const name=baseName(f.name);
+    const apply=where=>{
       try{
-        state=sanitizeState({classes:res.classes,objProps:res.objProps,dataProps:res.dataProps,nextId:res.nextId,ns:res.ns||state.ns,nsList:res.nsList,meta:res.meta,mode:state.mode});
-        initView(); save(); render(); setMode(state.mode);
+        placeImported({classes:res.classes,objProps:res.objProps,dataProps:res.dataProps,nextId:res.nextId,ns:res.ns||state.ns,nsList:res.nsList,meta:res.meta,mode:state.mode},name,where);
         status('Import Turtle : '+res.classes.length+' classe(s), '+res.objProps.length+' propriété(s) objet, '+res.dataProps.length+' propriété(s) de donnée.');
       }catch(e){ console.error(e); infoBox('Erreur pendant l\'import : '+e.message,'Import Turtle impossible'); }
     };
-    const cur=state.classes.length+state.objProps.length+state.dataProps.length;
-    if(!cur&&!res.notes.length){ apply(); return; }
+    const fields=destinationField(name);
+    if(!fields.length&&!res.notes.length){ apply('replace'); return; }
     let msg='« '+f.name+' » : '+res.classes.length+' classe(s), '+res.objProps.length+' propriété(s) objet, '+res.dataProps.length+' propriété(s) de donnée.';
-    if(cur) msg+='\n\nL\'ontologie actuelle ('+state.classes.length+' classe(s), '+(state.objProps.length+state.dataProps.length)+' propriété(s)) sera REMPLACÉE.';
     if(res.notes.length) msg+='\n\nNon repris :\n• '+res.notes.join('\n• ');
-    confirmBox(msg,'Importer un fichier Turtle').then(ok=>{ if(ok) apply(); });
+    dialog('Importer un fichier Turtle',fields,msg).then(v=>{ if(v) apply(fields.length?v.where:'replace'); });
   });
 }
 
@@ -2999,6 +3107,49 @@ $('#b-exp').onclick=()=>showMenu($('#b-exp'),[
   {label:'Turtle (.ttl)',run:exportTTL},
   {label:'JSON OntoLab',hint:'sauvegarde',run:exportJSON},
   {label:'Image (PNG, SVG)…',run:exportImage}]);
+/* ---------- dialogues des projets (F4) ---------- */
+function openProjects(){
+  persistProject();
+  const ov=document.createElement('div'); ov.className='ovl'; const box=document.createElement('div'); box.className='dlg'; box.style.width='min(560px,94vw)';
+  const fmt=t=>{ const d=new Date(t); return d.toLocaleDateString('fr-FR')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
+  const draw=()=>{
+    box.innerHTML='<h3>Projets</h3><p class="dlg-msg">Chaque projet est une ontologie enregistrée dans ce navigateur. Un import ou l\'exemple s\'ouvre dans un nouveau projet.</p>'
+      +'<div class="chk-list">'+projects.list.map(e=>{ const st=e.id===projects.current?state:readProject(e.id), n=st?st.classes.length:0, np=st?st.objProps.length+st.dataProps.length:0;
+        return '<div class="prj'+(e.id===projects.current?' cur':'')+'" data-id="'+e.id+'"><button class="prj-open" title="Ouvrir">'+(e.id===projects.current?'● ':'')+esc(e.name)+'</button>'
+          +'<button class="btn" data-act="ren" aria-label="Renommer" title="Renommer">✎</button><button class="btn" data-act="dup" aria-label="Dupliquer" title="Dupliquer">⧉</button><button class="btn" data-act="del" aria-label="Supprimer" title="Supprimer">🗑</button>'
+          +'<small>'+n+' classe(s), '+np+' propriété(s) · modifié le '+fmt(e.updated||e.created||Date.now())+'</small></div>'; }).join('')+'</div>';
+    const btns=document.createElement('div'); btns.className='dlg-btns'; btns.style.flexWrap='wrap';
+    const mk=(t,fn,cls)=>{ const b=document.createElement('button'); b.className='btn'+(cls?' '+cls:''); b.textContent=t; b.onclick=fn; btns.appendChild(b); };
+    mk('+ Nouveau projet',()=>{ dialog('Nouveau projet',[{key:'name',label:'Nom du projet',value:uniqueProjectName('Nouveau projet')}]).then(v=>{ if(v){ openNewProject(v.name,null); ov.remove(); status('Projet « '+(projectEntry(projects.current)||{}).name+' » créé.'); } }); },'primary');
+    mk('Versions précédentes…',()=>{ ov.remove(); openVersions(); });
+    mk('Exporter tous',()=>{ const n=exportAllProjects(); status(n+' projet(s) exporté(s) dans ontolab-projets.json.'); });
+    mk('Importer des projets…',()=>{ ov.remove(); importJSON(); });
+    mk('Fermer',()=>ov.remove());
+    box.appendChild(btns);
+    box.querySelectorAll('.prj').forEach(row=>{ const id=row.dataset.id;
+      row.querySelector('.prj-open').onclick=()=>{ switchProject(id); ov.remove(); status('Projet « '+projectEntry(id).name+' » ouvert.'); };
+      row.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{ const a=b.dataset.act, e=projectEntry(id);
+        if(a==='ren') dialog('Renommer le projet',[{key:'name',label:'Nom',value:e.name}]).then(v=>{ if(v&&renameProject(id,v.name)) draw(); });
+        else if(a==='dup'){ duplicateProject(id); draw(); }
+        else if(a==='del') confirmBox('Supprimer le projet « '+e.name+' » et ses versions précédentes ? Cette action est définitive.','Supprimer').then(ok=>{ if(ok){ deleteProject(id); draw(); } }); }); });
+  };
+  draw(); ov.appendChild(box);
+  ov.addEventListener('pointerdown',e=>{ if(e.target===ov) ov.remove(); });
+  ov.style.pointerEvents='none'; setTimeout(()=>{ ov.style.pointerEvents=''; },350);
+  document.body.appendChild(ov);
+}
+function openVersions(){
+  const id=projects.current, vs=readVersions(id).reverse();
+  const ov=document.createElement('div'); ov.className='ovl'; const box=document.createElement('div'); box.className='dlg'; box.style.width='min(520px,94vw)';
+  box.innerHTML='<h3>Versions précédentes — « '+esc((projectEntry(id)||{}).name||'')+' »</h3><p class="dlg-msg">'+(vs.length?'Restaurer une version l\'ouvre dans un <b>nouveau projet</b> : rien n\'est perdu. Une version est enregistrée au plus toutes les 10 minutes de travail ; les '+SNAP_MAX+' dernières sont conservées.':'Aucune version pour l\'instant : la première est enregistrée à la première modification.')+'</p>'
+    +'<div class="chk-list">'+vs.map(v=>{ let c=0,p=0; try{ const o=JSON.parse(v.data); c=o.classes.length; p=o.objProps.length+o.dataProps.length; }catch(e){} const d=new Date(v.t);
+      return '<div class="prj" data-t="'+v.t+'"><button class="prj-open" title="Restaurer en nouveau projet">'+d.toLocaleDateString('fr-FR')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+'</button><small>'+c+' classe(s), '+p+' propriété(s)</small></div>'; }).join('')+'</div>';
+  const btns=document.createElement('div'); btns.className='dlg-btns'; const cl=document.createElement('button'); cl.className='btn primary'; cl.textContent='Fermer'; cl.onclick=()=>ov.remove(); btns.appendChild(cl); box.appendChild(btns); ov.appendChild(box);
+  box.querySelectorAll('.prj').forEach(row=>{ row.querySelector('.prj-open').onclick=()=>{ const nid=restoreVersion(id,+row.dataset.t); ov.remove(); if(nid) status('Version restaurée dans le projet « '+projectEntry(nid).name+' ».'); }; });
+  ov.addEventListener('pointerdown',e=>{ if(e.target===ov) ov.remove(); });
+  ov.style.pointerEvents='none'; setTimeout(()=>{ ov.style.pointerEvents=''; },350);
+  document.body.appendChild(ov);
+}
 function openPrefs(){
   const label=m=>m==='rdfs'?'RDFS':'OWL';
   const fields=[];
@@ -3130,6 +3281,8 @@ function openMeta(pre){
   });
 }
 $('#b-more').onclick=()=>showMenu($('#b-more'),[
+  {label:'Projets…',hint:'plusieurs ontologies',run:()=>openProjects()},
+  '-',
   {label:'Charger l\'exemple',run:loadExample},
   {label:'Vider l\'ontologie',danger:true,run:clearAll},
   '-',
@@ -3144,7 +3297,7 @@ svg.addEventListener('dblclick',e=>{ if(e.target===svg||e.target===world) initVi
 
 /* ---------- démarrage ---------- */
 $('#copyright').textContent+=' · v'+VERSION;
-loadUI(); applyLegendUI(); load(); trackHistory(); updateHistButtons(); // photographie de départ de l'historique
+loadUI(); applyLegendUI(); load(); updateProjectName(); $('#proj-name').onclick=()=>openProjects(); trackHistory(); updateHistButtons(); // photographie de départ de l'historique
 if(state.view.x==null) initView();
 render();
 setMode(state.mode||'class');

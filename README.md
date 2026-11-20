@@ -23,7 +23,7 @@ de donnée), visualisation de type VOWL, export Turtle.
 - **Contrôles de vue** (en bas à droite, au-dessus du graphe) : zoom +, zoom −, recentrer, réorganiser.
 - **Légende** : pastille en bas à gauche ; **panneau d'édition** à droite (replié/affiché par le menu ⋯).
 
-Le travail est sauvegardé automatiquement dans le navigateur (localStorage) et
+Le travail est sauvegardé automatiquement dans le navigateur (localStorage), **projet par projet** (voir « Projets » ci-dessous), et
 est exportable/importable en JSON (« Exporter ▾ › JSON OntoLab » / « Importer ▾ › JSON OntoLab ») pour
 le partager ou le sauvegarder durablement. « Exporter ▾ › Turtle » produit,
 lui, un fichier `.ttl` OWL standard, lisible par tout outil RDF.
@@ -232,6 +232,14 @@ Dans le panneau d'une propriété, le domaine et la portée se choisissent dans 
 et une marque **∪ / ∩ / ¬** suit le nom (pastille en mode compact des propriétés objet). Intersection ou expression complexe : la flèche est ancrée sur la première classe nommée.
 Turtle : plusieurs `rdfs:domain` / `rdfs:range` = intersection (valide en RDFS) ; `owl:unionOf` et les autres expressions sont écrites en OWL seulement. L'import reprend les valeurs multiples (intersection) et les unions ; ce qu'il ne comprend pas est signalé.
 Supprimer une classe citée dans une expression supprime la propriété, comme pour une classe simple.
+
+### Projets (plusieurs ontologies)
+
+Le nom du **projet courant** s'affiche à côté du titre (📁) ; un clic, ou **⋯ › Projets…**, ouvre la liste : **ouvrir**, **+ Nouveau projet**, **renommer** (✎), **dupliquer** (⧉), **supprimer** (🗑, définitif). Chaque projet a son propre historique annuler / rétablir pour la session en cours.
+**« Charger l'exemple »** et les **imports** (Turtle, JSON) s'ouvrent dans un **nouveau projet** si le projet courant n'est pas vide (la boîte d'import propose aussi « Remplacer le projet courant ») : un travail n'est plus écrasé.
+**Versions précédentes…** : jusqu'à 5 versions récentes par projet (une au plus toutes les 10 minutes de travail) ; en restaurer une l'ouvre dans un **nouveau projet**, rien n'est perdu.
+**Exporter tous** écrit un fichier `ontolab-projets.json` ; **Importer des projets…** (ou « Importer ▾ › JSON OntoLab ») en ajoute les projets sans rien écraser, en dédoublonnant les noms. Tout reste dans le navigateur de l'appareil : pour changer d'appareil ou rendre un travail, passez par l'export.
+Si le navigateur ne peut plus enregistrer (espace plein, navigation privée), un avertissement s'affiche : exportez alors vos projets.
 
 ### Version
 

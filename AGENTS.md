@@ -47,7 +47,7 @@ Le JS est organisé en 3 blocs commentés :
 
 ## Modèle de données (persisté)
 
-- Sauvegarde automatique dans `localStorage`, clé **`ontolab-v1`**.
+- Sauvegarde automatique dans `localStorage`, **par projet** (F4) : index `ontolab-projects` (`projects={current,list:[{id,name,created,updated}]}`), état de chaque projet dans `ontolab-p-<id>`, versions dans `ontolab-pv-<id>` (≤ 5, une par 10 min) ; l'ancienne clé unique `ontolab-v1` est migrée vers le premier projet « Mon ontologie » puis laissée en secours.
 - Schéma de `state` :
   - `classes[]` : `{id, name, parents: [id]}` (héritage multiple) + positions
     manuelles optionnelles `{mx, my, man}` ;
@@ -209,6 +209,11 @@ dessin, la mise en page ou la logique** : utiliser `oDom(p)`, `oRng(p)`, `dDom(p
 d'accueil « À compléter », compteur de `updateStats`). Panneau : `inhSelect()` (entrée « hérité de X : Classe » / « conflit » / « non défini »),
 `inhWarn()` (avertissement non bloquant si la surcharge n'est pas une sous-classe de celle du parent). Import : `ontologyFromTriples` laisse
 null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux propriétés **sans parent**. Inverses : `invOK(p,q)` (valeurs effectives).
+
+## Projets (F4)
+`save()` = `persistProject()` (état → `ontolab-p-<id>`, versions) + `saveProjects()` (index) + `trackHistory()`. Opérations : `createProject(nom, brut?)` (sans ouvrir), `switchProject(id, brut?)` (enregistre l'état courant, recharge, **réinitialise l'historique et le cache de mise en page**),
+`openNewProject`, `renameProject`, `duplicateProject`, `deleteProject` (il reste toujours un projet), `restoreVersion` (nouveau projet), `exportAllProjects`/`importProjectsData` (`{format:'ontolab-projects'}`), `placeImported(brut, nom, 'new'|'replace')` pour tout import.
+**Règle** : une fonction qui remplace l'ontologie entière (import, exemple…) passe par ces fonctions, jamais par `state=…` directement ; `lsSet` signale un stockage plein (une fois). Les tests : `tests/projects.test.js`.
 
 ## Domaine / portée en expression (C3)
 `domain` / `range` = id de classe, expression (arbre de C5, validée par `cleanEnds`) ou null (hérité, A6). `oDomV`/`oRngV`/`dDomV` = valeur effective (classe ou expression, héritage compris, comparée par `keyV`) ;

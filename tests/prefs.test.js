@@ -38,9 +38,10 @@ test('états enregistrés corrompus : ignorés sans exception', () => {
   assert.equal(t2.run('state.classes[0].id'), 4); assert.deepEqual(t2.run('state.classes[0].parents'), []);
 });
 
-test('sauvegarde locale : la modification d\'une ontologie est enregistrée puis relue', () => {
+test('sauvegarde locale : la modification d\'une ontologie est enregistrée (projet courant) puis relue', () => {
   const t = load(); t.run('loadExample()');
-  const raw = t.storage.get('ontolab-v1');
-  const t2 = load({ storage: { 'ontolab-v1': raw } });
+  const raw = Object.fromEntries(t.storage);                       // tout le stockage : index des projets + état du projet
+  assert.ok(raw['ontolab-projects']); assert.ok(Object.keys(raw).some(k => k.startsWith('ontolab-p-')));
+  const t2 = load({ storage: raw });
   assert.equal(t2.run('state.classes.length'), 7); assert.equal(t2.run('state.objProps.length'), 4);
 });

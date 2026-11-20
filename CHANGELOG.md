@@ -5,6 +5,12 @@ Numéro **MAJEUR.MINEUR.CORRECTIF**, affiché à côté du copyright (constante 
 - À chaque modification de l'application : incrémenter `VERSION` **et** ajouter une entrée ici (en tête). Les commits qui ne touchent que la documentation ou la ROADMAP ne changent pas le numéro.
 - Les entrées jusqu'à 1.14.1 ont été attribuées après coup d'après l'historique git (le numéro n'était pas encore affiché).
 
+## 1.21.0 — 2026-11-20
+- F4 : plusieurs projets (ontologies) dans le navigateur : ⋯ › Projets… (ouvrir, nouveau, renommer, dupliquer, supprimer) et nom du projet courant dans l'en-tête (un clic ouvre la liste) ;
+  « Charger l'exemple » et les imports Turtle / JSON s'ouvrent dans un **nouveau projet** (choix « remplacer le projet courant » proposé) : un travail n'est plus écrasé ;
+  5 versions récentes par projet (une au plus toutes les 10 minutes de travail), restaurées dans un nouveau projet ; exporter / importer tous les projets en un fichier ;
+  avertissement si le navigateur ne peut plus enregistrer. L'ancienne sauvegarde unique est reprise comme premier projet « Mon ontologie ».
+
 ## 1.20.0 — 2026-11-20
 - C3 : domaine et portée d'une propriété = une classe, **plusieurs classes (intersection)** ou **toute expression de classe** (`Chat or Chien`, `A and B`, `not C`…) : option « ✎ Expression… » du sélecteur,
   saisie à la Manchester ; une flèche par classe d'une union, marque ∪ ∩ ¬ après le nom (pastille en mode compact) ; héritage (A6), propriétés inverses, mise en page, vérification et suppression de classe adaptés.
