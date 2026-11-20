@@ -238,27 +238,32 @@ normal en RDFS). Analyse faite le 2026-11-20 ; rien n'est implanté.
      ambitieuse (effort **L**) : voir les questions ouvertes ci-dessous. Recommandation de réalisation : **deux livraisons**
      (d'abord les propriétés de donnée, puis les propriétés objet), le panneau de préférences ayant **une case par famille**
      (donnée / objet) pour pouvoir les activer séparément.
-- **Questions ouvertes** (découvertes en examinant la décision 4 ; à trancher avant de coder les flèches) :
-  a. *Symboles d'une propriété objet sans ellipse* : transitive (boucle verte), symétrique (doubles flèches), fonctionnelle et
-     fonctionnelle inverse (bordure pointillée / en points), paire d'inverses (⇄). Où mettre ces marques sur une flèche
-     (style du trait, pastille au milieu, texte dans l'étiquette) ?
-  b. *Sous-propriétés* : l'arc pointillé relie aujourd'hui deux ellipses. Entre deux flèches il n'a plus de support : le supprimer
-     en compact (info dans le panneau), l'indiquer dans l'étiquette, ou relier les milieux des flèches ?
-  c. *Plusieurs propriétés entre les mêmes classes* et *boucles* (domaine = portée) : flèches courbes décalées, boucle sur la classe
-     (le moteur actuel gère déjà des ellipses autour d'une classe, pas des flèches parallèles).
-  d. *Propriétés sans domaine ou sans portée* : impossibles à dessiner comme flèche. Où les voir (flèche partant d'un point libre,
-     liste dans le panneau d'ontologie, indicateur) ?
-  e. *Propriétés de donnée sans domaine* et *attributs hérités* : ces attributs n'ont plus de nœud ; le panneau d'une classe
-     doit-il lister aussi ceux des super-classes (grisés) ?
-  f. *Sélection au doigt* : zone de toucher d'une flèche fine et de son étiquette (iPad) ; sélection d'une flèche = ouvre le
-     panneau de la propriété.
+- **Décisions prises (suite, 2026-11-20)** — les six questions soulevées par la décision 4 :
+  a. **Symboles d'une flèche** : le **style du trait** garde le sens des bordures actuelles (fonctionnelle = tirets, fonctionnelle
+     inverse = points) ; transitive, symétrique et paire d'inverses sont de **petites pastilles lettrées** (T, S, ⇄) sur
+     l'étiquette, avec infobulle ; la légende les explique. En mode RDFS, aucune de ces marques (cf. G1).
+  b. **Sous-propriétés** : **pas d'arc** en compact. Un petit rappel dans l'étiquette (de la forme « ⊆ parent ») et le
+     **panneau** liste parents et enfants. La hiérarchie de propriétés ne se voit donc plus d'un coup d'œil sur le graphe :
+     assumé.
+  c. **Propriétés parallèles et boucles** : des **courbes légèrement décalées** entre les mêmes deux classes (une par propriété,
+     étiquette au milieu) ; une propriété dont domaine = portée est une **boucle sur la classe**, plusieurs boucles se répartissant
+     autour. Le placement des étiquettes est du code nouveau (le moteur actuel gère des ellipses autour d'une classe, pas des
+     flèches parallèles).
+  d. **Propriété objet sans domaine ou sans portée** : **les deux** — une **flèche courte vers un point libre**, avec « ? » à
+     l'extrémité manquante, quand une extrémité existe ; et une **liste dans le panneau d'accueil** (sans sélection) des
+     propriétés incomplètes, cliquables, pour celles qui n'ont aucune extrémité.
+  e. **Attributs hérités et sans domaine** : le panneau d'une classe montre ses attributs propres, puis une section « hérités de X »
+     en **gris** (non modifiables ici ; cliquer mène à la classe d'origine). Les **propriétés de donnée sans domaine** sont
+     listées dans le **panneau d'accueil**, avec les propriétés objet incomplètes de (d) : une seule liste « éléments à compléter ».
+  f. **Au doigt** : **zone de toucher élargie** (≈ 22 px en tactile, comme pour les autres nœuds) autour du trait **et** de
+     l'étiquette, l'étiquette étant la cible principale ; tap et double-tap comme ailleurs (sélection, puis panneau).
 - **Autres points** : l'export image reflète le mode courant (à signaler dans le dialogue) ; la légende s'adapte au mode (flèche
-  au lieu de l'ellipse, compteur) ; interaction avec G1 (mode RDFS : pas de symboles OWL à dessiner).
+  au lieu de l'ellipse, compteur, pastilles T / S / ⇄, trait en tirets / en points) ; interaction avec G1 (mode RDFS : pas de symboles OWL à dessiner).
 - **Tests à prévoir** : disposition du graphe après disparition des nœuds (point faible de toutes les évolutions de mise en page),
   bascule de mode sur une ontologie riche sans perte, aller-retour export/import dans chaque mode, double-clic / sélection /
   annuler en mode compact, ontologies avec boucles et propriétés parallèles, iPad.
 
-**Ordre conseillé** : panneau de préférences + G1 d'abord (rapide, utile tout de suite), puis G2 limité aux propriétés de donnée ;
+**Toutes les questions de G1 et G2 sont tranchées** : G1 et G2 sont prêts à être implantés. **Ordre conseillé** : panneau de préférences + G1 d'abord (rapide, utile tout de suite), puis G2 limité aux propriétés de donnée ;
 réserver le compactage des propriétés objet à une troisième étape, après essai en conditions réelles. Trancher les points « À trancher »
 de G1 et les décisions 1 à 4 de G2 **avant** de coder.
 
