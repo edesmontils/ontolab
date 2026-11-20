@@ -210,6 +210,10 @@ d'accueil « À compléter », compteur de `updateStats`). Panneau : `inhSelect(
 `inhWarn()` (avertissement non bloquant si la surcharge n'est pas une sous-classe de celle du parent). Import : `ontologyFromTriples` laisse
 null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux propriétés **sans parent**. Inverses : `invOK(p,q)` (valeurs effectives).
 
+## Mise en page (F1)
+`state.layout` = `'force'|'hier'` (propre au projet, assaini ; **dans la clé de cache de `computeLayout`**). Hiérarchique : `forceLayout` utilise `layered(true)` (couches par `subClassOf` seulement) sans simulation, racines alignées. Épingles : `pin:true` + `mx/my` sur classes et étiquettes (`setPin`, `unpinAll`, `reorganize` qui garde les épinglées ; `sanitizeState` retire une épingle sans position).
+`placeAround` : sortie anticipée par niveaux (exacte : un niveau coûte ≥ 70 de plus) et rejets rapides par rayons ; `relax` : rejet rapide avant la trigonométrie, attraction sous-propriété → parente (40 premières itérations) ; `reduceCrossings` (après `relax`, avant `refinalizeProps` ; coupable par `LAYOUT_OPTS.reduce`). **Toute optimisation de la mise en page doit rester exacte ou être justifiée** : comparer les positions avant / après sur des ontologies de test (voir `tests/layout2.test.js`).
+
 ## Projets (F4)
 `save()` = `persistProject()` (état → `ontolab-p-<id>`, versions) + `saveProjects()` (index) + `trackHistory()`. Opérations : `createProject(nom, brut?)` (sans ouvrir), `switchProject(id, brut?)` (enregistre l'état courant, recharge, **réinitialise l'historique et le cache de mise en page**),
 `openNewProject`, `renameProject`, `duplicateProject`, `deleteProject` (il reste toujours un projet), `restoreVersion` (nouveau projet), `exportAllProjects`/`importProjectsData` (`{format:'ontolab-projects'}`), `placeImported(brut, nom, 'new'|'replace')` pour tout import.

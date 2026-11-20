@@ -11,8 +11,8 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 
 Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
 
-### État au 2026-11-20 (v1.21.0, 135 tests)
-- **Fait** : A1–A6 ; B1, B2 ; C1–C5 (C5 sans `oneOf`) ; F4, F5 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
+### État au 2026-11-20 (v1.22.0, 148 tests)
+- **Fait** : A1–A6 ; B1, B2 ; C1–C5 (C5 sans `oneOf`) ; F1, F4, F5 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
 - **Reste** : D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
 - **Ordre conseillé pour la suite** : D1 (individus, qui débloque `oneOf` et `hasValue`) ; performances sur grands graphes (mesures en « Dette connue », reporté
   « plus tard » le 2026-11-20) ; A4 (court) quand on touche aux caractéristiques OWL. Retours iPad : aucun problème signalé pour l'instant.
@@ -172,15 +172,9 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 
 ## Phase F — Navigation, qualité, projets
 
-### F1. Mise en page : améliorations — M
-- *Fait (v1.11.0)* : placement initial par couches, repoussement nœud-arête, espacement selon le degré, ancrage des classes sur leur couche. *Reste* : les points ci-dessous.
-- Rapprocher une **sous-propriété de sa propriété parente** (aujourd'hui seulement une marge minimale
-  de 58 px, `SUBGAP` dans `relax()`).
-- **Épingler** un nœud (verrouiller sa position) sans passer par le mode ④ ; relancer la mise en page
-  en conservant les épingles.
-- Variante **hiérarchique stricte** (arbre haut → bas) en plus des forces.
-- Réduire les croisements étiquette/arête (les étiquettes évitent déjà les classes et les arêtes
-  déjà tracées).
+### F1. Mise en page : améliorations — M — **fait** (v1.22.0, 2026-11-20)
+- *Fait* : placement par couches (v1.11.0) ; épingles explicites ; menu Réorganiser (par forces / hiérarchique stricte mémorisée par projet) ; sous-propriétés attirées vers leur parente ; réduction des croisements étiquette / flèche (≈ 15 % de croisements en moins sur des graphes denses aléatoires) ; optimisation du rendu (× 8 à 15).
+- *Reste* : la première mise en page d'un très gros graphe (≈ 0,7 s à 60 classes, ≈ 0,6 s à 100 classes avec une seule tentative) ; la disposition hiérarchique ne tient pas compte des propriétés pour ordonner les couches (seulement `subClassOf`).
 
 ### F2. Navigation dans les grandes ontologies — M
 - **Recherche** par nom (zoom et mise en évidence), **filtres** (masquer propriétés de donnée / objet),
@@ -329,10 +323,7 @@ de G1 et les décisions 1 à 4 de G2 **avant** de coder.
 
 - **iPad** : l'utilisateur teste régulièrement sur iPad (les essais de l'assistant, eux, se font dans un navigateur de bureau : aucun test tactile automatisé). Import de fichiers
   (champs `<input file>` permanents, sans `accept`) et téléchargement du `.ttl` : corrigés d'après les comportements connus de Safari iOS ; leur validation sur l'appareil n'est pas consignée ici.
-- **Gros schémas — mesure du 2026-11-20 (navigateur, ontologie dense de 60 classes, 72 propriétés objet, 60 de donnée)** : mise en page ≈ 2,2 s (une fois, mise en cache tant que la
-  structure ne change pas) **et ≈ 0,95 s par rendu** (placement des propriétés `computeProps` ≈ 0,5 s + `relax` ≈ 0,4 s), à comparer aux ~250 ms annoncés autrefois pour 60 classes :
-  à 20 classes ≈ 0,1 s, 40 classes ≈ 0,45 s. En mode ④ (déplacer), chaque image refait ce rendu : fluide jusqu'à ~30 classes, pénible au-delà. Pistes : limiter les niveaux/angles de `placeAround`,
-  ne recalculer que les propriétés voisines du nœud déplacé, mettre en cache le placement des étiquettes non déplacées.
+- **Gros schémas** (mesure du 2026-11-20 après optimisation, navigateur, ontologie dense de 60 classes / 72 propriétés objet / 60 de donnée) : rendu ≈ 0,1 s (était ≈ 0,95 s) ; première mise en page ≈ 0,7 s (était ≈ 2,2 s, mise en cache ensuite) ; à 100 classes : rendu ≈ 0,2 s. Au-delà, le temps de la première mise en page (simulation à forces, O(n²)) reste le point faible.
 - **Partage d'image sur iPad** : `navigator.share({files})` (feuille de partage) est utilisé sur écran tactile ; repli : téléchargement classique. Résultat sur appareil à consigner.
 - **Mode compact** (v1.12–1.13) : zones de toucher des pastilles, des « +N » et des flèches, et listes d'attributs dans le panneau : à confirmer sur iPad (retours de l'utilisateur à consigner) ;
   placement des pastilles testé seulement sur de petites ontologies (étiquettes qui se frôlent avec beaucoup de propriétés entre deux mêmes classes).

@@ -5,6 +5,11 @@ Numéro **MAJEUR.MINEUR.CORRECTIF**, affiché à côté du copyright (constante 
 - À chaque modification de l'application : incrémenter `VERSION` **et** ajouter une entrée ici (en tête). Les commits qui ne touchent que la documentation ou la ROADMAP ne changent pas le numéro.
 - Les entrées jusqu'à 1.14.1 ont été attribuées après coup d'après l'historique git (le numéro n'était pas encore affiché).
 
+## 1.22.0 — 2026-11-20
+- F1 : **épingles** (case « Épingler la position » du panneau, punaise sur le nœud) : « Réorganiser » efface les positions manuelles mais garde les éléments épinglés ; **bouton Réorganiser = menu** : disposition **par forces** ou **hiérarchique** (arbre de haut en bas, mémorisée dans le projet),
+  Réorganiser, Tout désépingler ; sous-propriétés **rapprochées** de leur propriété parente ; **réduction des croisements** entre étiquettes et flèches.
+- **Performances** : rendu d'un graphe dense de 60 classes ≈ 0,95 s → ≈ 0,1 s (placement des étiquettes, relâchement des collisions), première mise en page ≈ 2,2 s → ≈ 0,7 s ; résultats identiques au pixel près (vérifié sur des ontologies de 12 et 25 classes).
+
 ## 1.21.0 — 2026-11-20
 - F4 : plusieurs projets (ontologies) dans le navigateur : ⋯ › Projets… (ouvrir, nouveau, renommer, dupliquer, supprimer) et nom du projet courant dans l'en-tête (un clic ouvre la liste) ;
   « Charger l'exemple » et les imports Turtle / JSON s'ouvrent dans un **nouveau projet** (choix « remplacer le projet courant » proposé) : un travail n'est plus écrasé ;

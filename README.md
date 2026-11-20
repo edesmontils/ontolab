@@ -241,6 +241,12 @@ Le nom du **projet courant** s'affiche à côté du titre (📁) ; un clic, ou *
 **Exporter tous** écrit un fichier `ontolab-projets.json` ; **Importer des projets…** (ou « Importer ▾ › JSON OntoLab ») en ajoute les projets sans rien écraser, en dédoublonnant les noms. Tout reste dans le navigateur de l'appareil : pour changer d'appareil ou rendre un travail, passez par l'export.
 Si le navigateur ne peut plus enregistrer (espace plein, navigation privée), un avertissement s'affiche : exportez alors vos projets.
 
+### Mise en page : épingles, disposition hiérarchique
+
+Le bouton **Réorganiser** (en bas à droite) ouvre un menu : **Par forces** (disposition libre) ou **Hiérarchique** (arbre de haut en bas : les racines en haut, une couche par niveau de sous-classe ; le choix est mémorisé dans le projet), **Réorganiser** et **Tout désépingler**.
+Glisser un nœud en mode ④ le place à la main ; la case **« Épingler la position »** du panneau le verrouille (une punaise s'affiche sur le nœud) : « Réorganiser » efface les positions manuelles **sauf** celles des éléments épinglés. Les sous-propriétés sont rapprochées de leur propriété parente et les étiquettes de propriétés
+sont déplacées de quelques pixels quand cela évite un croisement avec une flèche ou un chevauchement.
+
 ### Version
 
 Le numéro de version est affiché à côté du copyright et dans l'en-tête des fichiers Turtle exportés ; l'historique est dans [`CHANGELOG.md`](CHANGELOG.md).
