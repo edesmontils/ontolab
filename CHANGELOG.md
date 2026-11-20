@@ -5,6 +5,12 @@ Numéro **MAJEUR.MINEUR.CORRECTIF**, affiché à côté du copyright (constante 
 - À chaque modification de l'application : incrémenter `VERSION` **et** ajouter une entrée ici (en tête). Les commits qui ne touchent que la documentation ou la ROADMAP ne changent pas le numéro.
 - Les entrées jusqu'à 1.14.1 ont été attribuées après coup d'après l'historique git (le numéro n'était pas encore affiché).
 
+## 1.16.0 — 2026-11-20
+- C1 : classes disjointes (`owl:disjointWith`) : listes dans le panneau, trait pointillé + pastille ⊥ sur le graphe, export, import (y compris `owl:AllDisjointClasses`).
+- C2 : classes équivalentes (`owl:equivalentClass` : double bordure + trait ≡, rapprochées par la mise en page) et propriétés équivalentes (`owl:equivalentProperty` : pastille ≡), export et import.
+- Vérification (A5) : classe insatisfiable (disjointe de son ancêtre ou héritant de deux classes disjointes), équivalentes et disjointes à la fois, équivalente à son ancêtre.
+- Mode RDFS : ces éléments sont masqués et non exportés (conservés dans l'ontologie).
+
 ## 1.15.0 — 2026-11-20
 - Numéro de version affiché à côté du copyright et dans l'en-tête du Turtle exporté ; ce journal.
 

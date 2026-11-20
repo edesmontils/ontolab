@@ -186,6 +186,14 @@ Propriétés parallèles = courbes décalées, domaine = portée = boucle. Une p
 modèle et héritage, rendu et panneau dans toutes les combinaisons de préférences, vérification de cohérence, mise en page, catalogue d'espaces de noms. Si Apache Jena (`riot`)
 est installé (variable `JENA_RIOT` ou `~/Applications/Jena/…`), les exports sont aussi validés par lui. `./deploy.sh` lance les tests avant de pousser.
 
+### Disjonction et équivalence (mode OWL)
+
+Dans le panneau d'une classe : **Disjointe de** (`owl:disjointWith`) et **Équivalente à** (`owl:equivalentClass`), listes retirables avec menu d'ajout (une classe ne peut pas être à la fois disjointe et équivalente).
+Sur le graphe : trait pointillé violet + pastille **⊥** entre classes disjointes ; **double bordure** + trait plein + pastille **≡** pour les classes équivalentes (la mise en page les rapproche).
+Dans le panneau d'une propriété objet ou de donnée : **Équivalente à** (`owl:equivalentProperty`, même genre uniquement), repérée par **≡** après le nom (ou pastille **≡** en mode compact).
+Les relations sont symétriques (déclarées une fois par paire dans le Turtle) ; l'import lit aussi `owl:AllDisjointClasses`. En mode RDFS elles sont masquées et non exportées.
+« Vérifier l'ontologie » signale les classes insatisfiables (disjointe d'un ancêtre, ou héritant de deux classes disjointes).
+
 ### Version
 
 Le numéro de version est affiché à côté du copyright et dans l'en-tête des fichiers Turtle exportés ; l'historique est dans [`CHANGELOG.md`](CHANGELOG.md).

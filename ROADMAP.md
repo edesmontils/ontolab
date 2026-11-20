@@ -11,10 +11,10 @@ explicite). Chaque fiche donne l'intérêt, l'impact sur le code et un ordre de 
 
 Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent tout le reste ; l'historique annuler/rétablir existe déjà). La phase G (modes d'affichage) est indépendante et peut s'intercaler quand on le souhaite.
 
-### État au 2026-11-20 (v1.15.0, 57 tests)
-- **Fait** : A1–A3, A5, A6 ; B1, B2 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
-- **Reste** : A4 (S) ; C1–C5 ; D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
-- **Ordre conseillé pour la suite** : C1 + C2 (axiomes simples) → C4 (restrictions : le plus utile au cours OWL) ; performances sur grands graphes (mesures en « Dette connue », reporté
+### État au 2026-11-20 (v1.16.0, 68 tests)
+- **Fait** : A1–A3, A5, A6 ; B1, B2 ; C1, C2 ; F5 ; G1, G2 (données et objet) ; espaces de noms (catalogue, racines), préférences, numéro de version.
+- **Reste** : A4 (S) ; C3–C5 ; D1 ; E1–E3 ; F1–F4 et F6 (F1 partiellement : disposition par couches faite, voir la fiche).
+- **Ordre conseillé pour la suite** : C4 (restrictions : le plus utile au cours OWL) ; performances sur grands graphes (mesures en « Dette connue », reporté
   « plus tard » le 2026-11-20) ; A4 (court) quand on touche aux caractéristiques OWL. Retours iPad : aucun problème signalé pour l'instant.
 
 ---
@@ -96,14 +96,14 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 
 ## Phase C — Axiomes de classes et de propriétés
 
-### C1. Disjonction de classes (`owl:disjointWith`) — M
+### C1. Disjonction de classes (`owl:disjointWith`) — M — **fait** (v1.16.0, 2026-11-20) : panneau, trait pointillé + ⊥, export / import, `AllDisjointClasses` en import ; `AllDisjointClasses` en export non fait (paires)
 - Relation symétrique entre deux classes, plusieurs possibles ; éventuellement `owl:AllDisjointClasses`.
 - **VOWL** : classes disjointes reliées par un petit cercle « disjoint » en pointillés.
 - **Modèle** : `disjoint: [ids]` sur chaque classe, tenu symétrique (comme `inverseOf`). Pastilles
   dans le panneau, nouveau mode ou geste (maj+glisser ?), cohérence avec l'héritage (une classe ne peut
   pas être disjointe de son ancêtre : le signaler).
 
-### C2. Équivalence de classes / de propriétés (`owl:equivalentClass`, `equivalentProperty`) — M
+### C2. Équivalence de classes / de propriétés (`owl:equivalentClass`, `equivalentProperty`) — M — **fait** (v1.16.0, 2026-11-20) : double bordure + trait ≡ pour les classes, pastille ≡ pour les propriétés
 - **VOWL** : classes équivalentes fusionnées visuellement (double bordure).
 - **Modèle** : `equivalent: [ids]`, symétrique. Import/export. La mise en page doit les garder proches.
 

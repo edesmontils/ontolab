@@ -210,6 +210,11 @@ d'accueil « À compléter », compteur de `updateStats`). Panneau : `inhSelect(
 `inhWarn()` (avertissement non bloquant si la surcharge n'est pas une sous-classe de celle du parent). Import : `ontologyFromTriples` laisse
 null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux propriétés **sans parent**. Inverses : `invOK(p,q)` (valeurs effectives).
 
+## Disjonction / équivalence (C1, C2)
+`disjoint:[ids]` et `equivalent:[ids]` (classes), `equivalent:[ids]` (propriétés, même genre) : listes **symétriques** tenues par `cleanRels` (appelé par `sanitizeState` et à chaque suppression), manipulées par `addRel` / `removeRel`.
+Panneau : `relBlocks`/`wireRel` (attributs `data-reladd`, `data-relrm`, pas `data-rm` réservé aux parents). Dessin : `drawClassRels` (couche des arcs), double bordure dans `drawClasses`, `≡` dans `drawObjProps`/`drawData`, `relTip` pour les infobulles ;
+`forceLayout` ajoute un lien court `eq`. Export : une seule fois par paire, sur l'élément d'id le plus petit, OWL seulement. Import : `disjointWith`, `equivalentClass`, `equivalentProperty`, `AllDisjointClasses` ; le reste est signalé. A5 : classes insatisfiables.
+
 ## Numéro de version
 Constante `VERSION` de `index.html` (affichée près du copyright, écrite dans l'en-tête du Turtle). **À chaque modification de l'application** : incrémenter `VERSION` (MINEUR = fonction nouvelle, CORRECTIF = correction / ajustement, MAJEUR = changement incompatible) **et** ajouter l'entrée correspondante en tête de `CHANGELOG.md`. Documentation et ROADMAP seules : pas de changement de numéro.
 

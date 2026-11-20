@@ -157,9 +157,9 @@ test('import : signale ce qui n\'est pas représentable (restrictions, individus
   const t = load();
   const { notes } = importInto(t, `@prefix : <http://e/#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
     :A a owl:Class ; rdfs:subClassOf [ a owl:Restriction ; owl:onProperty :p ; owl:someValuesFrom :A ] . :p a owl:ObjectProperty, owl:AsymmetricProperty ; rdfs:domain :A ; rdfs:range :A .
-    :x a owl:NamedIndividual, :A . :A owl:disjointWith :B . :B a owl:Class .`);
+    :x a owl:NamedIndividual, :A . :p owl:propertyDisjointWith :p2 . :p2 a owl:ObjectProperty .`);
   const txt = notes.join('\n');
-  assert.match(txt, /restriction/i); assert.match(txt, /individu/i); assert.match(txt, /Asymmetric/); assert.match(txt, /disjointWith/);
+  assert.match(txt, /restriction/i); assert.match(txt, /individu/i); assert.match(txt, /Asymmetric/); assert.match(txt, /propertyDisjointWith/);
 });
 
 test('import : plusieurs rdfs:label par langue, doublons éliminés', () => {
@@ -184,6 +184,7 @@ function findRiot() {
 const RIOT = findRiot();
 test('Jena riot --validate accepte les exports (OWL, RDFS, annotations)', { skip: RIOT ? false : 'Jena (riot) introuvable : définir JENA_RIOT pour activer' }, () => {
   const t = load(); t.run('loadExample()');
+  t.run(`addRel('class','disjoint',state.classes[1].id,state.classes[2].id); addRel('class','equivalent',state.classes[3].id,state.classes[4].id); addRel('obj','equivalent',state.objProps[1].id,state.objProps[2].id)`);
   t.run(`state.classes[0].labels=[{lang:'fr',text:'P "x"'}]; state.meta={iri:'',title:'T',description:'',lang:'fr',version:'1',creators:['A'],imports:['http://purl.org/dc/terms/']}`);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ontolab-')); 
   for (const mode of ['owl', 'rdfs']) {
