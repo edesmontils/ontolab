@@ -267,7 +267,10 @@ La liste des espaces courants se maintient dans **`namespaces.js`**, à côté d
 (`{prefix, iri, label, group}`), le format est détaillé en tête du fichier. Pas d'autre fichier à toucher ;
 vérifiez une IRI sur <https://prefix.cc> avant de l'ajouter. Une ligne erronée est ignorée et signalée en bas de
 l'éditeur d'espaces de noms ; si le fichier manque, OntoLab retombe sur sa liste intégrée (rien ne casse hors ligne).
-Pour publier : modifier, commiter, `./deploy.sh`.
+Pour publier : modifier, commiter, `./deploy.sh`. Il pousse sur GitHub puis met à jour **deux cibles** (une cible injoignable n'empêche pas l'autre) :
+le **Pi** (`ed@192.168.1.200`, Caddy sert le clone sur <https://pedago.desmontils.net/ontolab/> ; joignable depuis le réseau de la maison seulement) et le serveur **`root@172.26.70.140`**
+(clone dans `/srv/ontolab`, route `/ontolab/` du Caddy partagé, derrière les relais HTTPS ; `Cache-Control: no-cache`, seuls `index.html` et `namespaces.js` sont servis).
+`TARGETS="root@172.26.70.140:/srv/ontolab" ./deploy.sh` ne met à jour que l'une des cibles.
 
 **Racine d'IRI pour les ontologies des étudiants** : `ONTOLAB_ROOTS`, en bas de `namespaces.js`, donne une ou plusieurs
 racines (ex. `http://www.univ-nantes.fr/ns/`). Dans **⋯ › Espaces de noms…**, l'étudiant choisit la racine et saisit le
