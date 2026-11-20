@@ -201,9 +201,24 @@ normal en RDFS). Analyse faite le 2026-11-20 ; rien n'est implanté.
   Recommandation : **masquer et le dire** (indicateur discret « N caractéristiques OWL masquées » quand il y en a), l'export
   restant complet par défaut, avec une option explicite « exporter en RDFS pur » (`rdfs:Class`, `rdf:Property`,
   `rdfs:domain`/`rdfs:range`, sans `owl:*`) si on la veut. L'**import ne dépend jamais du mode**.
-- **À trancher** : (a) export en mode RDFS filtré ou complet ; (b) classes écrites `rdfs:Class` ou `owl:Class` en RDFS pur
-  (n'a de sens que si l'export suit le mode) ; (c) comportement des types de propriété (`owl:ObjectProperty` /
-  `owl:DatatypeProperty` ↔ `rdf:Property`) ; (d) faut-il aussi masquer « Charger l'exemple » OWL ou prévoir un exemple RDFS ?
+- **Décisions prises (2026-11-20)** :
+  1. **Export filtré selon le mode** (et non « complet + option ») : en mode RDFS, le Turtle est du **RDFS pur**, sans choix.
+     Conséquence assumée : les caractéristiques OWL déjà dans le modèle (transitive, symétrique, fonctionnelle, fonctionnelle
+     inverse, inverse…) **restent dans le modèle** (JSON, historique) mais **ne sont pas écrites** dans le Turtle ; repasser en OWL
+     les retrouve. La fenêtre d'export doit le dire (« N caractéristiques OWL omises : mode RDFS »).
+  2. **Vocabulaire RDFS pur** : `rdfs:Class` et `rdf:Property` (pas de `owl:Ontology`, ni `owl:Class`, `owl:ObjectProperty`,
+     `owl:DatatypeProperty`, ni `owl:*` de caractéristique ; `rdfs:subClassOf`, `rdfs:subPropertyOf`, `rdfs:domain`, `rdfs:range`
+     conservés). RDFS ne distinguant pas propriété objet et de donnée, la distinction **se déduit de la portée** : un type `xsd:`
+     = propriété de donnée, une classe = propriété objet, **absence de portée = propriété objet** (à documenter).
+     → **Import à compléter** : lire `rdfs:Class` / `rdf:Property` et classer par la portée (l'import lit aujourd'hui surtout les
+     types `owl:`) ; l'import ne dépend pas du mode et doit lire aussi bien les deux vocabulaires.
+  3. **« Charger l'exemple » filtré selon le mode** : en mode RDFS, les caractéristiques OWL sont retirées **au chargement** (le
+     modèle ne les contient pas, repasser en OWL ne les ramène pas) ; pas de second exemple à maintenir.
+  4. **Indicateur des caractéristiques masquées** : dans le **panneau de l'élément** seulement (ligne discrète « caractéristiques
+     OWL masquées : transitive, fonctionnelle », uniquement quand il y en a) ; pas de total dans la ligne d'état.
+- **Points qui en découlent, à régler à l'implantation** : l'export image reflète l'écran (donc le mode) ; le format JSON reste
+  complet et indépendant du mode ; le nom de fichier ou l'en-tête Turtle peut mentionner « RDFS » ; aller-retour à tester
+  (export RDFS pur → import → export identique, objet/donnée correctement reclassés).
 - **Risque** : faible pour le graphe (conditions d'affichage), plus délicat pour l'export (perte d'information silencieuse).
 
 ### G2. Mode compact — M (propriétés de donnée) / L (avec propriétés objet)
