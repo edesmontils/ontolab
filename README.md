@@ -61,6 +61,14 @@ L'interface reprend les codes visuels de la **notation VOWL**
    **Héritage de propriété** (`rdfs:subPropertyOf`, multiple lui aussi) : glisser une
    ellipse verte sur une autre ellipse verte, ou menu du panneau ; lâcher sur le
    fond pour retirer tous les parents.
+   **Domaine et portée hérités** : dans le panneau, une sous-propriété peut laisser son domaine
+   (et sa portée) sur « hérité de … » : ils sont alors ceux de la propriété parente, affichés sur le graphe
+   mais **non écrits** dans le Turtle (`rdfs:subPropertyOf` suffit). Si plusieurs parents n'ont pas le même
+   domaine, le panneau signale un **conflit** à préciser ; une propriété sans domaine ou portée effectif n'est
+   pas dessinée et apparaît dans la liste « À compléter » du panneau d'accueil (et dans le compteur du bas).
+   Un domaine/une portée choisi(e) qui n'est pas une sous-classe de celui/celle de la parente est signalé(e)
+   par un avertissement (non bloquant). À l'import, un domaine absent chez une fille dont la parente en a un
+   devient « hérité » (au lieu de « Thing »).
    Déposer sur soi-même crée une propriété de la classe vers elle-même
    (ex. `connaît : Personne → Personne`).
 3. **Propriété de donnée** — clic sur une classe ; choix du type XSD. Comme en

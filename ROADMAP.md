@@ -16,7 +16,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
 ## Phase A — Confort d'édition (fondations)
 
 > Déjà réalisés (v1.x) : **A1** annuler/rétablir, **A2** panneau et légende repliables, **A3** export image
-> SVG/PNG — voir `README.md` et `AGENTS.md`. Restent A4, A5 et A6.
+> SVG/PNG — voir `README.md` et `AGENTS.md`. Restent A4 et A5 (A6 fait).
 
 ### A4. Caractéristiques OWL supplémentaires — S
 - *Fait* : `owl:InverseFunctionalProperty` (propriétés objet : case à cocher, bordure en points, Turtle, import).
@@ -34,7 +34,7 @@ Ordre conseillé : A → B → C → D → E → F (les phases A et B facilitent
   n'est pas contenu(e) dans celui/celle du parent.
 - **Comment** : liste d'avertissements cliquables (sélectionne l'élément concerné).
 
-### A6. Domaine et portée hérités de la propriété parente — S/M
+### A6. Domaine et portée hérités de la propriété parente — S/M — **fait** (2026-11-20) ; voir README et AGENTS « Domaine / portée hérités (A6) »
 - **Demande (2026-11-20, « à noter »)** : quand une propriété hérite d'une autre (`rdfs:subPropertyOf`) et **ne surcharge pas** son
   domaine et/ou sa portée, l'**affichage** prend ceux de la propriété parente. (Propriétés objet : domaine et portée ; propriétés de
   donnée : domaine, et type XSD si on étend la règle.)

@@ -43,11 +43,11 @@ Le JS est organisé en 3 blocs commentés :
 - Schéma de `state` :
   - `classes[]` : `{id, name, parents: [id]}` (héritage multiple) + positions
     manuelles optionnelles `{mx, my, man}` ;
-  - `objProps[]` : `{id, name, domain, range, transitive, symmetric,
+  - `objProps[]` : `{id, name, domain, range, transitive, symmetric,  (`domain`/`range` **null = hérité** des parents, A6)
     functional, inverseFunctional, inverseOf: id|null, parents: [id]}` + `{mx, my}` ;
     (`inverseFunctional` = `owl:InverseFunctionalProperty`, absent des anciens exports = faux ; objets seulement,
     jamais sur une propriété de donnée ; style de bordure par `dashOf()` : tirets / points / tirets-points)
-  - `dataProps[]` : `{id, name, domain, type, parents: [id]}` (type = IRI XSD)
+  - `dataProps[]` : `{id, name, domain, type, parents: [id]}` (type = IRI XSD ; `domain` null = hérité)
     + `{mx, my}` ; `parents` = `rdfs:subPropertyOf` (même type de propriété) ;
   - `nextId`, `ns` (espace de noms de l'ontologie, défaut `http://example.org/onto#`), `nsList` (autres espaces déclarés :
     `[{prefix, iri}]`) ; chaque classe/propriété peut porter un `ns` **facultatif** (son IRI d'espace de noms,
@@ -190,6 +190,17 @@ libre (`#ns-def`) ; l'option « Autre » bascule. C'est l'enseignant qui
 édite `namespaces.js` : ne pas y mettre de logique. Côté Pi, Caddy ne sert que `/`, `/index.html` et `/namespaces.js`
 (matcher `@page`) ; `install-pi.sh` (idempotent, `--check`) vérifie/corrige cela. Tout nouveau fichier à servir doit être
 ajouté à ce matcher **et** à `install-pi.sh`.
+
+## Domaine / portée hérités (A6)
+
+`domain`/`range` (objProps) et `domain` (dataProps) peuvent être **null = hérité**. **Ne jamais lire `p.domain`/`p.range` directement pour le
+dessin, la mise en page ou la logique** : utiliser `oDom(p)`, `oRng(p)`, `dDom(p)` (= `effField(p,champ,lookup)`, qui remonte les parents :
+`{id, from, conflict}` ; plusieurs parents en désaccord → `conflict`, `id=null`). Les accès directs restants sont voulus : `sanitizeState`,
+`deleteClass` (valeurs explicites), `toTTL` (n'écrit que les valeurs explicites), `inhSelect`. Une propriété sans domaine/portée effectif n'est
+**pas dessinée** (`computeProps`/`drawObjProps` l'ignorent déjà quand une classe manque) : elle est listée par `incompleteProps()` (panneau
+d'accueil « À compléter », compteur de `updateStats`). Panneau : `inhSelect()` (entrée « hérité de X : Classe » / « conflit » / « non défini »),
+`inhWarn()` (avertissement non bloquant si la surcharge n'est pas une sous-classe de celle du parent). Import : `ontologyFromTriples` laisse
+null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux propriétés **sans parent**. Inverses : `invOK(p,q)` (valeurs effectives).
 
 ## Préférences et mode OWL / RDFS
 
