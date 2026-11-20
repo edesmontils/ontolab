@@ -245,7 +245,7 @@ Si le navigateur ne peut plus enregistrer (espace plein, navigation privée), un
 ### Mise en page : épingles, disposition hiérarchique
 
 Le bouton **Réorganiser** (en bas à droite) ouvre un menu : **Par forces** (disposition libre) ou **Hiérarchique** (arbre de haut en bas : les racines en haut, une couche par niveau de sous-classe ; le choix est mémorisé dans le projet), **Réorganiser** et **Tout désépingler**.
-Glisser un nœud en mode ④ le place à la main ; la case **« Épingler la position »** du panneau le verrouille (une punaise s'affiche sur le nœud) : « Réorganiser » efface les positions manuelles **sauf** celles des éléments épinglés. Les sous-propriétés sont rapprochées de leur propriété parente et les étiquettes de propriétés
+Glisser un nœud en mode ④ le place à la main ; pour le **verrouiller**, sélectionnez-le puis cliquez **« Épingler »** dans la palette de gauche, cliquez la **punaise** qui apparaît sur le nœud (rouge = épinglé), appuyez sur **P**, ou cochez **« Épingler la position »** dans le panneau : « Réorganiser » efface les positions manuelles **sauf** celles des éléments épinglés. Les sous-propriétés sont rapprochées de leur propriété parente et les étiquettes de propriétés
 sont déplacées de quelques pixels quand cela évite un croisement avec une flèche ou un chevauchement.
 
 ### Version

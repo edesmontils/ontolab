@@ -58,11 +58,45 @@ test('épingler une étiquette de propriété ; désépingler ; tout désépingl
   assert.equal(t.run("setPin('class',999,true)"), false);
 });
 
-test('épingle : marque dessinée, case du panneau, assainissement', () => {
-  const t = load(); t.run(TREE); t.run('render()'); t.run("setPin('class',cls('B').id,true)");
-  t.resetCreated(); t.run('state.sel=null; render()');
-  assert.equal(t.created().filter(e => e.tag === 'circle' && e.attrs.fill === '#E4572E' && e.attrs.r === '4').length, 1, 'une punaise');
-  t.run("ui.panel=true; state.sel={kind:'class',id:cls('B').id}; render()"); assert.match(t.panelHTML(), /id="pf-pin" checked/);
+test('épingle : bouton punaise sur le graphe (épinglé, sélectionné, mode ④), clic et touche P pour basculer', () => {
+  const t = load(); t.run(TREE); t.run('render()');
+  const badges = () => t.created().filter(e => e.attrs.class === 'pinbtn');
+  t.run("state.sel=null; setMode('class')"); t.resetCreated(); t.run('render()'); assert.equal(badges().length, 0, 'aucun bouton tant que rien n\'est sélectionné ni épinglé');
+  t.run("state.sel={kind:'class',id:cls('B').id}"); t.resetCreated(); t.run('render()');
+  assert.deepEqual(badges().map(e => e.attrs['data-pin']), ['0'], 'élément sélectionné : bouton contour gris');
+  badges()[0].fire('pointerdown');                                                       // clic sur le bouton
+  assert.equal(t.run("cls('B').pin"), true); t.run('state.sel=null'); t.resetCreated(); t.run('render()');
+  assert.deepEqual(badges().map(e => e.attrs['data-pin']), ['1'], 'épinglé : bouton plein, toujours visible');
+  assert.ok(t.created().some(e => e.tag === 'circle' && e.attrs.fill === '#E4572E' && e.attrs.r === '10.5'), 'punaise rouge');
+  badges()[0].fire('pointerdown'); assert.equal(t.run("cls('B').pin"), undefined, 'un second clic libère');
+  t.run("setMode('move'); state.sel=null"); t.resetCreated(); t.run('render()');
+  assert.equal(badges().length, t.run('state.classes.length+state.objProps.length+state.dataProps.length'), 'mode ④ : un bouton sur chaque nœud');
+  t.run("setMode('class'); state.sel={kind:'class',id:cls('C').id}; togglePin('class',cls('C').id)"); assert.equal(t.run("cls('C').pin"), true);
+  t.run("state.sel={kind:'class',id:cls('E').id}"); t.fire('document', 'keydown', { key: 'p', target: { tagName: 'BODY' } }); assert.equal(t.run("cls('E').pin"), true, 'touche P : épingle l\'élément sélectionné');
+  t.fire('document', 'keydown', { key: 'P', target: { tagName: 'BODY' } }); assert.equal(t.run("cls('E').pin"), undefined, 'touche P : libère');
+  t.fire('document', 'keydown', { key: 'p', ctrlKey: true, target: { tagName: 'BODY' } }); assert.equal(t.run("cls('E').pin"), undefined, 'Ctrl+P ignoré');
+  t.fire('document', 'keydown', { key: 'p', target: { tagName: 'INPUT' } }); assert.equal(t.run("cls('E').pin"), undefined, 'pas de raccourci pendant la saisie');
+});
+
+test('bouton « Épingler » de la palette de gauche : suit la sélection, bascule l\'épingle', () => {
+  const t = load(); t.run(TREE); t.run('render()');
+  const b = () => t.ctx.document.querySelector('#rail-pin');
+  t.run('state.sel=null; render()'); assert.equal(b().disabled, true, 'rien de sélectionné : désactivé');
+  t.run("state.sel={kind:'class',id:cls('B').id}; render()"); assert.equal(b().disabled, false); assert.match(String(b().title), /^Épingler la position/);
+  b().onclick(); assert.equal(t.run("cls('B').pin"), true); assert.match(String(b().title), /^Libérer la position/, 'libellé mis à jour une fois épinglé');
+  b().onclick(); assert.equal(t.run("cls('B').pin"), undefined, 'second clic : libère'); assert.match(String(b().title), /^Épingler la position/);
+  t.run("state.sel={kind:'obj',id:op('p1').id}; render()"); b().onclick(); assert.equal(t.run("op('p1').pin"), true, 'étiquette de propriété');
+  t.run("ui.cdata=true; state.sel={kind:'data',id:state.dataProps[0].id}; render()"); assert.equal(b().disabled, true, 'propriété de donnée sans nœud (compact) : désactivé');
+});
+
+test('épingle : touche P (clavier), jamais dans l\'export image, case du panneau, assainissement', () => {
+  const t = load(); t.run(TREE); t.run('render()');
+  t.run("state.sel={kind:'class',id:cls('D').id}; render()"); t.run("togglePin('class',cls('D').id)"); assert.equal(t.run("cls('D').pin"), true);
+  t.run("state.sel={kind:'obj',id:op('p1').id}; render(); togglePin('obj',op('p1').id)"); assert.equal(t.run("op('p1').pin"), true);
+  // export image : les boutons non épinglés n'apparaissent pas, les épinglés non plus dans l'image rendue en mode ④
+  t.run("setMode('move'); state.sel=null; exporting=true"); t.resetCreated(); t.run('render()');
+  assert.equal(t.created().filter(e => e.attrs.class === 'pinbtn' && e.attrs['data-pin'] === '0').length, 0, 'pas de boutons grisés dans l\'image'); t.run('exporting=false');
+  t.run("setMode('class'); ui.panel=true; state.sel={kind:'class',id:cls('D').id}; render()"); assert.match(t.panelHTML(), /id="pf-pin" checked/);
   t.run("state.sel={kind:'class',id:cls('C').id}; render()"); assert.ok(/id="pf-pin"/.test(t.panelHTML()) && !/id="pf-pin" checked/.test(t.panelHTML()));
   const st = t.call(`s => JSON.parse(JSON.stringify(sanitizeState(s)))`, { classes: [{ id: 1, name: 'A', pin: true }, { id: 2, name: 'B', pin: true, mx: 5, my: 6 }, { id: 3, name: 'C', pin: 'oui', mx: 1, my: 1 }] });
   assert.deepEqual(st.classes.map(c => c.pin ?? null), [null, true, null], 'pas d\'épingle sans position, ni de valeur autre que true');

@@ -36,12 +36,12 @@ function load(opts = {}) {
   const listeners = new Map(); // « sélecteur|type » → fonctions enregistrées par addEventListener
   const byId = sel => { if (!elements.has(sel)) elements.set(sel, makeStub({ __sel: sel, addEventListener: (type, fn) => { const k = sel + '|' + type; if (!listeners.has(k)) listeners.set(k, []); listeners.get(k).push(fn); } })); return elements.get(sel); };
   const doc = {
-    querySelector: byId,
+    querySelector: sel => (sel === '.ovl' ? null : byId(sel)),   // pas de boîte de dialogue ouverte (les raccourcis clavier restent actifs)
     querySelectorAll: () => [],
     getElementById: id => byId('#' + id),
     createElement: () => makeStub(),
-    createElementNS: (ns, tag) => { const attrs = {}; const e = makeStub({ tag, attrs, setAttribute: (k, v) => { attrs[k] = String(v); }, getAttribute: k => attrs[k] ?? null }); created.push(e); return e; },
-    addEventListener() {},
+    createElementNS: (ns, tag) => { const attrs = {}; const ls2 = {}; const e = makeStub({ tag, attrs, __ls: ls2, addEventListener: (ty, fn) => { (ls2[ty] = ls2[ty] || []).push(fn); }, setAttribute: (k, v) => { attrs[k] = String(v); }, getAttribute: k => attrs[k] ?? null }); created.push(e); return e; },
+    addEventListener: (type, fn) => { const k = 'document|' + type; if (!listeners.has(k)) listeners.set(k, []); listeners.get(k).push(fn); },
     body: makeStub(),
     activeElement: null,
   };
@@ -74,7 +74,7 @@ function load(opts = {}) {
     ctx,
     storage: ls,
     /* Éléments SVG créés par el() depuis le dernier created.length = 0 : [{tag, attrs}] */
-    created: () => created.map(e => ({ tag: e.tag, attrs: e.attrs })),
+    created: () => created.map(e => ({ tag: e.tag, attrs: e.attrs, fire: (ty, ev = {}) => (e.__ls[ty] || []).forEach(fn => fn(Object.assign({ pointerType: 'mouse', button: 0, preventDefault() {}, stopPropagation() {} }, ev))) })),
     resetCreated: () => { created.length = 0; },
     /* Déclenche les écouteurs enregistrés sur un élément : fire('#canvas', 'wheel', {deltaY: 100, clientX: 10, clientY: 10}) */
     fire: (sel, type, ev = {}) => { for (const fn of listeners.get(sel + '|' + type) || []) fn(Object.assign({ preventDefault() {}, stopPropagation() {}, deltaMode: 0, clientX: 0, clientY: 0 }, ev)); },

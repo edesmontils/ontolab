@@ -212,6 +212,7 @@ null le domaine/la portée absent(e) d'une fille, et ne met « Thing » qu'aux p
 
 ## Mise en page (F1)
 `state.layout` = `'force'|'hier'` (propre au projet, assaini ; **dans la clé de cache de `computeLayout`**). Hiérarchique : `forceLayout` utilise `layered(true)` (couches par `subClassOf` seulement) sans simulation, racines alignées. Épingles : `pin:true` + `mx/my` sur classes et étiquettes (`setPin`, `unpinAll`, `reorganize` qui garde les épinglées ; `sanitizeState` retire une épingle sans position).
+Épingler : `togglePin` est le point d'entrée commun du bouton de palette `#rail-pin` (`updatePinButton`, appelé à chaque `render`), de la punaise du graphe (`drawPinBadge`, masquée dans l'export via `exporting`) et de la touche P ; la case du panneau passe par `setPin`.
 `placeAround` : sortie anticipée par niveaux (exacte : un niveau coûte ≥ 70 de plus) et rejets rapides par rayons ; `relax` : rejet rapide avant la trigonométrie, attraction sous-propriété → parente (40 premières itérations) ; `reduceCrossings` (après `relax`, avant `refinalizeProps` ; coupable par `LAYOUT_OPTS.reduce`). **Toute optimisation de la mise en page doit rester exacte ou être justifiée** : comparer les positions avant / après sur des ontologies de test (voir `tests/layout2.test.js`).
 
 ## Projets (F4)

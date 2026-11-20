@@ -5,6 +5,9 @@ Numéro **MAJEUR.MINEUR.CORRECTIF**, affiché à côté du copyright (constante 
 - À chaque modification de l'application : incrémenter `VERSION` **et** ajouter une entrée ici (en tête). Les commits qui ne touchent que la documentation ou la ROADMAP ne changent pas le numéro.
 - Les entrées jusqu'à 1.14.1 ont été attribuées après coup d'après l'historique git (le numéro n'était pas encore affiché).
 
+## 1.23.1 — 2026-11-20
+- Épingler plus ergonomique : bouton **« Épingler / Libérer »** dans la palette de gauche (agit sur l'élément sélectionné), **punaise cliquable sur le graphe** (rouge = épinglé ; contour gris sur l'élément sélectionné et, en mode ④, sur tous les nœuds ; jamais dans l'export image), touche **P**. La case du panneau reste disponible.
+
 ## 1.23.0 — 2026-11-20
 - Le **nom du projet est le titre de l'ontologie** (`dcterms:title`, ⋯ › Ontologie…) : renommer le projet change le titre, modifier le titre renomme le projet (annuler / rétablir compris, noms dédoublonnés des deux côtés). Un nouveau projet, une copie ou un import portent leur nom comme titre ; le titre d'un fichier importé devient le nom du projet.
   Les projets déjà existants dont le titre est vide ne sont liés qu'au premier renommage ou à la première saisie d'un titre (leurs exports ne changent pas).

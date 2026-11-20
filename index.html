@@ -19,6 +19,9 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-syst
 #rail{position:fixed;left:0;top:52px;bottom:0;width:88px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;padding:8px 6px;background:#fff;border-right:1px solid #d8e0ec;z-index:9;}
 #rail button{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;border:1px solid transparent;border-radius:10px;background:#fff;padding:10px 2px 8px;font:inherit;font-size:11.5px;line-height:1.15;color:#41506b;cursor:pointer;text-align:center;}
 #rail button:hover{background:#eef3fa;}
+#rail .rail-sep{border:0;border-top:1px solid #d8e0ec;margin:4px 6px 0;width:calc(100% - 12px);}
+#rail .rail-act{color:#41506b;}#rail .rail-act:disabled{opacity:.38;cursor:default;}#rail .rail-act:disabled:hover{background:#fff;}
+#rail .rail-act.on{background:#fdeee9;border-color:#E4572E;color:#c23d17;font-weight:600;}
 #rail button.active{background:#e8f1fb;border-color:var(--blueS);color:var(--blueS);font-weight:600;}
 #rail kbd{position:absolute;top:3px;right:6px;font:10px system-ui,sans-serif;color:#9aa8c0;}
 #viewctl{position:fixed;right:12px;bottom:44px;display:flex;flex-direction:column;gap:6px;z-index:6;}
@@ -151,6 +154,8 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
   <button data-mode="obj" title="Propriété objet (touche 2)"><kbd>2</kbd><svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true"><ellipse cx="17" cy="12" rx="14" ry="9" fill="#D9E9A5" stroke="#5B7C29" stroke-width="2"/><path d="M9 12h13m-4-3.5l4 3.5-4 3.5" fill="none" stroke="#5B7C29" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Propriété objet</span></button>
   <button data-mode="data" title="Propriété de donnée (touche 3)"><kbd>3</kbd><svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true"><ellipse cx="17" cy="12" rx="14" ry="9" fill="#F6CECE" stroke="#8C2E2E" stroke-width="2"/></svg><span>Propriété de donnée</span></button>
   <button data-mode="move" title="Déplacer (touche 4)"><kbd>4</kbd><svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true"><path d="M17 2v20M7 12h20M17 2l-3 3m3-3l3 3M17 22l-3-3m3 3l3-3M7 12l3-3m-3 3l3 3M27 12l-3-3m3 3l-3 3" fill="none" stroke="#41506b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Déplacer</span></button>
+  <hr class="rail-sep">
+  <button id="rail-pin" class="rail-act" disabled aria-pressed="false" title="Épingler l'élément sélectionné (touche P) : « Réorganiser » conserve sa position"><kbd>P</kbd><svg width="34" height="24" viewBox="0 0 34 24" aria-hidden="true"><path d="M13 3h8l-1.6 7 3.1 3H11.5l3.1-3z" fill="currentColor"/><line x1="17" y1="13" x2="17" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Épingler</span></button>
 </nav>
 <div id="viewctl" role="group" aria-label="Contrôles de la vue">
   <button class="btn" id="v-zin" aria-label="Zoom avant" title="Zoom avant">+</button>
@@ -196,7 +201,7 @@ g.node[data-hover="1"]>ellipse{stroke:var(--sel);stroke-width:3;}
 <script>'use strict';
 /* ================= OntoLab — partie 1 : état, opérations, export ================= */
 /* Numéro de version : à faire évoluer à chaque modification (voir CHANGELOG.md : MINOR = fonction nouvelle, PATCH = correctif ou ajustement). */
-const VERSION='1.23.0';
+const VERSION='1.23.1';
 const SVGNS='http://www.w3.org/2000/svg';
 const LS_KEY='ontolab-v1';
 const C={cls:'#AEDBFC',clsS:'#2C5F9E',obj:'#D9E9A5',objS:'#5B7C29',data:'#F6CECE',dataS:'#8C2E2E',disj:'#7B5EA7',sel:'#E4572E'};
@@ -1224,7 +1229,7 @@ function exportLegend(){
 
 /* Construit le SVG autonome du schéma entier (sans sélection ni ligne fantôme). Retourne {svg,w,h}, ou null s'il est vide. */
 function buildExportSVG(opts){
-  const sel=state.sel; state.sel=null; render(); // pas de surbrillance orange dans l'image
+  const sel=state.sel; state.sel=null; exporting=true; try{ render(); }finally{ exporting=false; } // pas de surbrillance orange ni de boutons d'épingle dans l'image
   const bb=exportBBox();
   let body='';
   if(bb){ const xs=new XMLSerializer(); for(const g of [layerArcs,layerData,layerNodes,layerProps]) body+=xs.serializeToString(g); }
@@ -2242,7 +2247,7 @@ function render(){
   drawData(lastPos,pp.data);
   drawClasses(lastPos);
   drawObjProps(pp.obj);
-  updatePanel(); updateStats();
+  updatePanel(); updateStats(); updatePinButton();
 }
 
 function selIs(kind,id){ return state.sel&&state.sel.kind===kind&&state.sel.id===id; }
@@ -2392,11 +2397,12 @@ function drawData(pos,pp){
     const g=el('g',{class:'node','data-id':p.id,'data-kind':'data',cursor:'pointer'},layerData);
     const sel=selIs('data',p.id);
     const de={cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.data,stroke:sel?C.sel:C.dataS,'stroke-width':sel?3:1.6}; if(owlOn(p,'functional')) de['stroke-dasharray']='5 3'; // tirets = fonctionnelle (comme les propriétés objet)
-    el('ellipse',de,g); if(p.pin) drawPin(g,q.x+q.rx*0.7,q.y-q.ry-3);
+    el('ellipse',de,g);
     const t=el('text',{x:q.x,y:q.y+3.5,'text-anchor':'middle','font-size':11,fill:'#3d1414'},g); t.textContent=short(disp(p),q.rx)+(!isRdfs()&&relOf(p,'equivalent').length?' ≡':'')+(!isRdfs()?(' '+endMark(dDomV(p))).trimEnd():'');
     const t2=el('text',{x:q.x,y:q.y+q.ry+11,'text-anchor':'middle','font-size':9,fill:C.dataS},g); t2.textContent=p.type.replace('xsd:','');
     const tt=el('title',{},g); tt.textContent=tipOf(p)+relTip('data',p)+(owlOn(p,'functional')?' [fonctionnelle]':'')+' : propriété de donnée de '+disp(c)+' ('+p.type+')'+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(dataById(i)||{}).name).join(', ')+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'data',p.id));
+    if(p.pin||sel||state.mode==='move') drawPinBadge(layerData,q.x-q.rx*0.7,q.y-q.ry-8,'data',p.id,!!p.pin);
   }
 }
 
@@ -2407,12 +2413,12 @@ function drawClasses(pos){
     const g=el('g',{class:'node','data-id':c.id,'data-kind':'class',cursor:'pointer'},layerNodes);
     const sel=selIs('class',c.id);
     const hl=!sel&&ui.cdata&&state.sel&&state.sel.kind==='data'&&dDom(dataById(state.sel.id)||{})===c.id; // classe de l'attribut en cours d'édition
-    if(c.pin) drawPin(g,p.x+p.rx*0.72,p.y-p.ry*0.8-2);
     if(!isRdfs()&&relOf(c,'equivalent').length) el('ellipse',{cx:p.x,cy:p.y,rx:p.rx+5,ry:p.ry+5,fill:'none',stroke:(sel||hl)?C.sel:C.clsS,'stroke-width':1.4},g); // double bordure (VOWL) : classe équivalente
     el('ellipse',{cx:p.x,cy:p.y,rx:p.rx,ry:p.ry,fill:C.cls,stroke:(sel||hl)?C.sel:C.clsS,'stroke-width':sel?3.4:hl?2.6:2},g);
     const t=el('text',{x:p.x,y:p.y+4.5,'text-anchor':'middle','font-size':13,'font-weight':600,fill:'#10233f'},g); t.textContent=short(disp(c),p.rx);
     const tt=el('title',{},g); tt.textContent=tipOf(c)+(pars.length?' (sous-classe de '+pars.map(q=>q.name).join(', ')+')':' (classe racine)')+relTip('class',c)+(!isRdfs()&&(c.restrictions||[]).length?' — restrictions : '+c.restrictions.map(r=>restrictionText(r)).join(' ; '):'')+(!isRdfs()&&(c.defs||[]).length?' — '+c.defs.map(d=>(d.kind==='equiv'?'≡ ':'⊑ ')+exprToText(d.expr)).join(' ; '):'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'class',c.id));
+    if(c.pin||sel||state.mode==='move') drawPinBadge(layerNodes,p.x-p.rx*0.78,p.y-p.ry*0.95-8,'class',c.id,!!c.pin);
     if(ui.cdata){ // mode compact : compteur « +N » des propriétés de donnée ; un clic ouvre la liste de ses attributs dans le panneau
       const own=state.dataProps.filter(q=>dDom(q)===c.id);
       if(own.length){
@@ -2439,7 +2445,6 @@ function drawObjProps(pp){
     const sel=selIs('obj',p.id);
     const ea={cx:q.x,cy:q.y,rx:q.rx,ry:q.ry,fill:C.obj,stroke:sel?C.sel:C.objS,'stroke-width':sel?3:1.8};
     const dash=dashOf(p); if(dash) ea['stroke-dasharray']=dash; if(owlOn(p,'inverseFunctional')) ea['stroke-linecap']='round'; // points ronds
-    if(p.pin) drawPin(g,q.x+q.rx*0.7,q.y-q.ry-3);
     if(ui.cobj){ // pastille arrondie + zone de toucher élargie
       const ra={x:q.x-q.rx,y:q.y-q.ry,width:2*q.rx,height:2*q.ry,rx:q.ry}; for(const k of ['fill','stroke','stroke-width','stroke-dasharray','stroke-linecap']) if(ea[k]!==undefined) ra[k]=ea[k];
       el('rect',{x:q.x-q.rx-6,y:q.y-q.ry-6,width:2*q.rx+12,height:2*q.ry+12,fill:'transparent'},g);
@@ -2463,6 +2468,7 @@ function drawObjProps(pp){
     tt.textContent=tipOf(p)+relTip('obj',p)+' : objet, '+endText(oDomV(p))+' → '+endText(oRngV(p))
       +(owlOn(p,'transitive')?' [transitive]':'')+(owlOn(p,'symmetric')?' [symétrique]':'')+(owlOn(p,'asymmetric')?' [asymétrique]':'')+(owlOn(p,'reflexive')?' [réflexive]':'')+(owlOn(p,'irreflexive')?' [irréflexive]':'')+(owlOn(p,'functional')?' [fonctionnelle]':'')+(owlOn(p,'inverseFunctional')?' [fonctionnelle inverse]':'')+(inv?' [inverse de '+inv.name+']':'')+(parentsOf(p).length?' [sous-propriété de '+parentsOf(p).map(i=>(objById(i)||{}).name).join(', ')+']':'');
     g.addEventListener('pointerdown',e=>nodeDown(e,'obj',p.id));
+    if(p.pin||sel||state.mode==='move') drawPinBadge(layerProps,q.x-q.rx*0.7,q.y-q.ry-8,'obj',p.id,!!p.pin);
   }
 }
 
@@ -2644,7 +2650,7 @@ svg.addEventListener('wheel',e=>{
 
 function setMode(m){
   state.mode=m;
-  document.querySelectorAll('#rail button').forEach(b=>{ b.classList.toggle('active',b.dataset.mode===m); b.setAttribute('aria-pressed',String(b.dataset.mode===m)); });
+  document.querySelectorAll('#rail button[data-mode]').forEach(b=>{ b.classList.toggle('active',b.dataset.mode===m); b.setAttribute('aria-pressed',String(b.dataset.mode===m)); });
   save();
   if(m==='class') status('Mode Classe : cliquez sur le fond pour créer une classe (si un élément est sélectionné, un premier clic le désélectionne) ; glissez-en une sur une autre pour lui ajouter une super-classe (plusieurs possibles) ; glissez sur le fond pour retirer ses super-classes.');
   if(m==='obj'&&ui.cobj) status('Mode Propriété objet (compact) : glissez d\'une classe (domaine) vers une classe (portée). Cliquez sur une pastille verte (ou sur sa flèche) pour la modifier ; glissez-la sur une autre pastille pour en faire une sous-propriété (plusieurs parents possibles).');
@@ -3158,10 +3164,12 @@ document.addEventListener('keydown',e=>{
   if(e.key==='2') setMode('obj');
   if(e.key==='3') setMode('data');
   if(e.key==='4') setMode('move');
+  if((e.key==='p'||e.key==='P')&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&state.sel) togglePin(state.sel.kind,state.sel.id);
 });
 
 /* ---------- barre d'outils : palette de modes, menus, contrôles de vue ---------- */
-document.querySelectorAll('#rail button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+document.querySelectorAll('#rail button[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+$('#rail-pin').onclick=()=>{ if(state.sel) togglePin(state.sel.kind,state.sel.id); };
 $('#f-ttl').addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) handleTTLFile(f); });
 $('#f-json').addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(f) handleJSONFile(f); });
 $('#legend-pill').onclick=()=>{ ui.legend=!ui.legend; saveUI(); applyLegendUI(); };
@@ -3185,9 +3193,31 @@ function setPin(kind,id,on){
   save(); render(); return true;
 }
 function unpinAll(){ const n=pinCount(); allNodes().forEach(x=>{ delete x.pin; }); save(); render(); status(n+' élément(s) désépinglé(s) : leurs positions manuelles restent jusqu\'à « Réorganiser ».'); }
-function drawPin(g,x,y){ // petite punaise : tête rouge + pointe
-  el('line',{x1:x,y1:y-1,x2:x,y2:y+8,stroke:'#555','stroke-width':1.6,'stroke-linecap':'round'},g);
-  el('circle',{cx:x,cy:y-4,r:4,fill:C.sel,stroke:'#fff','stroke-width':1},g);
+/* Bouton d'épingle sur le graphe : punaise rouge pleine = épinglé ; contour gris = pas épinglé (visible sur l'élément sélectionné et, en mode ④, sur tous les nœuds).
+   Un clic (ou la touche P) bascule. Jamais dessiné dans l'export image. */
+let exporting=false;
+function updatePinButton(){ // bouton « Épingler » de la palette : actif si l'élément sélectionné est affiché ; plein s'il est épinglé
+  const b=$('#rail-pin'); if(!b) return;
+  const x=state.sel&&itemOf(state.sel.kind,state.sel.id), shown=!!x&&(x.mx!=null||!!(state.sel.kind==='class'?lastPos:state.sel.kind==='obj'?lastObjPos:lastDataPos).get(x.id));
+  b.disabled=!shown; const on=shown&&!!x.pin; b.classList.toggle('on',on); b.setAttribute('aria-pressed',String(on));
+  const sp=b.querySelector('span'); if(sp) sp.textContent=on?'Libérer':'Épingler';
+  b.title=shown?(on?'Libérer la position de l\'élément sélectionné (touche P)':'Épingler la position de l\'élément sélectionné (touche P) : « Réorganiser » la conserve'):'Sélectionnez un élément du graphe pour l\'épingler (touche P)';
+}
+function drawPinBadge(parent,x,y,kind,id,pinned){
+  if(exporting&&!pinned) return;
+  const g=el('g',{class:'pinbtn','data-pin':pinned?'1':'0','data-kind-pin':kind,cursor:'pointer'},parent);
+  el('circle',{cx:x,cy:y,r:17,fill:'transparent'},g); // zone de toucher élargie
+  el('circle',{cx:x,cy:y,r:10.5,fill:pinned?C.sel:'#fff',stroke:pinned?'#fff':'#8a93a6','stroke-width':pinned?2:1.4,opacity:pinned?1:0.9},g);
+  const col=pinned?'#fff':'#8a93a6';
+  el('path',{d:'M'+(x-3.6)+' '+(y-5.5)+'h7.2l-1.3 5.2 2.3 2.1h-9.2l2.3-2.1z',fill:col},g);                       // tête de la punaise
+  el('line',{x1:x,y1:y+1.8,x2:x,y2:y+7,stroke:col,'stroke-width':1.5,'stroke-linecap':'round'},g);               // pointe
+  const tt=el('title',{},g); tt.textContent=pinned?'Épinglé : un clic libère la position (touche P)':'Épingler la position (touche P) : « Réorganiser » la conservera';
+  if(!exporting) g.addEventListener('pointerdown',e=>{ if(e.pointerType==='mouse'&&e.button!==0) return; e.stopPropagation(); e.preventDefault(); togglePin(kind,id); });
+}
+function togglePin(kind,id){
+  const x=itemOf(kind,+id); if(!x) return false;
+  const ok=setPin(kind,+id,!x.pin); if(!ok) status('Position introuvable : l\'élément n\'est pas affiché.',1);
+  return ok;
 }
 function pinBlock(kind,x,hasNode){
   if(!hasNode) return '';
@@ -3231,7 +3261,7 @@ document.addEventListener('pointerdown',e=>{ // tap à côté : ferme le menu sa
 },true);
 window.addEventListener('resize',closeMenu);
 function showHelp(){
-  infoBox('Modes : 1 Classe · 2 Propriété objet · 3 Propriété de donnée · 4 Déplacer\nAnnuler / rétablir : Cmd/Ctrl+Z, Cmd/Ctrl+Maj+Z (ou Ctrl+Y)\nSuppr : supprimer l\'élément sélectionné · Échap ou clic sur le fond : désélectionner\nMolette ou pincement : zoom · glisser le fond : déplacer la vue · double-clic sur le fond : recentrer\nDouble-clic (ou double tap) sur un élément : ouvre le panneau d\'édition sur lui\nGlisser une classe (ou une propriété) sur une autre : héritage ; sur le fond : retirer les parents','Aide et raccourcis');
+  infoBox('Modes : 1 Classe · 2 Propriété objet · 3 Propriété de donnée · 4 Déplacer\nAnnuler / rétablir : Cmd/Ctrl+Z, Cmd/Ctrl+Maj+Z (ou Ctrl+Y)\nP : épingler / libérer l\'élément sélectionné (bouton punaise sur le graphe) · Suppr : supprimer l\'élément sélectionné · Échap ou clic sur le fond : désélectionner\nMolette ou pincement : zoom · glisser le fond : déplacer la vue · double-clic sur le fond : recentrer\nDouble-clic (ou double tap) sur un élément : ouvre le panneau d\'édition sur lui\nGlisser une classe (ou une propriété) sur une autre : héritage ; sur le fond : retirer les parents','Aide et raccourcis');
 }
 $('#b-imp').onclick=()=>showMenu($('#b-imp'),[
   {label:'Turtle (.ttl)…',run:importTTL},
